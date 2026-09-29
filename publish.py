@@ -4,9 +4,17 @@
 Usage:
   python3 publish.py /workspace/topik-flashcards-2026-09-30.html   # daily HTML
   python3 publish.py some-deck.json                                 # or a deck JSON
-  python3 publish.py a.html b.html ... [--no-push] [--rebuild-index]
+  python3 publish.py a.html b.html ... [--no-push] [--rebuild-index] [--prefer-html]
+  python3 publish.py decks/2026-09-2*.json --no-push                # re-enrich existing decks
 
 Writes decks/YYYY-MM-DD.json, updates decks/index.json, then git commit + push.
+
+Word enrichment (词性/记忆法/易错/近义/反义) per vocab item:
+  pos, hanja, mem, tip, syn=[{"ko","zh"}], ant=[{"ko","zh"}]
+Sources: the item itself (daily HTML / deck JSON) and wordinfo.json (keyed by ko).
+Default: existing non-empty wordinfo.json values win (keeps repeated words consistent);
+fields the HTML provides for new words / empty fields are added to wordinfo.json.
+--prefer-html: HTML values override and overwrite wordinfo.json.
 """
 import html as htmlmod
 import json
@@ -18,6 +26,83 @@ import sys
 SITE = os.path.dirname(os.path.abspath(__file__))
 DECKS = os.path.join(SITE, "decks")
 DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
+WORDINFO = os.path.join(SITE, "wordinfo.json")
+INFO_KEYS = ("pos", "hanja", "mem", "tip", "syn", "ant")
+LIST_KEYS = ("syn", "ant")
+
+
+def _pair(x):
+    """Accept {"ko","zh"} | ["ko","zh"] | "ko（zh）" / "ko(zh)" / "ko zh" / "ko：zh" → {"ko","zh"}."""
+    if isinstance(x, dict):
+        ko, zh = str(x.get("ko", "")).strip(), str(x.get("zh", "")).strip()
+    elif isinstance(x, (list, tuple)) and x:
+        ko, zh = str(x[0]).strip(), (str(x[1]).strip() if len(x) > 1 else "")
+    else:
+        t = str(x).strip()
+        m = (re.match(r"^(.+?)\s*[（(]\s*(.*?)\s*[）)]$", t) or re.match(r"^(.+?)\s*[:：=]\s*(.+)$", t)
+             or re.match(r"^([\uac00-\ud7a3][\uac00-\ud7a3 ]*?)\s+(\S.*)$", t))
+        ko, zh = (m.group(1).strip(), m.group(2).strip()) if m else (t, "")
+    return {"ko": ko, "zh": zh} if ko else None
+
+
+def norm_list(v):
+    if v is None or v == "":
+        return []
+    if isinstance(v, str):
+        v = [p for p in re.split(r"\s*[;；|]\s*|\s*[,，、]\s*(?=[\uac00-\ud7a3])", v) if p.strip()]
+    if isinstance(v, dict):
+        v = [v]
+    return [p for p in (_pair(x) for x in v) if p]
+
+
+def info_of(it):
+    """Extract normalized enrichment fields present (non-empty) on an item."""
+    d = {}
+    for k in INFO_KEYS:
+        v = it.get(k)
+        if k in LIST_KEYS:
+            if v:
+                lst = norm_list(v)
+                if lst:
+                    d[k] = lst
+        elif v is not None and str(v).strip():
+            d[k] = str(v).strip()
+    return d
+
+
+def load_wordinfo():
+    try:
+        return json.load(open(WORDINFO, encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+
+
+def save_wordinfo(wi):
+    with open(WORDINFO, "w", encoding="utf-8") as f:
+        json.dump(dict(sorted(wi.items())), f, ensure_ascii=False, indent=1)
+        f.write("\n")
+
+
+def enrich(deck, wi, prefer_html=False):
+    """Merge deck vocab <-> wordinfo. Returns (list of words missing pos/mem, changed?)."""
+    missing, changed = [], False
+    for v in deck["vocab"]:
+        own, stored = info_of(v), wi.get(v["ko"], {})
+        merged = dict(own, **stored) if not prefer_html else dict(stored, **own)
+        for k in INFO_KEYS:  # write back to the deck in a stable order
+            v.pop(k, None)
+        for k in INFO_KEYS:
+            if k in merged:
+                v[k] = merged[k]
+            elif k in LIST_KEYS and ("pos" in merged):
+                v[k] = []
+        new = {k: v[k] for k in INFO_KEYS if k in v}
+        if new and new != stored:
+            wi[v["ko"]] = new
+            changed = True
+        if not v.get("pos") or not v.get("mem"):
+            missing.append(v["ko"])
+    return missing, changed
 
 
 def _script_json(src, sid):
@@ -54,8 +139,10 @@ def _clean(items, kind):
         for k in keys:
             if it.get(k):
                 d[k] = str(it[k]).strip()
+        if kind == "vocab":
+            d.update(info_of(it))
         for k, v in it.items():  # keep any extra fields
-            if k not in d and isinstance(v, (str, int, float)) and v != "":
+            if k not in d and k not in INFO_KEYS and isinstance(v, (str, int, float)) and v != "":
                 d[k] = v
         out.append(d)
     return out
@@ -113,6 +200,9 @@ def git(*args):
 
 def main(argv):
     push = "--no-push" not in argv
+    prefer_html = "--prefer-html" in argv
+    wi = load_wordinfo()
+    all_missing = {}
     paths = [a for a in argv if not a.startswith("--")]
     if not paths and "--rebuild-index" not in argv:
         print(__doc__)
@@ -121,6 +211,9 @@ def main(argv):
     for p in paths:
         try:
             deck = load_deck(p)
+            miss, _ = enrich(deck, wi, prefer_html)
+            for w in miss:
+                all_missing.setdefault(w, deck["date"])
             write_deck(deck)
             dates.append(deck["date"])
             print("OK   %s  vocab=%d grammar=%d  theme=%s" % (deck["date"], len(deck["vocab"]),
@@ -129,8 +222,14 @@ def main(argv):
             failed.append(p)
             print("FAIL %s: %s" % (p, e), file=sys.stderr)
     rebuild_index()
+    save_wordinfo(wi)
+    if all_missing:
+        print("WARNING: %d word(s) missing 词性/记忆法 (add pos/mem in the HTML or wordinfo.json):"
+              % len(all_missing), file=sys.stderr)
+        for w, d in all_missing.items():
+            print("  - %s  (%s)" % (w, d), file=sys.stderr)
     if push:
-        git("add", "-A", "decks")
+        git("add", "-A", "decks", "wordinfo.json")
         if subprocess.run(["git", "-C", SITE, "diff", "--cached", "--quiet"]).returncode != 0:
             msg = "Add deck " + ", ".join(dates) if dates else "Update deck index"
             git("commit", "-m", msg)
