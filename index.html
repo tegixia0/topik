@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TOPIK 闪卡</title>
+<meta name="theme-color" content="#0f1419">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TOPIK闪卡">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{--bg:#0f1419;--card:#1a2332;--card2:#222e42;--ink:#eef3fa;--muted:#93a3bb;--accent:#4f8cff;--ok:#2ecc71;--bad:#ff6b6b;--warn:#f0c14b;--border:#2e3f58;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"PingFang SC","Noto Sans SC","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  font-size:17px;line-height:1.5;
+  padding:calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));}
+.wrap{max-width:560px;margin:0 auto}
+header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+header h1{font-size:1.15rem;margin:0;flex:0 0 auto}
+header select{flex:1;min-width:0}
+select{font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--ink);appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 55%,calc(100% - 12px) 55%;background-size:6px 6px;background-repeat:no-repeat;padding-right:30px}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.modes button{min-height:46px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:16px;font-weight:600}
+.modes button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.bar{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:15px;margin:4px 2px 8px}
+.bar b{color:var(--ink)}
+.bar .sp{flex:1}
+.progress{height:6px;background:var(--card);border-radius:3px;overflow:hidden;margin-bottom:12px}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px 16px 16px;box-shadow:0 12px 30px rgba(0,0,0,.3)}
+.label{color:var(--muted);font-size:14px;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.label .tag{margin-left:auto;background:var(--card2);padding:2px 8px;border-radius:999px;font-size:12px}
+.prompt{font-size:30px;font-weight:700;line-height:1.35;word-break:keep-all;overflow-wrap:anywhere;margin:4px 0 8px;min-height:1.4em}
+.prompt.sent{font-size:22px;line-height:1.5}
+.speak{border:none;background:var(--card2);color:var(--ink);border-radius:10px;font-size:18px;min-width:44px;min-height:40px;vertical-align:middle}
+.hintline{min-height:24px;color:var(--muted);font-size:15px;margin-bottom:10px}
+.hintline button{border:1px dashed var(--border);background:none;color:var(--muted);border-radius:8px;padding:4px 10px;font-size:14px}
+textarea.answer{display:block;width:100%;font-size:20px;line-height:1.45;padding:14px;border-radius:14px;border:2px solid var(--border);background:#0b1017;color:var(--ink);outline:none;resize:none;font-family:inherit}
+textarea.answer:focus{border-color:var(--accent)}
+textarea.answer:disabled{opacity:.75}
+.feedback{margin-top:12px;font-size:17px;line-height:1.55;word-break:keep-all;overflow-wrap:anywhere}
+.feedback:empty{display:none}
+.feedback .big{font-size:22px;font-weight:700;color:var(--ink)}
+.feedback.ok .title{color:var(--ok);font-weight:700}
+.feedback.bad .title{color:var(--bad);font-weight:700}
+.feedback .sub{color:var(--muted);font-size:15px;margin-top:6px}
+.feedback .teacher{margin-top:8px;padding:8px 10px;border-radius:10px;background:#2a2a1a;color:var(--warn);font-size:15px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.actions button,.btn{min-height:54px;border:none;border-radius:14px;font-size:18px;font-weight:700;color:#fff;background:var(--card2)}
+.actions button.full{grid-column:1/-1}
+.b-primary{background:var(--accent)!important}
+.b-ok{background:#1f7a47!important}
+.b-bad{background:#9b3340!important}
+.b-ghost{background:var(--card2)!important;color:var(--muted)!important;font-weight:600!important}
+.small{min-height:44px!important;font-size:15px!important}
+.summary h2{margin:0 0 6px;font-size:24px}
+.summary .nums{font-size:18px;margin-bottom:10px}
+.list{margin:10px 0 0;padding:0;list-style:none;max-height:45vh;overflow:auto;border-top:1px solid var(--border)}
+.list li{padding:8px 2px;border-bottom:1px solid var(--border);font-size:16px}
+.list li .ko{font-weight:700}
+.list li .zh{color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:28px 8px}
+footer{color:var(--muted);font-size:13px;text-align:center;margin-top:18px}
+footer button{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:13px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#000c;color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>TOPIK 闪卡</h1>
+    <select id="deckSel" aria-label="选择题库"><option>加载中…</option></select>
+  </header>
+  <div class="modes" id="modes">
+    <button data-mode="v_zh_ko">单词 中→韩</button>
+    <button data-mode="v_ko_zh">单词 韩→中</button>
+    <button data-mode="g_ko_zh">语法句 韩→中</button>
+    <button data-mode="g_zh_ko">语法句 中→韩</button>
+  </div>
+  <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
+  <div class="progress"><i id="progBar"></i></div>
+
+  <div class="card" id="quiz">
+    <div class="label"><span id="label"></span><span class="tag" id="tag" hidden></span></div>
+    <div class="prompt" id="prompt"></div>
+    <div class="hintline" id="hintline"></div>
+    <textarea class="answer" id="answer" rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done"></textarea>
+    <div class="feedback" id="fb"></div>
+    <div class="actions" id="actions"></div>
+  </div>
+
+  <div class="card summary" id="summary" hidden></div>
+
+  <footer>
+    <div id="deckInfo"></div>
+    <div><button id="clearWrong">清空错题本</button> · <button id="reload">刷新题库</button></div>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var LS_MODE="topik.mode", LS_WRONG="topik.wrong.v1";
+var MODE_INFO={
+  v_zh_ko:{label:"中文 → 写韩语单词", ph:"输入韩语…", inLang:"ko", type:"v"},
+  v_ko_zh:{label:"韩语 → 写中文意思", ph:"输入中文意思（可留空直接看答案）", inLang:"zh-CN", type:"v"},
+  g_ko_zh:{label:"韩语句子 → 译成中文", ph:"输入中文翻译（可留空直接看答案）", inLang:"zh-CN", type:"g"},
+  g_zh_ko:{label:"中文句子 → 写成韩语", ph:"用目标语法写韩语句子…", inLang:"ko", type:"g"}
+};
+var index=[], cache={}, mode=localStorage.getItem(LS_MODE)||"v_zh_ko";
+if(!MODE_INFO[mode]) mode="v_zh_ko";
+var source="latest";            // "latest" | date | "all" | "wrong"
+var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function toast(msg){var t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove("show")},1600)}
+function bust(u){return u+(u.indexOf("?")<0?"?":"&")+"v="+Date.now()}
+function getJSON(u){return fetch(bust(u),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status+" "+u);return r.json()})}
+function mmdd(d){var p=d.split("-");return (+p[1])+"/"+(+p[2])}
+function todayStr(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+
+/* ---------- 错题本 ---------- */
+function loadWrong(){try{return JSON.parse(localStorage.getItem(LS_WRONG))||{}}catch(e){return {}}}
+function saveWrong(w){try{localStorage.setItem(LS_WRONG,JSON.stringify(w))}catch(e){}}
+function cardKey(c){return c.t+"|"+c.ko}
+function recordWrong(c){
+  var w=loadWrong(),k=cardKey(c),e=w[k]||{t:c.t,ko:c.ko,zh:c.zh,hint:c.hint,ex:c.ex,point:c.point,date:c.date,m:{}};
+  e.zh=c.zh; e.m[mode]=(e.m[mode]||0)+1; e.last=Date.now(); w[k]=e; saveWrong(w);
+}
+function recordRight(c){
+  if(source!=="wrong") return;             // only clear when drilling the 错题本
+  var w=loadWrong(),k=cardKey(c),e=w[k]; if(!e) return;
+  delete e.m[mode]; if(!Object.keys(e.m).length) delete w[k]; saveWrong(w);
+}
+function wrongCards(m){
+  var w=loadWrong(),out=[];
+  Object.keys(w).forEach(function(k){var e=w[k];if(e.m&&e.m[m]) out.push({t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,point:e.point,date:e.date})});
+  return out;
+}
+
+/* ---------- 匹配（仅 单词中→韩 自动核对） ---------- */
+function norm(s){
+  return String(s||"").normalize("NFC").toLowerCase()
+    .replace(/[\s\u00a0\u3000]+/g,"")
+    .replace(/[.,!?;:'"`~()\[\]{}<>«»…·\-_\/\\\u2018\u2019\u201c\u201d\u3001-\u303f\uff00-\uff0f\uff1a-\uff20\uff3b-\uff40\uff5b-\uff65]/g,"");
+}
+function variants(ans){
+  var s=String(ans).replace(/[（(][^）)]*[）)]/g," ");
+  var vs=s.split(/[、,，\/;；|]| 또는 /).map(norm).filter(Boolean);
+  vs.push(norm(ans)); vs.push(norm(s));
+  return vs;
+}
+function match(user,ans){var u=norm(user);if(!u)return false;return variants(ans).indexOf(u)>=0}
+
+/* ---------- 数据 ---------- */
+function deckCards(d){
+  var out=[];
+  (d.vocab||[]).forEach(function(v){out.push({t:"v",ko:v.ko,zh:v.zh,hint:v.hint,ex:v.ex,date:d.date})});
+  (d.grammar||[]).forEach(function(g){out.push({t:"g",ko:g.ko,zh:g.zh,point:g.point,date:d.date})});
+  return out;
+}
+function loadDeck(date){
+  if(cache[date]) return Promise.resolve(cache[date]);
+  return getJSON("decks/"+date+".json").then(function(d){cache[date]=d;return d});
+}
+function loadIndex(){
+  return getJSON("decks/index.json").then(function(ix){index=ix||[];renderDeckSel()});
+}
+function renderDeckSel(){
+  var sel=$("deckSel"),h=[],t=todayStr();
+  if(index.length){
+    var n=index[0];
+    h.push('<option value="latest">'+(n.date===t?"今天":"最新")+" · "+mmdd(n.date)+(n.theme?" "+esc(n.theme):"")+"</option>");
+    index.slice(1).forEach(function(e){h.push('<option value="'+e.date+'">'+mmdd(e.date)+(e.theme?" · "+esc(e.theme):"")+"</option>")});
+    h.push('<option value="all">全部混合（'+index.length+" 天）</option>");
+  }
+  h.push('<option value="wrong">错题本（'+wrongCards(mode).length+"）</option>");
+  sel.innerHTML=h.join("");
+  sel.value=source; if(sel.value!==source){source="latest";sel.value="latest"}
+}
+function getPool(){
+  var type=MODE_INFO[mode].type;
+  if(source==="wrong") return Promise.resolve(wrongCards(mode));
+  if(!index.length) return Promise.resolve([]);
+  var dates = source==="all" ? index.map(function(e){return e.date}) : [source==="latest"?index[0].date:source];
+  return Promise.all(dates.map(loadDeck)).then(function(ds){
+    var seen={},out=[];
+    ds.forEach(function(d){deckCards(d).forEach(function(c){if(c.t!==type)return;var k=cardKey(c);if(seen[k])return;seen[k]=1;out.push(c)})});
+    return out;
+  });
+}
+
+/* ---------- 流程 ---------- */
+function start(cards,redo){
+  isRedo=!!redo; queue=shuffle(cards); pos=0; ok=0; bad=0; missed=[]; written=[];
+  $("summary").hidden=true; $("quiz").hidden=false;
+  if(!queue.length){
+    $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
+    s.innerHTML='<div class="empty">'+(source==="wrong"?"这个模式的错题本是空的 🎉<br>去练新卡吧。":"这个题库里没有该类型的卡片。")+"</div>";
+    updateBar(); return;
+  }
+  show();
+}
+function reload(){
+  var info=$("deckInfo"); info.textContent="加载中…";
+  return getPool().then(function(p){pool=p;start(pool);info.textContent=deckLabel()+" · "+pool.length+" 张"})
+    .catch(function(e){info.textContent="加载失败："+e.message+"（下拉刷新重试）"});
+}
+function deckLabel(){var o=$("deckSel").selectedOptions[0];return o?o.textContent:""}
+function updateBar(){
+  var n=queue.length,i=Math.min(pos+(state==="done"?0:1),n);
+  $("prog").textContent=(n?i:0)+"/"+n; $("okN").textContent=ok; $("badN").textContent=bad;
+  $("progBar").style.width=(n?(pos/n*100):0)+"%";
+}
+function setActions(list){
+  $("actions").innerHTML=list.map(function(b,i){return '<button type="button" data-i="'+i+'" class="'+(b.cls||"")+'">'+b.text+"</button>"}).join("");
+  $("actions").onclick=function(e){var el=e.target.closest("button[data-i]");if(el) list[+el.getAttribute("data-i")].fn()};
+}
+function canSpeak(){return "speechSynthesis" in window}
+function speak(t){if(!canSpeak())return;try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang="ko-KR";u.rate=.9;speechSynthesis.speak(u)}catch(e){}}
+function autosize(){var a=$("answer");a.style.height="auto";a.style.height=Math.max(a.scrollHeight,54)+"px"}
+
+function show(){
+  if(pos>=queue.length) return finish();
+  state="ask"; cur=queue[pos];
+  var mi=MODE_INFO[mode], koPrompt=(mode==="v_ko_zh"||mode==="g_ko_zh");
+  $("label").textContent=mi.label+(source==="all"||source==="wrong"?" · "+mmdd(cur.date||""):"");
+  var tag=$("tag"); if(cur.point){tag.hidden=false;tag.textContent=cur.point}else tag.hidden=true;
+  var p=$("prompt"); p.className="prompt"+(cur.t==="g"?" sent":"");
+  p.setAttribute("lang",koPrompt?"ko":"zh-CN");
+  p.innerHTML=esc(koPrompt?cur.ko:cur.zh)+(koPrompt&&canSpeak()?' <button class="speak" id="spk" aria-label="朗读">🔊</button>':"");
+  if($("spk")) $("spk").onclick=function(){speak(cur.ko)};
+  var hl=$("hintline"); hl.innerHTML="";
+  if(mode==="v_zh_ko"&&cur.hint){hl.innerHTML='<button id="hintBtn">显示提示</button>';$("hintBtn").onclick=function(){hl.textContent="提示："+cur.hint}}
+  else if(mode==="g_zh_ko"&&cur.point){hl.textContent="目标语法："+cur.point}
+  var a=$("answer"); a.value=""; a.disabled=false; a.placeholder=mi.ph; a.setAttribute("lang",mi.inLang);
+  a.rows=cur.t==="g"?2:1; autosize();
+  $("fb").className="feedback"; $("fb").innerHTML="";
+  if(mode==="v_zh_ko") setActions([{text:"核对",cls:"b-primary",fn:check},{text:"不会 · 看答案",cls:"b-ghost",fn:giveUp}]);
+  else setActions([{text:"看参考答案",cls:"b-primary full",fn:check}]);
+  updateBar();
+  try{a.focus({preventScroll:true})}catch(e){a.focus()}
+}
+function exLine(){
+  var s="";
+  if(cur.t==="v"&&cur.ex) s+='<div class="sub" lang="ko">例句：'+esc(cur.ex)+"</div>";
+  return s;
+}
+function refHTML(){ // reference answer for current direction
+  var toKo=(mode==="v_zh_ko"||mode==="g_zh_ko");
+  return '<div class="big" lang="'+(toKo?"ko":"zh-CN")+'">'+esc(toKo?cur.ko:cur.zh)+"</div>";
+}
+function check(){
+  if(state!=="ask") return;
+  var a=$("answer"), user=a.value.trim(), fb=$("fb");
+  if(mode==="v_zh_ko"){
+    if(!user){toast("先输入韩语再核对");a.focus();return}
+    a.disabled=true;
+    if(match(user,cur.ko)){ grade(true,true); return; }
+    state="wrong1";
+    fb.className="feedback bad";
+    fb.innerHTML='<div class="title">✗ 拼写不对</div>你写的：<span lang="ko">'+esc(user)+"</span><br>正确："+refHTML()+exLine();
+    setActions([{text:"再试一次",cls:"b-primary",fn:retry},{text:"下一张",cls:"",fn:function(){grade(false)}},
+      {text:"其实我写对了（算对）",cls:"b-ghost small full",fn:function(){grade(true)}}]);
+    if(canSpeak()) speak(cur.ko);
+    return;
+  }
+  // 自判模式：韩→中（单词/句子）、句子中→韩
+  a.disabled=true; state="judge";
+  if(user) written.push({zh:cur.zh,point:cur.point,mine:user,ref:cur.ko});
+  fb.className="feedback";
+  var h=(user?'你写的：<span lang="'+MODE_INFO[mode].inLang+'">'+esc(user)+"</span><br>":"")+"参考："+refHTML()+exLine();
+  if(mode==="g_zh_ko"){
+    h+='<div class="sub">此模式不自动判分：语法用对、意思一致就算对。</div>';
+    if(user) h+='<div class="teacher">✍️ 写好的句子可以发给韩语老师批改</div>';
+  } else h+='<div class="sub">意思接近就算对，翻译没有唯一标准。</div>';
+  fb.innerHTML=h;
+  var acts=[{text:"✓ 对",cls:"b-ok",fn:function(){grade(true)}},{text:"✗ 不对",cls:"b-bad",fn:function(){grade(false)}}];
+  if(mode==="g_zh_ko"&&user) acts.push({text:"复制我的句子",cls:"b-ghost small full",fn:function(){copy(user)}});
+  setActions(acts);
+}
+function giveUp(){
+  if(state!=="ask") return;
+  var user=$("answer").value.trim();
+  if(mode!=="v_zh_ko"){ check(); return; }
+  $("answer").disabled=true; state="wrong1";
+  var fb=$("fb"); fb.className="feedback bad";
+  fb.innerHTML='<div class="title">答案</div>'+refHTML()+exLine();
+  setActions([{text:"记住了，下一张",cls:"b-primary full",fn:function(){grade(false)}}]);
+  if(canSpeak()) speak(cur.ko);
+}
+function retry(){
+  state="ask"; var a=$("answer"); a.disabled=false; a.value=""; $("fb").innerHTML="";
+  setActions([{text:"核对",cls:"b-primary",fn:check},{text:"不会 · 看答案",cls:"b-ghost",fn:giveUp}]);
+  a.focus();
+}
+function grade(right,auto){
+  if(right){ok++;recordRight(cur)} else {bad++;missed.push(cur);recordWrong(cur)}
+  if(auto){
+    state="right"; var fb=$("fb"); fb.className="feedback ok";
+    fb.innerHTML='<div class="title">✓ 正确！</div>'+refHTML()+exLine();
+    setActions([{text:"下一张",cls:"b-primary full",fn:next}]);
+    updateBar(); focusNextBtn(); return;
+  }
+  next();
+}
+function focusNextBtn(){var b=$("actions").querySelector("button");if(b)b.focus()}
+function next(){pos++;show()}
+function copy(t){
+  var done=function(){toast("已复制")};
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(done,function(){fallback()})}else fallback();
+  function fallback(){var ta=document.createElement("textarea");ta.value=t;ta.setAttribute("readonly","");ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done()}catch(e){toast("复制失败，请长按手动复制")}document.body.removeChild(ta)}
+}
+function finish(){
+  state="done"; updateBar(); $("progBar").style.width="100%";
+  $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
+  var n=queue.length, pct=n?Math.round(ok/n*100):0;
+  var h='<h2>'+(isRedo?"错题重练结束":"本轮结束")+'</h2><div class="nums">共 '+n+' 张 · <span style="color:var(--ok)">对 '+ok+'</span> · <span style="color:var(--bad)">错 '+bad+"</span> · 正确率 "+pct+"%</div>";
+  var acts=[];
+  if(missed.length) h+='<div class="sub" style="color:var(--muted)">本轮错题（已记入错题本）：</div><ul class="list">'+missed.map(function(c){return '<li><span class="ko" lang="ko">'+esc(c.ko)+'</span><br><span class="zh">'+esc(c.zh)+(c.point?" · "+esc(c.point):"")+"</span></li>"}).join("")+"</ul>";
+  if(mode==="g_zh_ko"&&written.length){
+    h+='<div class="teacher" style="margin-top:12px;padding:8px 10px;border-radius:10px;background:#2a2a1a;color:var(--warn)">✍️ 本轮写了 '+written.length+' 句，可以一键复制发给韩语老师批改</div>';
+  }
+  h+='<div class="actions" id="sumActs"></div>';
+  s.innerHTML=h;
+  if(missed.length) acts.push({text:"只练错题（"+missed.length+"）",cls:"b-bad full",fn:function(){start(missed.slice(),true)}});
+  acts.push({text:"再来一轮",cls:"b-primary",fn:function(){start(pool)}});
+  acts.push({text:"错题本（"+wrongCards(mode).length+"）",cls:"",fn:function(){source="wrong";renderDeckSel();reload()}});
+  if(mode==="g_zh_ko"&&written.length) acts.push({text:"复制本轮句子",cls:"b-ghost full",fn:function(){
+    copy(written.map(function(w,i){return (i+1)+". "+w.zh+(w.point?"（"+w.point+"）":"")+"\n我写的："+w.mine}).join("\n\n"))}});
+  var box=$("sumActs");
+  box.innerHTML=acts.map(function(b,i){return '<button type="button" data-i="'+i+'" class="'+b.cls+'">'+b.text+"</button>"}).join("");
+  box.onclick=function(e){var el=e.target.closest("button[data-i]");if(el)acts[+el.getAttribute("data-i")].fn()};
+  renderDeckSel();
+}
+
+/* ---------- 事件 ---------- */
+function setMode(m){
+  mode=m; localStorage.setItem(LS_MODE,m);
+  Array.prototype.forEach.call(document.querySelectorAll("#modes button"),function(b){b.classList.toggle("active",b.getAttribute("data-mode")===m)});
+  renderDeckSel(); reload();
+}
+$("modes").addEventListener("click",function(e){var b=e.target.closest("button[data-mode]");if(b)setMode(b.getAttribute("data-mode"))});
+$("deckSel").addEventListener("change",function(){source=this.value;reload()});
+$("answer").addEventListener("input",autosize);
+$("answer").addEventListener("keydown",function(e){
+  if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();e.stopPropagation();if(state==="ask")check()}
+});
+document.addEventListener("keydown",function(e){
+  if(e.key==="Enter"&&state!=="ask"&&document.activeElement.tagName!=="BUTTON"){var b=$("actions").querySelector("button");if(b&&!$("quiz").hidden){e.preventDefault();b.click()}}
+});
+$("clearWrong").onclick=function(){if(confirm("确定清空所有错题记录？")){saveWrong({});renderDeckSel();if(source==="wrong")reload();toast("已清空")}};
+$("reload").onclick=function(){cache={};loadIndex().then(reload)};
+
+Array.prototype.forEach.call(document.querySelectorAll("#modes button"),function(b){b.classList.toggle("active",b.getAttribute("data-mode")===mode)});
+loadIndex().then(reload).catch(function(e){$("deckInfo").textContent="题库加载失败："+e.message});
+})();
+</script>
+</body>
+</html>
