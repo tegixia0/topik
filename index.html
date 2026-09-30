@@ -282,6 +282,8 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </footer>
   </div>
   <div id="writing" hidden>
+    <div class="wpart" id="wpart"><button type="button" data-part="5152">51·52 句子填空</button><button type="button" data-part="5354">53·54 图表·议论文</button></div>
+    <div id="w5152">
     <div class="wtabs" id="wtabs">
       <button type="button" data-tab="cheat">速查</button>
       <button type="button" data-tab="prac">练习</button>
@@ -295,6 +297,11 @@ details.pc[open]>summary .pk{color:#ffd98a}
     <div class="card" id="wWrong" hidden></div>
     <div id="wMine" hidden></div>
     <footer><div id="wInfo"></div><div><button id="wClear">清空写作记录</button> · <button id="wReload">刷新题库</button></div></footer>
+    </div>
+    <div id="w54" hidden>
+      <div class="mtabs" id="w54tabs"><button type="button" data-tab="cheat">速查</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="prac">真题</button><button type="button" data-tab="wrong">错题本</button></div>
+      <div id="w54Body"></div>
+    </div>
   </div>
   <div id="reading" hidden>
     <div class="mtabs" id="rtabs"><button type="button" data-tab="prac">练习</button><button type="button" data-tab="mock">整套模拟</button><button type="button" data-tab="wrong">错题本</button><button type="button" data-tab="tips">题型攻略</button></div>
@@ -309,6 +316,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <div class="toast" id="toast"></div>
 <script src="reading/reading.js"></script>
 <script src="grammar/grammar.js"></script>
+<script src="writing/w5354.js"></script>
 <script>
 (function(){
 "use strict";
@@ -324,7 +332,7 @@ var source="latest";            // "latest" | date | "cat-<slug>" | "all" | "wro
 /* 深链接：?cat=taste  ?deck=2026-09-29  &mode=zh2ko|ko2zh（旧的 gko2zh|gzh2ko → zh2ko） */
 var QS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1).replace(/\+/g," "))});return o})();
 var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"v_zh_ko",gzh2ko:"v_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"v_zh_ko",g_zh_ko:"v_zh_ko"};
-if(/^(writing-grammar|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.grammar){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
+if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.grammar||QS.writing){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
 else if(QS.deck) source=QS.deck;
@@ -643,6 +651,7 @@ var $=function(id){return document.getElementById(id)};
 var LS_VIEW="topik.view", LS_W="topik.writing.v1", LS_WO="topik.writing.opts";
 var Q=[], byId={}, cheatLoaded=false, loaded=false, order=[], idx=0, revealed=false, wrongOnly=false;
 var opts=load(LS_WO,{no:"all",src:"all",rnd:false,tab:"cheat",cur:null});
+if(opts.part!=="5354")opts.part="5152";   // 写作分两部分：51·52（本模块）/ 53·54（writing/w5354.js）
 var st=load(LS_W,{marks:{}}); st.marks=st.marks||{};
 if(st.drafts){delete st.drafts;try{localStorage.setItem(LS_W,JSON.stringify(st))}catch(e){}}   // 不再保存草稿：每次打开题目都是空白
 var drafts={}, LOG={types:{},entries:[]};   // drafts 只在当前这道题的会话内存里；LOG = writing/mylog.json（老师整理的个人易错记录）
@@ -678,10 +687,18 @@ function setView(v,o){
   $("flash").hidden=v!=="flash"; $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("grammar").hidden=v!=="grammar";
   Array.prototype.forEach.call(document.querySelectorAll("#topnav button"),function(b){b.classList.toggle("active",b.getAttribute("data-view")===v)});
   try{localStorage.setItem(LS_VIEW,v)}catch(e){}
-  document.title={writing:"TOPIK 写作 51·52",reading:"TOPIK 阅读真题",grammar:"TOPIK 语法"}[v]||"TOPIK 闪卡";
+  document.title={writing:opts.part==="5354"?"TOPIK 写作 53·54":"TOPIK 写作 51·52",reading:"TOPIK 阅读真题",grammar:"TOPIK 语法"}[v]||"TOPIK 闪卡";
   if(v==="reading"&&window.TopikReading) TopikReading.open(o||{});
   if(v==="grammar"&&window.TopikGrammar) TopikGrammar.open(o||{});
-  if(v==="writing") ensure().then(function(){setTab(opts.tab||"cheat")});
+  if(v==="writing") setPart(opts.part,o);
+}
+function setPart(p,o){
+  p=p==="5354"?"5354":"5152"; opts.part=p; save();
+  Array.prototype.forEach.call(document.querySelectorAll("#wpart button"),function(b){b.classList.toggle("active",b.getAttribute("data-part")===p)});
+  $("w5152").hidden=p!=="5152"; $("w54").hidden=p!=="5354";
+  if(!$("writing").hidden) document.title=p==="5354"?"TOPIK 写作 53·54":"TOPIK 写作 51·52";
+  if(p==="5354"){if(window.TopikW54) TopikW54.open(o||{})}
+  else ensure().then(function(){setTab(opts.tab||"cheat")});
 }
 function setTab(t){
   if(["cheat","prac","cards","wrong","mine"].indexOf(t)<0)t="cheat";
@@ -1073,11 +1090,17 @@ function copyLink(){
 }
 $("topnav").addEventListener("click",function(e){var b=e.target.closest("button[data-view]");if(b)setView(b.getAttribute("data-view"))});
 $("wtabs").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b)setTab(b.getAttribute("data-tab"))});
+$("wpart").addEventListener("click",function(e){var b=e.target.closest("button[data-part]");if(!b)return;var p=b.getAttribute("data-part");if(p===opts.part)return;if(opts.part==="5354"&&window.TopikW54&&!TopikW54.leaveOK())return;setPart(p)});
 $("wClear").onclick=function(){if(confirm("确定清空写作的自评记录？（老师整理的易错记录不受影响）")){st={marks:{}};drafts={};save();revealed=false;setTab(opts.tab);toast("已清空")}};
 $("wReload").onclick=function(){loaded=false;cheatLoaded=false;ensure().then(function(){setTab(opts.tab)})};
 var WQS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1))});return o})();
 var wgLink=String(WQS.cat||"").toLowerCase()==="writing-grammar"||location.hash==="#writing-grammar";
 if(wgLink){opts.tab="cards";if(WQS.mode==="zh2ko"||WQS.mode==="ko2zh"){wg.mode=WQS.mode;wgSaveOpts()}save()}
+var w54Link=String(WQS.cat||"").toLowerCase()==="writing-5354"||WQS.writing==="5354"||location.hash==="#w5354";   // 53·54：?writing=5354[&tab=cheat|cards|prac|wrong][&q=60-53][&no=53|54]、?cat=writing-5354[&mode=zh2ko|ko2zh]
+var w54o={};
+if(w54Link){opts.part="5354";save();w54o={tab:String(WQS.cat||"").toLowerCase()==="writing-5354"?"cards":(WQS.tab||"cheat"),mode:WQS.mode,q:WQS.q,no:WQS.no}}
+else if(wgLink||WQS.writing==="mistakes"||location.hash==="#mistakes"){opts.part="5152";save()}
+if(window.TopikW54) TopikW54.init();
 if(window.TopikReading) TopikReading.init();
 if(window.TopikGrammar) TopikGrammar.init();
 var o0={}, catL=String(WQS.cat||"").toLowerCase(), hash=location.hash.replace("#","");
@@ -1085,6 +1108,7 @@ var v0;
 if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1"}}
 else if(WQS.grammar||catL==="grammar-core"||hash==="grammar"||hash==="grammar-core"){v0="grammar";o0={tab:catL==="grammar-core"||hash==="grammar-core"?"cards":WQS.tab,mode:WQS.mode,g:WQS.g}}
 else if(hash==="mistakes"||WQS.writing==="mistakes"){opts.tab="mine";save();v0="writing"}   // 我的易错点：#mistakes 或 ?writing=mistakes
+else if(w54Link){v0="writing";o0=w54o}
 else if(wgLink||hash==="writing") v0="writing";
 else if(hash==="flash"||WQS.cat||WQS.deck) v0="flash";
 else v0=localStorage.getItem(LS_VIEW)||"flash";
