@@ -1,0 +1,32 @@
+[
+ {
+  "id": "cat-taste",
+  "slug": "taste",
+  "name": "味道",
+  "emoji": "😋",
+  "desc": "味道·口感·气味：基本五味、汤的“爽口”、口感、口味相关表达",
+  "order": 1,
+  "vocab": 44,
+  "grammar": 8
+ },
+ {
+  "id": "cat-sports",
+  "slug": "sports",
+  "name": "运动",
+  "emoji": "⚽",
+  "desc": "运动·球类·比赛（Notion 里已有的运动词 ＋ 少量 TOPIK 常用补充）",
+  "order": 2,
+  "vocab": 117,
+  "grammar": 8
+ },
+ {
+  "id": "cat-birds",
+  "slug": "birds",
+  "name": "鸟类",
+  "emoji": "🐦",
+  "desc": "常见鸟名 ＋ 鸟的身体部位与习性（둥지、철새、지저귀다…）",
+  "order": 3,
+  "vocab": 35,
+  "grammar": 8
+ }
+]

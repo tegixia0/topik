@@ -82,3 +82,14 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}, drafts:{id:{a,
 ```
 
 页面上的标签：official →「真题 第N回」，transcript →「真题 第N回（公开资料转录）」，recalled →「真题 第N回·回忆版」，mock →「模拟题」。自己写的题一律用 `kind:"mock"`、`ansType:"mine"`，**不要**标成真题。
+
+## 分类词库（味道 / 运动 / 鸟类 …）
+
+- 源文件：`categories/<slug>.json`。格式和每日词库一样，多出这些字段：`slug`、`name`、`emoji`、`order`、`desc`、`notion`（对应 Notion「主题」标签）。每个单词可以带 `exzh`（例句的中文翻译）、`hanja`、`tip`、`syn`、`ant`。`grammar` 可以不写（这样选语法模式时会提示“请切换到单词模式”）。
+- 生成 / 更新：`python3 add_category.py categories/taste.json`（会写 `decks/cat-<slug>.json` 和 `decks/categories.json`，合并 `wordinfo.json`，然后 commit + push；加 `--no-push` 只在本地生成）。想新增一个分类，复制一份 json、改 slug 后运行即可。
+- 网站：题库下拉框里有一组「分类」；「全部混合」＝所有每日词库＋所有分类（按单词去重）。选中分类或某一天后，页脚会出现「🔗 复制本题库链接」。
+- 深链接：
+  - `?cat=taste` / `?cat=sports` / `?cat=birds`：直接打开某个分类
+  - `?deck=2026-09-29`：打开某一天的词库
+  - 可加 `&mode=zh2ko`（单词 中→韩）、`ko2zh`（单词 韩→中）、`gko2zh`（语法句 韩→中）、`gzh2ko`（语法句 中→韩）
+  - 例：`https://tegixia0.github.io/topik/?cat=taste&mode=zh2ko`

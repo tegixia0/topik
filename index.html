@@ -191,7 +191,7 @@ details.wi.hot>summary{color:#ffb3b3}
 
   <footer>
     <div id="deckInfo"></div>
-    <div><button id="clearWrong">清空错题本</button> · <button id="reload">刷新题库</button></div>
+    <div><button id="shareCat" hidden>🔗 复制本题库链接</button> <button id="clearWrong">清空错题本</button> · <button id="reload">刷新题库</button></div>
   </footer>
   </div>
   <div id="writing" hidden>
@@ -218,9 +218,17 @@ var MODE_INFO={
   g_ko_zh:{label:"韩语句子 → 译成中文", ph:"输入中文翻译（可留空直接看答案）", inLang:"zh-CN", type:"g"},
   g_zh_ko:{label:"中文句子 → 写成韩语", ph:"用目标语法写韩语句子…", inLang:"ko", type:"g"}
 };
-var index=[], cache={}, WI={}, mode=localStorage.getItem(LS_MODE)||"v_zh_ko";
+var index=[], CATS=[], cache={}, WI={}, mode=localStorage.getItem(LS_MODE)||"v_zh_ko";
 if(!MODE_INFO[mode]) mode="v_zh_ko";
-var source="latest";            // "latest" | date | "all" | "wrong"
+var source="latest";            // "latest" | date | "cat-<slug>" | "all" | "wrong"
+/* 深链接：?cat=taste  ?deck=2026-09-29  &mode=zh2ko|ko2zh|gko2zh|gzh2ko */
+var QS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1).replace(/\+/g," "))});return o})();
+var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"g_ko_zh",gzh2ko:"g_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"g_ko_zh",g_zh_ko:"g_zh_ko"};
+if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
+if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
+else if(QS.deck) source=QS.deck;
+if(QS.cat||QS.deck){try{localStorage.setItem("topik.view","flash")}catch(e){}}
+var wantSource=source;
 var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -228,7 +236,8 @@ function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(M
 function toast(msg){var t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove("show")},1600)}
 function bust(u){return u+(u.indexOf("?")<0?"?":"&")+"v="+Date.now()}
 function getJSON(u){return fetch(bust(u),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status+" "+u);return r.json()})}
-function mmdd(d){var p=d.split("-");return (+p[1])+"/"+(+p[2])}
+function mmdd(d){d=String(d||"");if(d.indexOf("cat-")===0){var c=catById(d);return c?(c.emoji?c.emoji+" ":"")+c.name:d.slice(4)}var p=d.split("-");return p.length<3?d:(+p[1])+"/"+(+p[2])}
+function catById(id){for(var i=0;i<CATS.length;i++)if(CATS[i].id===id)return CATS[i];return null}
 function todayStr(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 
 /* ---------- 错题本 ---------- */
@@ -236,7 +245,7 @@ function loadWrong(){try{return JSON.parse(localStorage.getItem(LS_WRONG))||{}}c
 function saveWrong(w){try{localStorage.setItem(LS_WRONG,JSON.stringify(w))}catch(e){}}
 function cardKey(c){return c.t+"|"+c.ko}
 function recordWrong(c){
-  var w=loadWrong(),k=cardKey(c),e=w[k]||{t:c.t,ko:c.ko,zh:c.zh,hint:c.hint,ex:c.ex,point:c.point,date:c.date,m:{}};
+  var w=loadWrong(),k=cardKey(c),e=w[k]||{t:c.t,ko:c.ko,zh:c.zh,hint:c.hint,ex:c.ex,exzh:c.exzh,point:c.point,date:c.date,m:{}};
   e.zh=c.zh; e.m[mode]=(e.m[mode]||0)+1; e.last=Date.now(); w[k]=e; saveWrong(w);
 }
 function recordRight(c){
@@ -246,7 +255,7 @@ function recordRight(c){
 }
 function wrongCards(m){
   var w=loadWrong(),out=[];
-  Object.keys(w).forEach(function(k){var e=w[k];if(e.m&&e.m[m]) out.push({t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,point:e.point,date:e.date})});
+  Object.keys(w).forEach(function(k){var e=w[k];if(e.m&&e.m[m]) out.push({t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,exzh:e.exzh,point:e.point,date:e.date})});
   return out;
 }
 
@@ -294,7 +303,7 @@ function openInfo(){var d=$("wi");if(d){d.open=true;d.classList.add("hot");try{d
 /* ---------- 数据 ---------- */
 function deckCards(d){
   var out=[];
-  (d.vocab||[]).forEach(function(v){var c={t:"v",ko:v.ko,zh:v.zh,hint:v.hint,ex:v.ex,date:d.date};INFO_KEYS.forEach(function(k){if(v[k]!=null)c[k]=v[k]});out.push(c)});
+  (d.vocab||[]).forEach(function(v){var c={t:"v",ko:v.ko,zh:v.zh,hint:v.hint,ex:v.ex,exzh:v.exzh,date:d.date};INFO_KEYS.forEach(function(k){if(v[k]!=null)c[k]=v[k]});out.push(c)});
   (d.grammar||[]).forEach(function(g){out.push({t:"g",ko:g.ko,zh:g.zh,point:g.point,date:d.date})});
   return out;
 }
@@ -304,7 +313,8 @@ function loadDeck(date){
 }
 function loadWI(){return getJSON("wordinfo.json").then(function(w){WI=w||{}}).catch(function(){WI={}})}
 function loadIndex(){
-  return getJSON("decks/index.json").then(function(ix){index=ix||[];renderDeckSel()});
+  var cats=getJSON("decks/categories.json").then(function(c){CATS=c||[]}).catch(function(){CATS=[]});
+  return Promise.all([getJSON("decks/index.json").then(function(ix){index=ix||[]}),cats]).then(renderDeckSel);
 }
 function renderDeckSel(){
   var sel=$("deckSel"),h=[],t=todayStr();
@@ -312,17 +322,27 @@ function renderDeckSel(){
     var n=index[0];
     h.push('<option value="latest">'+(n.date===t?"今天":"最新")+" · "+mmdd(n.date)+(n.theme?" "+esc(n.theme):"")+"</option>");
     index.slice(1).forEach(function(e){h.push('<option value="'+e.date+'">'+mmdd(e.date)+(e.theme?" · "+esc(e.theme):"")+"</option>")});
-    h.push('<option value="all">全部混合（'+index.length+" 天）</option>");
+  }
+  if(index.length||CATS.length){
+    if(CATS.length){
+      h.push('<optgroup label="分类">');
+      CATS.forEach(function(c){h.push('<option value="'+esc(c.id)+'">'+esc((c.emoji?c.emoji+" ":"")+c.name)+"（"+c.vocab+" 词"+(c.grammar?" · "+c.grammar+" 句":"")+"）</option>")});
+      h.push("</optgroup>");
+    }
+    h.push('<option value="all">全部混合（'+index.length+" 天"+(CATS.length?" + "+CATS.length+" 类":"")+"）</option>");
   }
   h.push('<option value="wrong">错题本（'+wrongCards(mode).length+"）</option>");
   sel.innerHTML=h.join("");
+  if(wantSource){source=wantSource;wantSource=null;if(source!=="latest"&&!Array.prototype.some.call(sel.options,function(o){return o.value===source}))toast("找不到这个题库，已打开最新一天")}
   sel.value=source; if(sel.value!==source){source="latest";sel.value="latest"}
+  var sh=$("shareCat"); if(sh) sh.hidden=!(source.indexOf("cat-")===0||/^\d{4}-/.test(source));
 }
 function getPool(){
   var type=MODE_INFO[mode].type;
   if(source==="wrong") return Promise.resolve(wrongCards(mode));
-  if(!index.length) return Promise.resolve([]);
-  var dates = source==="all" ? index.map(function(e){return e.date}) : [source==="latest"?index[0].date:source];
+  if(!index.length&&!CATS.length) return Promise.resolve([]);
+  var dates = source==="all" ? index.map(function(e){return e.date}).concat(CATS.map(function(c){return c.id}))
+            : [source==="latest"?(index[0]||{}).date:source];
   return Promise.all(dates.map(loadDeck)).then(function(ds){
     var seen={},out=[];
     ds.forEach(function(d){deckCards(d).forEach(function(c){if(c.t!==type)return;var k=cardKey(c);if(seen[k])return;seen[k]=1;out.push(c)})});
@@ -336,7 +356,7 @@ function start(cards,redo){
   $("summary").hidden=true; $("quiz").hidden=false;
   if(!queue.length){
     $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
-    s.innerHTML='<div class="empty">'+(source==="wrong"?"这个模式的错题本是空的 🎉<br>去练新卡吧。":"这个题库里没有该类型的卡片。")+"</div>";
+    s.innerHTML='<div class="empty">'+(source==="wrong"?"这个模式的错题本是空的 🎉<br>去练新卡吧。":(MODE_INFO[mode].type==="g"?"这个题库没有语法句卡，请切换到「单词」模式。":"这个题库里没有该类型的卡片。"))+"</div>";
     updateBar(); return;
   }
   show();
@@ -386,7 +406,7 @@ function show(){
 }
 function exLine(){
   var s="";
-  if(cur.t==="v"&&cur.ex) s+='<div class="sub" lang="ko">例句：'+esc(cur.ex)+"</div>";
+  if(cur.t==="v"&&cur.ex) s+='<div class="sub" lang="ko">例句：'+esc(cur.ex)+"</div>"+(cur.exzh?'<div class="sub">　　　'+esc(cur.exzh)+"</div>":"");
   return s;
 }
 function refHTML(){ // reference answer for current direction
@@ -486,12 +506,20 @@ function finish(){
 
 /* ---------- 事件 ---------- */
 function setMode(m){
-  mode=m; localStorage.setItem(LS_MODE,m);
+  mode=m; localStorage.setItem(LS_MODE,m); if(QS.mode){QS.mode=null;syncURL()}
   Array.prototype.forEach.call(document.querySelectorAll("#modes button"),function(b){b.classList.toggle("active",b.getAttribute("data-mode")===m)});
   renderDeckSel(); reload();
 }
 $("modes").addEventListener("click",function(e){var b=e.target.closest("button[data-mode]");if(b)setMode(b.getAttribute("data-mode"))});
-$("deckSel").addEventListener("change",function(){source=this.value;reload()});
+function deckURL(){
+  var base=location.origin+location.pathname, q="";
+  if(source.indexOf("cat-")===0) q="?cat="+encodeURIComponent(source.slice(4));
+  else if(/^\d{4}-\d{2}-\d{2}$/.test(source)) q="?deck="+source;
+  return base+q;
+}
+function syncURL(){try{var u=deckURL();var m=QS.mode?(u.indexOf("?")<0?"?":"&")+"mode="+encodeURIComponent(QS.mode):"";history.replaceState(null,"",u+(u.indexOf("?")<0?"":m)+location.hash)}catch(e){}}
+$("deckSel").addEventListener("change",function(){source=this.value;QS.mode=null;syncURL();renderDeckSel();reload()});
+$("shareCat").onclick=function(){copy(deckURL())};
 $("answer").addEventListener("input",autosize);
 $("answer").addEventListener("keydown",function(e){
   if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();e.stopPropagation();if(state==="ask")check()}
