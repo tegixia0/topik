@@ -1,10 +1,12 @@
 # TOPIK 闪卡
 
-手机友好的 TOPIK 单词 / 语法句闪卡：<https://tegixia0.github.io/topik/>
+手机友好的 TOPIK 单词闪卡（另有 📖 阅读、🧩 语法、写作 模块）：<https://tegixia0.github.io/topik/>
 
 - `index.html` — 应用（纯静态，无依赖）
 - `decks/YYYY-MM-DD.json` — 每日题库；`decks/index.json` — 日期列表（新→旧）
 - `publish.py` — 发布新的一天：`python3 publish.py topik-flashcards-YYYY-MM-DD.html`
+
+闪卡只练单词（单词 中→韩 / 韩→中）。语法请用「🧩 语法」模块；每日 HTML 的 `grammar-data` 可有可无，即使有也会被闪卡忽略（旧的语法句错题在闪卡错题本里隐藏，但不删除）。
 
 错题记录只保存在浏览器本地（localStorage）。
 
@@ -85,13 +87,13 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}, drafts:{id:{a,
 
 ## 分类词库（味道 / 运动 / 鸟类 …）
 
-- 源文件：`categories/<slug>.json`。格式和每日词库一样，多出这些字段：`slug`、`name`、`emoji`、`order`、`desc`、`notion`（对应 Notion「主题」标签）。每个单词可以带 `exzh`（例句的中文翻译）、`hanja`、`tip`、`syn`、`ant`。`grammar` 可以不写（这样选语法模式时会提示“请切换到单词模式”）。
+- 源文件：`categories/<slug>.json`。格式和每日词库一样，多出这些字段：`slug`、`name`、`emoji`、`order`、`desc`、`notion`（对应 Notion「主题」标签）。每个单词可以带 `exzh`（例句的中文翻译）、`hanja`、`tip`、`syn`、`ant`。`grammar` 不需要写（闪卡只用单词）。
 - 生成 / 更新：`python3 add_category.py categories/taste.json`（会写 `decks/cat-<slug>.json` 和 `decks/categories.json`，合并 `wordinfo.json`，然后 commit + push；加 `--no-push` 只在本地生成）。想新增一个分类，复制一份 json、改 slug 后运行即可。
 - 网站：题库下拉框里有一组「分类」；「全部混合」＝所有每日词库＋所有分类（按单词去重）。选中分类或某一天后，页脚会出现「🔗 复制本题库链接」。
 - 深链接：
   - `?cat=taste` / `?cat=sports` / `?cat=birds`：直接打开某个分类
   - `?deck=2026-09-29`：打开某一天的词库
-  - 可加 `&mode=zh2ko`（单词 中→韩）、`ko2zh`（单词 韩→中）、`gko2zh`（语法句 韩→中）、`gzh2ko`（语法句 中→韩）
+  - 可加 `&mode=zh2ko`（单词 中→韩）、`ko2zh`（单词 韩→中）；旧链接的 `gko2zh` / `gzh2ko` 自动回落到 `zh2ko`
   - 例：`https://tegixia0.github.io/topik/?cat=taste&mode=zh2ko`
 
 ## 写作语法（速查 + 语法闪卡）

@@ -248,8 +248,6 @@ details.pc[open]>summary .pk{color:#ffd98a}
   <div class="modes" id="modes">
     <button data-mode="v_zh_ko">单词 中→韩</button>
     <button data-mode="v_ko_zh">单词 韩→中</button>
-    <button data-mode="g_ko_zh">语法句 韩→中</button>
-    <button data-mode="g_zh_ko">语法句 中→韩</button>
   </div>
   <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
   <div class="progress"><i id="progBar"></i></div>
@@ -303,16 +301,14 @@ var $=function(id){return document.getElementById(id)};
 var LS_MODE="topik.mode", LS_WRONG="topik.wrong.v1";
 var MODE_INFO={
   v_zh_ko:{label:"中文 → 写韩语单词", ph:"输入韩语…", inLang:"ko", type:"v"},
-  v_ko_zh:{label:"韩语 → 写中文意思", ph:"输入中文意思（可留空直接看答案）", inLang:"zh-CN", type:"v"},
-  g_ko_zh:{label:"韩语句子 → 译成中文", ph:"输入中文翻译（可留空直接看答案）", inLang:"zh-CN", type:"g"},
-  g_zh_ko:{label:"中文句子 → 写成韩语", ph:"用目标语法写韩语句子…", inLang:"ko", type:"g"}
-};
+  v_ko_zh:{label:"韩语 → 写中文意思", ph:"输入中文意思（可留空直接看答案）", inLang:"zh-CN", type:"v"}
+};   /* 闪卡只练单词；语法见「🧩 语法」模块。旧的语法句模式/深链接回落到 单词 中→韩 */
 var index=[], CATS=[], cache={}, WI={}, mode=localStorage.getItem(LS_MODE)||"v_zh_ko";
 if(!MODE_INFO[mode]) mode="v_zh_ko";
 var source="latest";            // "latest" | date | "cat-<slug>" | "all" | "wrong"
-/* 深链接：?cat=taste  ?deck=2026-09-29  &mode=zh2ko|ko2zh|gko2zh|gzh2ko */
+/* 深链接：?cat=taste  ?deck=2026-09-29  &mode=zh2ko|ko2zh（旧的 gko2zh|gzh2ko → zh2ko） */
 var QS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1).replace(/\+/g," "))});return o})();
-var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"g_ko_zh",gzh2ko:"g_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"g_ko_zh",g_zh_ko:"g_zh_ko"};
+var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"v_zh_ko",gzh2ko:"v_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"v_zh_ko",g_zh_ko:"v_zh_ko"};
 if(/^(writing-grammar|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.grammar){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
@@ -345,7 +341,7 @@ function recordRight(c){
 }
 function wrongCards(m){
   var w=loadWrong(),out=[];
-  Object.keys(w).forEach(function(k){var e=w[k];if(e.m&&e.m[m]) out.push({t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,exzh:e.exzh,point:e.point,date:e.date})});
+  Object.keys(w).forEach(function(k){var e=w[k];if(e.t==="v"&&e.m&&e.m[m]) out.push({t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,exzh:e.exzh,point:e.point,date:e.date})});
   return out;
 }
 
@@ -394,7 +390,7 @@ function openInfo(){var d=$("wi");if(d){d.open=true;d.classList.add("hot");try{d
 function deckCards(d){
   var out=[];
   (d.vocab||[]).forEach(function(v){var c={t:"v",ko:v.ko,zh:v.zh,hint:v.hint,ex:v.ex,exzh:v.exzh,date:d.date};INFO_KEYS.forEach(function(k){if(v[k]!=null)c[k]=v[k]});out.push(c)});
-  (d.grammar||[]).forEach(function(g){out.push({t:"g",ko:g.ko,zh:g.zh,point:g.point,date:d.date})});
+  // 每日/分类 JSON 里的 grammar 句子不再进闪卡（只练单词）
   return out;
 }
 function loadDeck(date){
@@ -416,7 +412,7 @@ function renderDeckSel(){
   if(index.length||CATS.length){
     if(CATS.length){
       h.push('<optgroup label="分类">');
-      CATS.forEach(function(c){h.push('<option value="'+esc(c.id)+'">'+esc((c.emoji?c.emoji+" ":"")+c.name)+"（"+c.vocab+" 词"+(c.grammar?" · "+c.grammar+" 句":"")+"）</option>")});
+      CATS.forEach(function(c){h.push('<option value="'+esc(c.id)+'">'+esc((c.emoji?c.emoji+" ":"")+c.name)+"（"+c.vocab+" 词）</option>")});
       h.push("</optgroup>");
     }
     h.push('<option value="all">全部混合（'+index.length+" 天"+(CATS.length?" + "+CATS.length+" 类":"")+"）</option>");
@@ -446,7 +442,7 @@ function start(cards,redo){
   $("summary").hidden=true; $("quiz").hidden=false;
   if(!queue.length){
     $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
-    s.innerHTML='<div class="empty">'+(source==="wrong"?"这个模式的错题本是空的 🎉<br>去练新卡吧。":(MODE_INFO[mode].type==="g"?"这个题库没有语法句卡，请切换到「单词」模式。":"这个题库里没有该类型的卡片。"))+"</div>";
+    s.innerHTML='<div class="empty">'+(source==="wrong"?"这个模式的错题本是空的 🎉<br>去练新卡吧。":"这个题库里没有单词卡。")+"</div>";
     updateBar(); return;
   }
   show();

@@ -9,6 +9,9 @@ Usage:
 
 Writes decks/YYYY-MM-DD.json, updates decks/index.json, then git commit + push.
 
+Decks are vocab-focused: the site's 闪卡 only uses "vocab". A <script id="grammar-data">
+block is optional; if present it is kept in the JSON but ignored by the site.
+
 Word enrichment (词性/记忆法/易错/近义/反义) per vocab item:
   pos, hanja, mem, tip, syn=[{"ko","zh"}], ant=[{"ko","zh"}]
 Sources: the item itself (daily HTML / deck JSON) and wordinfo.json (keyed by ko).
@@ -159,13 +162,18 @@ def load_deck(path):
     else:
         date = m and m.group(1)
         theme = _theme(src)
-        vocab, grammar = _script_json(src, "vocab-data"), _script_json(src, "grammar-data")
+        vocab = _script_json(src, "vocab-data")
+        # grammar-data is optional: the site's 闪卡 is vocab-only now (grammar lives in the 🧩 语法 module)
+        try:
+            grammar = _script_json(src, "grammar-data")
+        except ValueError:
+            grammar = []
     if not date or not DATE_RE.fullmatch(date):
         raise ValueError("no YYYY-MM-DD date found for %s" % path)
     deck = {"date": date, "theme": theme,
             "vocab": _clean(vocab, "vocab"), "grammar": _clean(grammar, "grammar")}
-    if not deck["vocab"] and not deck["grammar"]:
-        raise ValueError("deck %s is empty" % path)
+    if not deck["vocab"]:
+        raise ValueError("deck %s has no vocab" % path)
     return deck
 
 
