@@ -104,12 +104,12 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}, drafts:{id:{a,
 
 - 顶部「📖 阅读」：练习（按 回次 / 题型 / 只看错题 筛选，点选项即判，答错展开解析）、整套模拟（50题/70分钟按比例限时，交卷出分和各题型正确率）、阅读错题本、题型攻略。
 - 数据 `reading/rounds.json` 由 `python3 tools/build_reading.py` 生成：
-  - 原文：官方公开 2교시 PDF（kajiritate-no-hangul.com 镜像 `{n}_TOPIK2_2.pdf`）用 `tools/reading_parse.py` 解析 → `tools/reading_src/{n}.json`；
-  - 答案：官方正答表 `{n}_TOPIK2_A.pdf`（第96回为图片，人工读表）；
+  - 原文：官方公开 2교시 PDF（kajiritate-no-hangul.com 镜像 `{n}_TOPIK2_2.pdf`）用 `tools/reading_parse.py` 解析 → `tools/reading_src/{n}.json`；第83/91回 PDF 是扫描图：`pdftoppm -r 300 -gray` + `tesseract -l kor --psm 4` OCR 后逐行对照原图校对，转写在 `tools/src{n}.py`（运行即生成 `reading_src/{n}.json`）；
+  - 答案：官方正答表 `{n}_TOPIK2_A.pdf`（第96/91/83回为图片，人工读表）；
   - 注释：`tools/rd{n}.py`（中文翻译、关键句、解析、逐项分析、生词、语法；`FIX` 修正抽取问题/加下划线）。
   - 5–10 题图片从原卷裁剪：`reading/img/r{n}_q{m}.png`。
-- 已收录：第96回（48题，42–43 官方因版权未公开原文）、第60回（50题）。第64/83/91回官方PDF为扫描图，需 OCR 后再加。
-- 深链接：`?reading=1`、`?reading=1&type=insert`（题型 id：grammar synonym ad match order blank long headline blank2 match2 theme insert long2）、`?reading=1&round=60`、`&tab=mock|wrong|tips`。
+- 已收录：第96回（48题，42–43 官方因版权未公开原文）、第91回（50题）、第83回（50题）、第60回（50题），共198题。
+- 深链接：`?reading=1`、`?reading=1&type=insert`（题型 id：grammar synonym ad match order blank long headline blank2 match2 theme insert long2）、`?reading=1&round=60`（或 91 / 83 / 96）、`&tab=mock|wrong|tips`。
 
 ## 语法（`grammar/`）
 

@@ -50,7 +50,7 @@ function open(o){
   ensure().then(function(){
     if(opt.type!=="all"&&!T[opt.type]){toast("没有这个题型："+opt.type);opt.type="all"}
     if(opt.round!=="all"&&!D.rounds.some(function(r){return String(r.round)===opt.round})){
-      toast("第"+opt.round+"回官方PDF是扫描图片，暂未收录；已显示全部回次"); opt.round="all";
+      toast("第"+opt.round+"回暂未收录；已显示全部回次"); opt.round="all";
     }
     setTab(opt.tab);
   }).catch(function(e){$("rBody").innerHTML='<div class="card empty">阅读题库加载失败：'+esc(e.message)+"</div>"});

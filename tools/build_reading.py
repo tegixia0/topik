@@ -2,8 +2,8 @@
 produced by tools/reading_parse.py from the official 2교시 PDFs) + annotations tools/rd{round}.py."""
 import json, re, importlib.util, os
 HERE=os.path.dirname(os.path.abspath(__file__)); ROOT=os.path.dirname(HERE)
-ROUNDS=[96,60]
-YEAR={60:'2018年10月',96:'2024年10月'}
+ROUNDS=[91,83,96,60]
+YEAR={60:'2018年10月',83:'2022年10月',91:'2023年11月',96:'2024年10月'}
 TYPES=[('grammar','语法填空',1,2),('synonym','近义表达替换',3,4),('ad','看图/广告主题',5,8),('match','内容一致(图表/短文)',9,12),
 ('order','排序',13,15),('blank','短文填空',16,18),('long','长文(填空+主旨/一致)',19,24),('headline','新闻标题',25,27),
 ('blank2','填空(说明文)',28,31),('match2','内容一致(说明文)',32,34),('theme','主旨',35,38),('insert','插入句子',39,41),('long2','长文(心情/态度/目的/填空)',42,50)]
