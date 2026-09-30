@@ -50,10 +50,10 @@
 页面顶部切换「📇 单词/语法闪卡」和「✍️ 写作 51·52」（也可用 `#writing` / `#flash` 直接打开）。写作区有三个标签页：
 
 - **速查**：`writing/cheatsheet.html` 是一段 HTML 片段，运行时读取后插入页面，直接改这个文件就能更新速查表。
-- **练习**：可按 51 / 52 / 全部，以及 真题 / 官方公开 / 回忆版 / 模拟题 筛选，也可随机顺序。每题有 ㉠ ㉡ 两个输入框（草稿自动保存）；点「看参考答案」显示答案、解析、句型和中文翻译；每空自评 满分/部分/不会；「复制我的答案发给老师批改」会复制回次、题号、原文和我的答案。
+- **练习**：可按 51 / 52 / 全部，以及 真题 / 官方公开 / 回忆版 / 模拟题 筛选，也可随机顺序。每题有 ㉠ ㉡ 两个输入框（不保存草稿：每次打开题目都是空白，方便真正重写）；点「看参考答案」显示答案、解析、句型和中文翻译；每空自评 满分/部分/不会；「复制我的答案发给老师批改」会复制回次、题号、原文和我的答案。
 - **错题**：任意一空自评为「部分」或「不会」的题会进错题；重做后两空都标「满分」就自动移出。
 
-localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}, drafts:{id:{a,b}}}`）、`topik.writing.opts`（筛选条件/当前标签/当前题）、`topik.view`（当前是闪卡还是写作）。
+localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `drafts` 会在加载时清除）、`topik.writing.opts`（筛选条件/当前标签/当前题）、`topik.view`（当前是闪卡还是写作）。
 
 ### `writing/questions.json` 格式
 
@@ -84,6 +84,22 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}, drafts:{id:{a,
 ```
 
 页面上的标签：official →「真题 第N回」，transcript →「真题 第N回（公开资料转录）」，recalled →「真题 第N回·回忆版」，mock →「模拟题」。自己写的题一律用 `kind:"mock"`、`ansType:"mine"`，**不要**标成真题。
+
+### 我的易错点（`writing/mylog.json`）
+
+老师批改后的个人错误记录，放在仓库里所以手机上也能看到（公开，但只有学习笔记）。
+- 练习页：答题前显示「⚠️ 你这题㉠错过 N 次 · 注意：错误类型」（不泄露答案）；看参考答案后每空显示「📌 我上次的错误（错了 N 次）」：每次的答案、错因、正确写法，以及「✅ 下次怎么做」规则。
+- 「易错点」标签（深链接 `?writing=mistakes` 或 `#mistakes`）：按错误类型汇总次数、从多到少排，每类有一句规则和我的例子（回次/题号/空），点例子直接去练那道题。
+- 格式：`types`（`id → {name, rule}`）+ `entries`（`{q:"35-51", k:"a"|"b", try, date, ok, ans, cause, fix, tags:[type id], minor?}`）。`ok:true` 是写对的记录，只计入统计。
+- 追加记录：
+  ```bash
+  python3 tools/add_mistake.py 35 51 a "물건들이 드리려고 합니다" "宾语用了 이（应 을/를）" "물건들을 무료로 드리려고 합니다" obj,ctx
+  python3 tools/add_mistake.py 36 51 b "" "" "" "" --ok            # 写对了
+  python3 tools/add_mistake.py 63 51 b "기회 일 것 같습니다" "-이다 连写" "기회일 것 같습니다" 分写 --date 2026-10-01 --commit
+  python3 tools/add_mistake.py --types                             # 列出类型 + 次数
+  python3 tools/add_mistake.py --new-type honor-end "敬语句尾" "对长辈用 -(으)십니까 / -(으)세요"
+  ```
+  BLANK 可写 `a/b/㉠/㉡`；TAGS 用逗号分隔，可写类型 id 或中文名（如 `宾语助词,没扣题`）；`--try N` 指定第几次（默认自动 +1）；`--minor` 标小问题；`--commit` 会 `git pull --rebase` 后提交并推送（不会 force）。
 
 ## 分类词库（味道 / 运动 / 鸟类 …）
 

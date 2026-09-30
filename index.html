@@ -98,8 +98,21 @@ details.wi.hot>summary{color:#ffb3b3}
 .topnav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:4px;margin-bottom:10px}
 .topnav button{min-height:42px;border:none;border-radius:10px;background:none;color:var(--muted);font-size:15px;font-weight:700;padding:0 2px;white-space:nowrap}
 .topnav button.active{background:var(--accent);color:#fff}
-.wtabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
-.wtabs button{min-height:44px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:15px;font-weight:600;padding:0 4px}
+.wtabs{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px}
+.mlhint{margin:4px 0 2px;font-size:13.5px;color:var(--warn);background:#2a2a1a;border-radius:8px;padding:5px 8px}
+.mlbox{margin-top:10px;border:1px solid #6b5a1e;background:#221f12;border-radius:10px;padding:8px 10px;font-size:14px}
+.mlbox .mh{font-weight:700;color:var(--warn);margin-bottom:4px}
+.mlit{border-top:1px dashed #4a4020;padding:6px 0 2px}.mlit:first-of-type{border-top:0}
+.mlit .ma{color:var(--bad)}.mlit .mf{color:var(--ok)}.mlit .mc{color:var(--ink)}.mlit .mt{font-size:12px;color:var(--muted)}
+.mlchip{display:inline-block;font-size:12px;padding:1px 7px;border-radius:999px;background:#3a3218;color:#f5d67a;margin:2px 4px 0 0}
+.mtype{border:1px solid var(--border);border-radius:12px;margin:8px 0;background:var(--card)}
+.mtype>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;gap:8px;align-items:center;font-weight:700}
+.mtype>summary::-webkit-details-marker{display:none}
+.mtype .cnt{margin-left:auto;background:var(--bad);color:#fff;border-radius:999px;padding:1px 9px;font-size:13px}
+.mtype .rule{padding:0 12px 6px;color:var(--warn);font-size:14.5px}
+.mtype .ex{padding:6px 12px;border-top:1px solid var(--border);font-size:14px;cursor:pointer}
+.mtype .ex .src{font-size:12.5px;color:var(--accent)}
+.wtabs button{min-height:44px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:14px;font-weight:600;padding:0 2px}
 .wtabs button.active{background:var(--card2);border-color:var(--accent);color:#fff;box-shadow:0 0 0 1px var(--accent) inset}
 .seg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
 .seg button{flex:1 1 auto;min-height:38px;padding:0 10px;border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:999px;font-size:14.5px;font-weight:600}
@@ -274,11 +287,13 @@ details.pc[open]>summary .pk{color:#ffd98a}
       <button type="button" data-tab="prac">练习</button>
       <button type="button" data-tab="cards">语法闪卡</button>
       <button type="button" data-tab="wrong">错题</button>
+      <button type="button" data-tab="mine">易错点</button>
     </div>
     <div class="card" id="wCheat"><div class="empty">加载中…</div></div>
     <div id="wPrac" hidden></div>
     <div id="wCards" hidden><div class="card empty">加载中…</div></div>
     <div class="card" id="wWrong" hidden></div>
+    <div id="wMine" hidden></div>
     <footer><div id="wInfo"></div><div><button id="wClear">清空写作记录</button> · <button id="wReload">刷新题库</button></div></footer>
   </div>
   <div id="reading" hidden>
@@ -628,7 +643,9 @@ var $=function(id){return document.getElementById(id)};
 var LS_VIEW="topik.view", LS_W="topik.writing.v1", LS_WO="topik.writing.opts";
 var Q=[], byId={}, cheatLoaded=false, loaded=false, order=[], idx=0, revealed=false, wrongOnly=false;
 var opts=load(LS_WO,{no:"all",src:"all",rnd:false,tab:"cheat",cur:null});
-var st=load(LS_W,{marks:{},drafts:{}}); st.marks=st.marks||{}; st.drafts=st.drafts||{};
+var st=load(LS_W,{marks:{}}); st.marks=st.marks||{};
+if(st.drafts){delete st.drafts;try{localStorage.setItem(LS_W,JSON.stringify(st))}catch(e){}}   // 不再保存草稿：每次打开题目都是空白
+var drafts={}, LOG={types:{},entries:[]};   // drafts 只在当前这道题的会话内存里；LOG = writing/mylog.json（老师整理的个人易错记录）
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==="object"?v:d}catch(e){return d}}
 function save(){try{localStorage.setItem(LS_W,JSON.stringify(st));localStorage.setItem(LS_WO,JSON.stringify(opts))}catch(e){}}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -667,11 +684,11 @@ function setView(v,o){
   if(v==="writing") ensure().then(function(){setTab(opts.tab||"cheat")});
 }
 function setTab(t){
-  if(["cheat","prac","cards","wrong"].indexOf(t)<0)t="cheat";
+  if(["cheat","prac","cards","wrong","mine"].indexOf(t)<0)t="cheat";
   opts.tab=t; save();
   Array.prototype.forEach.call(document.querySelectorAll("#wtabs button"),function(b){b.classList.toggle("active",b.getAttribute("data-tab")===t)});
-  $("wCheat").hidden=t!=="cheat"; $("wPrac").hidden=t!=="prac"; $("wWrong").hidden=t!=="wrong"; $("wCards").hidden=t!=="cards";
-  if(t==="prac") renderPrac(); else if(t==="wrong") renderWrong(); else if(t==="cards") wgOpen();
+  $("wCheat").hidden=t!=="cheat"; $("wPrac").hidden=t!=="prac"; $("wWrong").hidden=t!=="wrong"; $("wCards").hidden=t!=="cards"; $("wMine").hidden=t!=="mine";
+  if(t==="prac") renderPrac(); else if(t==="wrong") renderWrong(); else if(t==="mine") renderMine(); else if(t==="cards") wgOpen();
 }
 function ensure(){
   var ps=[];
@@ -680,6 +697,7 @@ function ensure(){
     Q=(d.questions||[]).slice().sort(function(a,b){return (a.kind==="mock")-(b.kind==="mock")||a.round-b.round||a.no-b.no});
     byId={}; Q.forEach(function(q){byId[q.id]=q}); loaded=true; buildOrder(true); info();
   }).catch(function(e){$("wInfo").textContent="写作题库加载失败："+e.message}));
+  if(!loaded) ps.push(fetch(bust("writing/mylog.json"),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d&&d.entries)LOG=d}).catch(function(){}));
   return Promise.all(ps);
 }
 function info(){
@@ -726,12 +744,12 @@ function renderPrac(){
     return '<option value="'+i+'"'+(i===idx?" selected":"")+">"+(i+1)+". "+esc(srcLabel(q))+" · "+q.no+"番"+(m?(isWrong(q.id)?" ✗":" ✓"):"")+"</option>"}).join("")+'</select><label><input type="checkbox" id="wRnd"'+(opts.rnd?" checked":"")+"> 随机</label></div>";
   if(!order.length){box.innerHTML=h+'<div class="card empty">'+(wrongOnly?"没有错题了 🎉":(opts.src==="mock"?"模拟题暂时为空（真题已足够，之后可在 writing/questions.json 里添加 kind:\"mock\" 的题）":"没有符合条件的题"))+"</div>";bindPrac();return}
   var q=order[idx]; opts.cur=q.id; save();
-  var d=st.drafts[q.id]||{a:"",b:""};
+  var d=drafts[q.id]||{a:"",b:""};
   h+='<div class="card" id="wCard"><div class="qhead"><span class="no">'+q.no+'번</span><span class="badge '+srcCls(q)+'">'+esc(srcLabel(q))+'</span><span class="badge">'+(q.no===51?"实用文 · -습니다":"说明文 · -(ㄴ/는)다")+"</span>"+'<span id="wMk">'+mkBadges(q.id)+'</span><span style="margin-left:auto;color:var(--muted);font-size:14px">'+(idx+1)+"/"+order.length+"</span></div>";
   if(q.title) h+='<div class="qtitle" lang="ko">'+esc(q.title)+"</div>";
   h+='<div class="passage" lang="ko">'+blankify(q.text)+"</div>";
   ["a","b"].forEach(function(k){
-    h+='<div class="wfield"><div class="lab">'+(k==="a"?"㉠":"㉡")+"</div>"+
+    h+='<div class="wfield"><div class="lab">'+(k==="a"?"㉠":"㉡")+"</div>"+mlHint(q.id,k)+
       '<textarea class="answer" id="wIn_'+k+'" lang="ko" rows="2" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="写 '+(k==="a"?"㉠":"㉡")+' 的答案（一句话）…">'+esc(d[k]||"")+"</textarea></div>";
   });
   h+='<div class="actions"><button type="button" class="b-primary full" id="wShow">'+(revealed?"收起参考答案":"看参考答案")+'</button><button type="button" class="b-ghost full small" id="wCopy">📋 复制我的答案发给老师批改</button></div>';
@@ -742,7 +760,7 @@ function renderPrac(){
 function renderReveal(){
   var q=order[idx], r=$("wReveal"); if(!q||!r)return;
   if(!revealed){r.innerHTML="";return}
-  var m=st.marks[q.id]||{}, d=st.drafts[q.id]||{};
+  var m=st.marks[q.id]||{}, d=drafts[q.id]||{};
   var h='<div class="reveal">';
   ["a","b"].forEach(function(k){
     var L=k==="a"?"㉠":"㉡", ans=(q.ans&&q.ans[k])||[], alt=(q.alt&&q.alt[k])||[];
@@ -750,6 +768,7 @@ function renderReveal(){
     h+=ans.map(function(a){return '<div class="model" lang="ko">'+esc(a)+"</div>"}).join("");
     if(alt.length) h+='<div style="font-size:12.5px;color:var(--muted);margin-top:6px">其他可行写法（自拟）</div>'+alt.map(function(a){return '<div class="model alt" lang="ko">· '+esc(a)+"</div>"}).join("");
     h+='<div class="mine">我的：<span lang="ko">'+(d[k]?esc(d[k]):"（未填写）")+"</span></div>";
+    h+=mlBox(q.id,k);
     if(q.pat&&q.pat[k]) h+='<div class="pat">句型：'+esc(q.pat[k])+"</div>";
     if(q.exp&&q.exp[k]) h+='<div class="exp">💡 '+esc(q.exp[k])+"</div>";
     h+='<div class="marks" data-k="'+k+'">'+["full","part","none"].map(function(v){return '<button type="button" data-m="'+v+'" class="'+(m[k]===v?"on":"")+'">'+MK[v]+"</button>"}).join("")+"</div></div>";
@@ -762,9 +781,9 @@ function renderReveal(){
 function saveDraft(){
   var q=order[idx]; if(!q)return;
   var a=$("wIn_a"), b=$("wIn_b"); if(!a||!b)return;
-  st.drafts[q.id]={a:a.value,b:b.value}; if(!a.value&&!b.value) delete st.drafts[q.id]; save();
+  drafts[q.id]={a:a.value,b:b.value}; if(!a.value&&!b.value) delete drafts[q.id]; save();
 }
-function go(i){saveDraft(); idx=(i+order.length)%order.length; revealed=false; renderPrac(); try{$("wPrac").scrollIntoView({block:"start"})}catch(e){}}
+function go(i){drafts={}; idx=(i+order.length)%order.length; revealed=false; renderPrac(); try{$("wPrac").scrollIntoView({block:"start"})}catch(e){}}
 function bindPrac(){
   var box=$("wPrac");
   box.onclick=function(e){
@@ -792,11 +811,62 @@ function bindPrac(){
   });
 }
 function copyMine(){
-  var q=order[idx]; if(!q)return; var d=st.drafts[q.id]||{};
+  var q=order[idx]; if(!q)return; var d=drafts[q.id]||{};
   var txt="【TOPIK II 写作】"+srcLabel(q)+" · 第"+q.no+"题（"+(q.no===51?"实用文":"说明文")+"）\n"+
     (q.title?"标题："+q.title+"\n":"")+"原文：\n"+q.text+"\n\n"+
     "㉠ 我的答案："+(d.a||"（未填写）")+"\n㉡ 我的答案："+(d.b||"（未填写）")+"\n\n请帮我批改语法、语体和是否符合上下文，谢谢！";
   copy(txt);
+}
+
+/* 个人易错记录（writing/mylog.json，老师批改后用 tools/add_mistake.py 追加） */
+function mlOf(id,k){return LOG.entries.filter(function(e){return e.q===id&&(!k||e.k===k)}).sort(function(a,b){return a.try-b.try})}
+function mlWrong(id,k){return mlOf(id,k).filter(function(e){return !e.ok})}
+function tName(t){return (LOG.types[t]||{}).name||t}
+function mlHint(id,k){
+  var w=mlWrong(id,k); if(!w.length) return "";
+  var ts=[]; w.forEach(function(e){e.tags.forEach(function(t){if(ts.indexOf(t)<0)ts.push(t)})});
+  return '<div class="mlhint">⚠️ 你这题'+(k==="a"?"㉠":"㉡")+'错过 '+w.length+' 次 · 注意：'+esc(ts.map(tName).join("、"))+"</div>";
+}
+function mlBox(id,k){
+  var all=mlOf(id,k), w=all.filter(function(e){return !e.ok}); if(!all.length) return "";
+  var h='<div class="mlbox"><div class="mh">📌 我上次的错误'+(w.length?"（错了 "+w.length+" 次）":"（之前写对了 ✓）")+"</div>";
+  all.forEach(function(e){
+    h+='<div class="mlit"><div class="mt">第'+e.try+'次 · '+esc(e.date)+(e.ok?' · <span class="mf">✓ 写对了</span>':"")+(e.minor?" · 小问题":"")+"</div>";
+    if(!e.ok){
+      h+='<div>我写的：<span class="ma" lang="ko">'+esc(e.ans||"（空）")+"</span></div>";
+      if(e.cause) h+='<div class="mc">错因：'+esc(e.cause)+"</div>";
+      if(e.fix) h+='<div>✅ 正确：<span class="mf" lang="ko">'+esc(e.fix)+"</span></div>";
+      h+='<div>'+e.tags.map(function(t){return '<span class="mlchip">'+esc(tName(t))+"</span>"}).join("")+"</div>";
+    }
+    h+="</div>";
+  });
+  var ts=[]; w.forEach(function(e){e.tags.forEach(function(t){if(ts.indexOf(t)<0)ts.push(t)})});
+  if(ts.length) h+='<div class="mlit"><div class="mh" style="margin:0">✅ 下次怎么做</div>'+ts.map(function(t){var r=(LOG.types[t]||{}).rule;return r?'<div style="margin-top:3px"><span class="mlchip">'+esc(tName(t))+"</span>"+esc(r)+"</div>":""}).join("")+"</div>";
+  return h+"</div>";
+}
+function qLabel(id){var q=byId[id];return q?srcLabel(q)+" "+q.no+"번":id}
+function renderMine(){
+  var box=$("wMine"); if(!loaded){box.innerHTML='<div class="card empty">加载中…</div>';return}
+  var W=LOG.entries.filter(function(e){return !e.ok}), okN=LOG.entries.length-W.length, by={};
+  W.forEach(function(e){e.tags.forEach(function(t){(by[t]=by[t]||[]).push(e)})});
+  var ts=Object.keys(by).sort(function(a,b){return by[b].length-by[a].length||tName(a).localeCompare(tName(b))});
+  var qs={}; W.forEach(function(e){qs[e.q+e.k]=1});
+  var h='<div class="card"><h2 style="margin:0 0 4px;font-size:20px">我的易错点</h2><div style="color:var(--muted);font-size:14.5px">老师批改记录（更新 '+esc(LOG.updated||"")+'）：错 '+W.length+' 次 · 涉及 '+Object.keys(qs).length+' 个空 · 写对 '+okN+' 次。按错误类型从多到少排，点开看规则和我的例子，点例子直接去练那道题。</div></div>';
+  if(!ts.length) h+='<div class="card empty">还没有批改记录。</div>';
+  ts.forEach(function(t,i){
+    var L=by[t], ty=LOG.types[t]||{};
+    h+='<details class="mtype"'+(i<3?" open":"")+'><summary><span>'+esc(ty.name||t)+'</span><span class="cnt">'+L.length+' 次</span></summary>';
+    if(ty.rule) h+='<div class="rule">✅ 下次怎么做：'+esc(ty.rule)+"</div>";
+    L.slice().sort(function(a,b){return a.q<b.q?-1:a.q>b.q?1:a.k<b.k?-1:a.k>b.k?1:a.try-b.try}).forEach(function(e){
+      h+='<div class="ex" data-q="'+esc(e.q)+'"><div class="src">'+esc(qLabel(e.q))+" "+(e.k==="a"?"㉠":"㉡")+" · 第"+e.try+"次 · "+esc(e.date)+(e.minor?" · 小问题":"")+' ›</div>'+
+        '<div><span style="color:var(--bad)" lang="ko">'+esc(e.ans||"（空）")+'</span> → <span style="color:var(--ok)" lang="ko">'+esc(e.fix)+"</span></div>"+
+        '<div style="color:var(--muted);font-size:13px">'+esc(e.cause)+"</div></div>";
+    });
+    h+="</details>";
+  });
+  box.innerHTML=h;
+  box.onclick=function(e){var x=e.target.closest(".ex[data-q]");if(!x)return;var id=x.getAttribute("data-q");if(!byId[id])return;
+    wrongOnly=false;opts.no="all";opts.src="all";opts.cur=id;buildOrder(true);setTab("prac")};
 }
 
 /* 错题 */
@@ -1003,7 +1073,7 @@ function copyLink(){
 }
 $("topnav").addEventListener("click",function(e){var b=e.target.closest("button[data-view]");if(b)setView(b.getAttribute("data-view"))});
 $("wtabs").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b)setTab(b.getAttribute("data-tab"))});
-$("wClear").onclick=function(){if(confirm("确定清空写作的自评记录和草稿？")){st={marks:{},drafts:{}};save();revealed=false;setTab(opts.tab);toast("已清空")}};
+$("wClear").onclick=function(){if(confirm("确定清空写作的自评记录？（老师整理的易错记录不受影响）")){st={marks:{}};drafts={};save();revealed=false;setTab(opts.tab);toast("已清空")}};
 $("wReload").onclick=function(){loaded=false;cheatLoaded=false;ensure().then(function(){setTab(opts.tab)})};
 var WQS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1))});return o})();
 var wgLink=String(WQS.cat||"").toLowerCase()==="writing-grammar"||location.hash==="#writing-grammar";
@@ -1014,6 +1084,7 @@ var o0={}, catL=String(WQS.cat||"").toLowerCase(), hash=location.hash.replace("#
 var v0;
 if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1"}}
 else if(WQS.grammar||catL==="grammar-core"||hash==="grammar"||hash==="grammar-core"){v0="grammar";o0={tab:catL==="grammar-core"||hash==="grammar-core"?"cards":WQS.tab,mode:WQS.mode,g:WQS.g}}
+else if(hash==="mistakes"||WQS.writing==="mistakes"){opts.tab="mine";save();v0="writing"}   // 我的易错点：#mistakes 或 ?writing=mistakes
 else if(wgLink||hash==="writing") v0="writing";
 else if(hash==="flash"||WQS.cat||WQS.deck) v0="flash";
 else v0=localStorage.getItem(LS_VIEW)||"flash";
