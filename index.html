@@ -98,8 +98,8 @@ details.wi.hot>summary{color:#ffb3b3}
 .topnav{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:4px;margin-bottom:10px}
 .topnav button{min-height:42px;border:none;border-radius:10px;background:none;color:var(--muted);font-size:16px;font-weight:700}
 .topnav button.active{background:var(--accent);color:#fff}
-.wtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.wtabs button{min-height:44px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:16px;font-weight:600}
+.wtabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.wtabs button{min-height:44px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:15px;font-weight:600;padding:0 4px}
 .wtabs button.active{background:var(--card2);border-color:var(--accent);color:#fff;box-shadow:0 0 0 1px var(--accent) inset}
 .seg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
 .seg button{flex:1 1 auto;min-height:38px;padding:0 10px;border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:999px;font-size:14.5px;font-weight:600}
@@ -156,6 +156,79 @@ details.wi.hot>summary{color:#ffb3b3}
 .wlist li{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
 .wlist li .t{flex:1;min-width:0}
 .wlist li .s{color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- 写作速查 v2 ---------- */
+#wCheat.card{padding:12px 12px 14px}
+.cs2{font-size:15.5px;line-height:1.65}
+.cs2 .k{color:#ffd98a;font-weight:600}
+.cs-search{position:relative;margin-bottom:8px}
+.cs-search input{width:100%;font-size:16px;padding:11px 40px 11px 12px;border-radius:12px;border:1px solid var(--border);background:#0b1017;color:var(--ink);outline:none}
+.cs-search input:focus{border-color:var(--accent)}
+.cs-search button{position:absolute;right:4px;top:4px;bottom:4px;width:36px;border:none;background:none;color:var(--muted);font-size:16px}
+.cs-tabs button{font-size:14px;min-height:40px}
+.cs-lead{color:var(--muted);font-size:14px;margin:4px 2px 8px}
+.cs-h{margin:14px 2px 6px;font-size:15px;color:#9cc2ff;letter-spacing:.02em}
+.cs-empty{color:var(--muted);text-align:center;padding:20px}
+.fms{display:flex;flex-direction:column;gap:8px}
+.fm{background:#141c29;border:1px solid var(--border);border-radius:12px;padding:9px 11px}
+.fm-l,.fm-r{display:flex;gap:8px;align-items:baseline}
+.fm-r{margin-top:2px;font-weight:700}
+.fm-tag{flex:0 0 auto;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:999px;background:#23324a;color:#9cc2ff}
+.fm-tag.w{background:#1d3326;color:#8fe0ae}
+.fm-ex{margin-top:5px;font-size:14.5px;color:var(--ink);opacity:.92;word-break:keep-all;overflow-wrap:anywhere}
+.fm-src,.exsrc{display:inline-block;font-size:11.5px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:0 7px;margin-left:4px;white-space:nowrap}
+.cs2 mark,.wg mark{background:#4a3f12;color:#ffe9a6;border-radius:4px;padding:0 2px}
+details.grp{border:1px solid var(--border);border-radius:14px;margin:8px 0;background:#141c29;overflow:hidden}
+details.grp>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:11px 12px;min-height:48px}
+details.grp>summary::-webkit-details-marker,details.pc>summary::-webkit-details-marker{display:none}
+details.grp>summary b{font-size:16px}
+details.grp>summary .gd{color:var(--muted);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details.grp>summary .gn{font-size:12px;background:var(--card2);border-radius:999px;padding:1px 8px;color:var(--muted)}
+details.grp>summary::after{content:"▾";color:var(--muted);transition:transform .2s}
+details.grp[open]>summary::after{transform:rotate(180deg)}
+.grp-b{padding:0 8px 8px}
+details.pc{border-top:1px solid var(--border)}
+details.pc>summary{list-style:none;cursor:pointer;padding:10px 4px;display:flex;flex-direction:column;gap:1px}
+details.pc>summary .pk{font-size:18px;font-weight:800;color:#fff;word-break:keep-all;overflow-wrap:anywhere}
+details.pc>summary .pz{font-size:14px;color:var(--muted)}
+details.pc[open]>summary .pk{color:#ffd98a}
+.pb,.wgc{padding:2px 4px 10px;font-size:15px;line-height:1.65;word-break:keep-all;overflow-wrap:anywhere}
+.pb .row,.wgc .row{margin-top:8px}
+.rk{display:block;font-size:12.5px;color:var(--muted);font-weight:700;margin-bottom:1px}
+.row.mem{background:#1b2436;border-radius:10px;padding:7px 9px}
+.row.cue{background:#16271f;border-radius:10px;padding:7px 9px}
+.row.err{background:#2a2a1a;color:var(--warn);border-radius:10px;padding:7px 9px}
+.row.err .k{color:#ffe9a6}
+.ex{border-left:3px solid #35527e;padding:2px 0 2px 9px;margin:4px 0 8px}
+.exko{font-size:16px}
+.exzh{color:var(--muted);font-size:14px}
+.exsrc{margin-left:0}
+.exsrc.self{border-style:dashed}
+.exnote{font-size:13px;color:var(--warn)}
+.hon{display:flex;flex-direction:column}
+.hon-r{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;padding:8px 4px;border-top:1px solid var(--border)}
+.hon-r .hp{color:var(--muted)}
+.hon-r .hh{font-weight:800;font-size:17px;color:#ffd98a}
+.hon-r .hz{font-size:14px}
+.hon-r .hn{flex-basis:100%;font-size:13px;color:var(--muted)}
+.mst{background:#141c29;border:1px solid var(--border);border-radius:12px;padding:10px 11px;margin:8px 0}
+.mst .mt{font-weight:800;font-size:16px}
+.mst .md{font-size:14.5px;margin-top:3px}
+.prs{list-style:none;padding:0;margin:6px 0 0}
+.prs li{display:flex;flex-direction:column;padding:5px 0;border-top:1px dashed var(--border);font-size:15px}
+.prs .x{color:#ff9b9b;text-decoration:line-through;text-decoration-color:#ff6b6b88}
+.prs .o{color:#8fe0ae;font-weight:700}
+.steps{padding-left:1.3em}.steps li{margin:6px 0}
+/* ---------- 语法闪卡 ---------- */
+.wg .prompt{font-size:24px}
+.wg .prompt[lang=ko]{font-size:26px}
+.wg .cueline{background:#16271f;border-radius:10px;padding:7px 10px;font-size:14.5px;margin:4px 0 10px}
+.wg .fbx{margin-top:12px}
+.wg .fbx .title{font-weight:800;font-size:18px}
+.wg .fbx.ok .title{color:var(--ok)}.wg .fbx.bad .title{color:var(--bad)}
+.wg .ansline{font-size:20px;font-weight:800;color:#ffd98a;margin-top:4px}
+.wg .mine{color:var(--muted);font-size:14.5px}
+.wg details.wi .body{padding-top:4px}
 </style>
 </head>
 <body>
@@ -198,10 +271,12 @@ details.wi.hot>summary{color:#ffb3b3}
     <div class="wtabs" id="wtabs">
       <button type="button" data-tab="cheat">速查</button>
       <button type="button" data-tab="prac">练习</button>
+      <button type="button" data-tab="cards">语法闪卡</button>
       <button type="button" data-tab="wrong">错题</button>
     </div>
     <div class="card" id="wCheat"><div class="empty">加载中…</div></div>
     <div id="wPrac" hidden></div>
+    <div id="wCards" hidden><div class="card empty">加载中…</div></div>
     <div class="card" id="wWrong" hidden></div>
     <footer><div id="wInfo"></div><div><button id="wClear">清空写作记录</button> · <button id="wReload">刷新题库</button></div></footer>
   </div>
@@ -224,6 +299,7 @@ var source="latest";            // "latest" | date | "cat-<slug>" | "all" | "wro
 /* 深链接：?cat=taste  ?deck=2026-09-29  &mode=zh2ko|ko2zh|gko2zh|gzh2ko */
 var QS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1).replace(/\+/g," "))});return o})();
 var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"g_ko_zh",gzh2ko:"g_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"g_ko_zh",g_zh_ko:"g_zh_ko"};
+if(String(QS.cat||"").toLowerCase()==="writing-grammar"){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
 else if(QS.deck) source=QS.deck;
@@ -579,15 +655,15 @@ function setView(v){
   if(v==="writing") ensure().then(function(){setTab(opts.tab||"cheat")});
 }
 function setTab(t){
-  if(["cheat","prac","wrong"].indexOf(t)<0)t="cheat";
+  if(["cheat","prac","cards","wrong"].indexOf(t)<0)t="cheat";
   opts.tab=t; save();
   Array.prototype.forEach.call(document.querySelectorAll("#wtabs button"),function(b){b.classList.toggle("active",b.getAttribute("data-tab")===t)});
-  $("wCheat").hidden=t!=="cheat"; $("wPrac").hidden=t!=="prac"; $("wWrong").hidden=t!=="wrong";
-  if(t==="prac") renderPrac(); else if(t==="wrong") renderWrong();
+  $("wCheat").hidden=t!=="cheat"; $("wPrac").hidden=t!=="prac"; $("wWrong").hidden=t!=="wrong"; $("wCards").hidden=t!=="cards";
+  if(t==="prac") renderPrac(); else if(t==="wrong") renderWrong(); else if(t==="cards") wgOpen();
 }
 function ensure(){
   var ps=[];
-  if(!cheatLoaded) ps.push(fetch(bust("writing/cheatsheet.html"),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text()}).then(function(h){$("wCheat").innerHTML=h;cheatLoaded=true}).catch(function(e){$("wCheat").innerHTML='<div class="empty">速查表加载失败：'+esc(e.message)+"</div>"}));
+  if(!cheatLoaded) ps.push(fetch(bust("writing/cheatsheet.html"),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.text()}).then(function(h){$("wCheat").innerHTML=h;cheatLoaded=true;bindCheat()}).catch(function(e){$("wCheat").innerHTML='<div class="empty">速查表加载失败：'+esc(e.message)+"</div>"}));
   if(!loaded) ps.push(fetch(bust("writing/questions.json"),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){
     Q=(d.questions||[]).slice().sort(function(a,b){return (a.kind==="mock")-(b.kind==="mock")||a.round-b.round||a.no-b.no});
     byId={}; Q.forEach(function(q){byId[q.id]=q}); loaded=true; buildOrder(true); info();
@@ -730,11 +806,197 @@ function renderWrong(){
   };
 }
 
+
+/* ---------- 速查 v2：分页 + 搜索 ---------- */
+function bindCheat(){
+  var root=$("cs2"); if(!root) return;
+  var q=$("csQ"), qx=$("csQx"), cur=opts.cst||"f";
+  function show(t){cur=t;opts.cst=t;save();
+    Array.prototype.forEach.call(root.querySelectorAll("#csTabs button"),function(b){b.classList.toggle("active",b.getAttribute("data-cst")===t)});
+    Array.prototype.forEach.call(root.querySelectorAll(".cs-pane"),function(p){p.hidden=p.getAttribute("data-pane")!==t});}
+  function filter(){
+    var v=q.value.trim().toLowerCase(); qx.hidden=!v;
+    var tabs=$("csTabs"); tabs.hidden=!!v;
+    if(!v){Array.prototype.forEach.call(root.querySelectorAll(".cs-it"),function(e){e.hidden=false});
+      Array.prototype.forEach.call(root.querySelectorAll(".cs-h,.fms,details.grp,.cs-lead"),function(e){e.hidden=false});
+      Array.prototype.forEach.call(root.querySelectorAll("details.grp"),function(d){if(d._auto){d.open=false;d._auto=false}});
+      $("csNone").hidden=true; show(cur); return}
+    var terms=v.split(/\s+/), n=0;
+    Array.prototype.forEach.call(root.querySelectorAll(".cs-pane"),function(p){p.hidden=p.getAttribute("data-pane")==="s"});
+    Array.prototype.forEach.call(root.querySelectorAll(".cs-lead"),function(e){e.hidden=true});
+    Array.prototype.forEach.call(root.querySelectorAll(".cs-it"),function(e){var s=e.getAttribute("data-s")||"";var ok=terms.every(function(t){return s.indexOf(t)>=0});e.hidden=!ok;if(ok)n++});
+    Array.prototype.forEach.call(root.querySelectorAll("details.grp"),function(d){var any=d.querySelector(".cs-it:not([hidden])");d.hidden=!any;if(any&&!d.open){d.open=true;d._auto=true}});
+    Array.prototype.forEach.call(root.querySelectorAll(".fms"),function(f){f.hidden=!f.querySelector(".cs-it:not([hidden])")});
+    Array.prototype.forEach.call(root.querySelectorAll(".cs-h"),function(h){var nx=h.nextElementSibling,any=false;while(nx&&!nx.classList.contains("cs-h")){if(!nx.hidden&&(nx.matches(".cs-it:not([hidden])")||nx.querySelector(".cs-it:not([hidden])")))any=true;nx=nx.nextElementSibling}h.hidden=!any});
+    $("csNone").hidden=n>0;
+  }
+  root.addEventListener("click",function(e){var b=e.target.closest("#csTabs button");if(b)show(b.getAttribute("data-cst"))});
+  q.addEventListener("input",function(){clearTimeout(q._t);q._t=setTimeout(filter,120)});
+  qx.onclick=function(){q.value="";filter();q.focus()};
+  show(cur);
+}
+
+/* ---------- 语法闪卡 ---------- */
+var LS_WG="topik.wg.opts", LS_WGW="topik.wg.wrong.v1";
+var wg=load(LS_WG,{mode:"zh2ko",scope:"all"}); if(wg.mode!=="ko2zh")wg.mode="zh2ko";
+var wgW=load(LS_WGW,{}), G=null, GC=[], GBY={}, GGRP={};
+var R={q:[],i:0,ok:0,bad:0,missed:[],st:"ask",redo:false};
+function wgSaveOpts(){try{localStorage.setItem(LS_WG,JSON.stringify(wg))}catch(e){}}
+function wgSaveW(){try{localStorage.setItem(LS_WGW,JSON.stringify(wgW))}catch(e){}}
+function wgOpen(){
+  if(G){wgRender();return}
+  $("wCards").innerHTML='<div class="card empty">加载中…</div>';
+  fetch(bust("writing/grammar.json"),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){
+    G=d; GC=[]; GBY={}; GGRP={};
+    d.groups.forEach(function(g){GGRP[g.id]=g});
+    d.patterns.forEach(function(c){c.kind="p";GC.push(c)});
+    d.honor.forEach(function(c){c.kind="h";c.cue="敬语：原词是「"+c.plain+"」"+(c.note?"。例："+c.note:"");GC.push(c)});
+    GC.forEach(function(c){GBY[c.id]=c});
+    wgNewRound(); wgRender();
+  }).catch(function(e){$("wCards").innerHTML='<div class="card empty">语法闪卡加载失败：'+esc(e.message)+"</div>"});
+}
+function wgPool(sc){
+  sc=sc||wg.scope;
+  if(sc==="wrong") return GC.filter(function(c){return wgW[c.id]});
+  if(sc==="51") return GC.filter(function(c){return c.kind==="p"&&c.no===51});
+  if(sc==="52") return GC.filter(function(c){return c.no===52});
+  if(sc==="honor") return GC.filter(function(c){return c.kind==="h"});
+  return GC.slice();
+}
+function wgNewRound(list,redo){R={q:shuffle(list||wgPool()),i:0,ok:0,bad:0,missed:[],st:"ask",redo:!!redo}}
+function wgNorm(s){s=String(s||"").replace(/[^\uac00-\ud7a3\u3131-\u318e/()]/g,"");return s}
+function wgExpand(s){ // 把输入里的 (으)、아/어 展开成多个候选
+  var out={}, todo=[String(s||"").replace(/\s+/g,"")], n=0;
+  while(todo.length&&n++<200){var t=todo.pop(),m=t.match(/\(([^()]*)\)/);
+    if(m){todo.push(t.replace(m[0],m[1]));todo.push(t.replace(m[0],""));continue}
+    m=t.match(/([\uac00-\ud7a3\u3131-\u318e])\/([\uac00-\ud7a3\u3131-\u318e])/);
+    if(m){todo.push(t.replace(m[0],m[1]));todo.push(t.replace(m[0],m[2]));continue}
+    t=t.replace(/[^\uac00-\ud7a3\u3131-\u318e]/g,"").replace(/으ㄹ/g,"을").replace(/으ㄴ/g,"은").replace(/으ㅁ/g,"음").replace(/으ㅂ/g,"읍");
+    if(t)out[t]=1}
+  return Object.keys(out);
+}
+function wgCore(k){return k.replace(/^[아어여으을ㄹ은ㄴ는이가과와를]{1,2}/,"")}
+function wgCheck(c,input){
+  var cands=wgExpand(input); if(!cands.length) return false;
+  var keys=c.keys||[], core={}; keys.forEach(function(k){core[wgCore(k)]=1});
+  return cands.some(function(t){return keys.indexOf(t)>=0||(wgCore(t).length>=2&&core[wgCore(t)])});
+}
+function wgCardHTML(c,open){
+  var g=GGRP[c.g]||{}, h='<details class="wi'+(open?" hot":"")+'"'+(open?" open":"")+'><summary>📖 接法 · 怎么记 · 例句</summary><div class="body wgc">';
+  if(c.kind==="h"){
+    h+='<div class="row"><span class="rk">敬语替换</span><span lang="ko">'+esc(c.plain)+'</span> → <b lang="ko" style="color:#ffd98a">'+esc(c.p)+"</b>　"+esc(c.zh)+"</div>";
+    if(c.note) h+='<div class="row"><span class="rk">例</span><span lang="ko">'+esc(c.note)+"</span></div>";
+    h+='<div class="row cue"><span class="rk">🔎 什么时候用</span>对象是老师、长辈、顾客或陌生读者时。</div>';
+  }else{
+    h+='<div class="row"><span class="rk">中文意思</span>'+esc(c.zh)+"</div>";
+    h+='<div class="row"><span class="rk">接法</span><span lang="ko">'+esc(c.att)+"</span></div>";
+    h+='<div class="row mem"><span class="rk">🧠 中文对照记忆</span>'+esc(c.mem)+"</div>";
+    h+='<div class="row"><span class="rk">例句</span>'+c.ex.map(function(e){
+      var ko=e.hl?esc(e.ko.slice(0,e.hl[0]))+"<mark>"+esc(e.ko.slice(e.hl[0],e.hl[1]))+"</mark>"+esc(e.ko.slice(e.hl[1])):esc(e.ko);
+      return '<div class="ex"><div class="exko" lang="ko">'+ko+'</div><div class="exzh">'+esc(e.zh)+'</div><div class="exsrc'+(e.src==="自拟例句"?" self":"")+'">'+esc(e.src)+"</div>"+(e.note?'<div class="exnote">'+esc(e.note)+"</div>":"")+"</div>"}).join("")+"</div>";
+    h+='<div class="row cue"><span class="rk">🔎 线索</span>'+esc(c.cue)+"</div>";
+    if(c.err) h+='<div class="row err"><span class="rk">⚠️ 易错</span>'+esc(c.err)+"</div>";
+  }
+  return h+'<div class="row" style="color:var(--muted);font-size:13px">'+c.no+" · "+esc(g.name||"")+"</div></div></details>";
+}
+function wgRender(){
+  var box=$("wCards"); if(!G) return;
+  var cnt=function(sc){return wgPool(sc).length};
+  var h='<div class="wg">';
+  h+='<div class="seg" data-wg="mode"><button type="button" data-v="zh2ko" class="'+(wg.mode==="zh2ko"?"active":"")+'">中→韩（打字）</button><button type="button" data-v="ko2zh" class="'+(wg.mode==="ko2zh"?"active":"")+'">韩→中（自评）</button></div>';
+  h+='<div class="seg" data-wg="scope">'+[["all","全部"],["51","51"],["52","52"],["honor","敬语"],["wrong","错题本"]].map(function(x){var n=cnt(x[0]);return '<button type="button" data-v="'+x[0]+'" class="'+(wg.scope===x[0]&&!R.redo?"active":"")+'"'+(n===0&&x[0]!=="wrong"?" disabled":"")+">"+x[1]+" "+n+"</button>"}).join("")+"</div>";
+  if(R.redo) h+='<div class="seg"><button type="button" class="active" id="wgExitRedo">只练本轮错题（'+R.q.length+'）✕ 退出</button></div>';
+  var n=R.q.length;
+  h+='<div class="bar"><span>进度 <b>'+Math.min(R.i+(R.st==="ask"?1:1),n)+"/"+n+'</b></span><span class="sp"></span><span>对 <b style="color:var(--ok)">'+R.ok+'</b></span><span>错 <b style="color:var(--bad)">'+R.bad+"</b></span></div>";
+  h+='<div class="progress"><i style="width:'+(n?Math.round(100*(R.i)/n):0)+'%"></i></div>';
+  if(!n){box.innerHTML=h+'<div class="card empty">'+(wg.scope==="wrong"?"语法错题本是空的 🎉<br>去「全部」练一轮吧。":"没有卡片")+"</div>"+wgFoot()+"</div>";wgBind();return}
+  if(R.i>=n){box.innerHTML=h+wgSummary()+wgFoot()+"</div>";wgBind();return}
+  var c=R.q[R.i], g=GGRP[c.g]||{};
+  h+='<div class="card" id="wgCard"><div class="label"><span>'+(wg.mode==="zh2ko"?"看中文意思 → 写韩语句型":"看句型 → 想中文意思")+'</span><span class="tag">'+c.no+" · "+esc(g.name||"")+"</span></div>";
+  if(wg.mode==="zh2ko"){
+    h+='<div class="prompt">'+esc(c.zh)+"</div>";
+    h+='<div class="cueline">🔎 '+esc(c.cue)+"</div>";
+    h+='<textarea class="answer" id="wgIn" lang="ko" rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="写韩语句型，如 -(으)ㄹ 수밖에 없다"'+(R.st!=="ask"?" disabled":"")+">"+esc(R.typed||"")+"</textarea>";
+  }else{
+    h+='<div class="prompt" lang="ko">'+esc(c.p)+"</div>";
+    if(c.kind==="h") h+='<div class="cueline">敬语，原词：<span lang="ko">'+esc(c.plain)+"</span></div>";
+  }
+  h+='<div id="wgFb">'+(R.st==="ask"?"":wgFeedback(c))+"</div>";
+  h+='<div class="actions">'+wgButtons()+"</div></div>";
+  box.innerHTML=h+wgFoot()+"</div>"; wgBind();
+  var t=$("wgIn"); if(t&&R.st==="ask"){t.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();wgSubmit()}});try{t.focus({preventScroll:true})}catch(x){}}
+}
+function wgFeedback(c){
+  if(wg.mode==="zh2ko"){
+    var ok=R.st==="ok";
+    return '<div class="fbx '+(ok?"ok":"bad")+'"><div class="title">'+(ok?"✓ 对了":(R.typed?"✗ 不对":"看答案"))+'</div><div class="ansline" lang="ko">'+esc(c.p)+"</div>"+(R.typed?'<div class="mine">你写的：<span lang="ko">'+esc(R.typed)+"</span></div>":"")+"</div>"+wgCardHTML(c,!ok);
+  }
+  return '<div class="fbx"><div class="ansline">'+esc(c.zh)+"</div></div>"+wgCardHTML(c,R.st==="bad"||R.st==="shown");
+}
+function wgButtons(){
+  if(wg.mode==="zh2ko"){
+    if(R.st==="ask") return '<button type="button" class="b-primary" data-a="check">检查</button><button type="button" class="b-ghost" data-a="giveup">不会，看答案</button>';
+    if(R.st==="bad") return '<button type="button" class="b-ok" data-a="actually">其实我写对了</button><button type="button" class="b-primary" data-a="next">下一张 →</button>';
+    return '<button type="button" class="b-primary full" data-a="next">下一张 →</button>';
+  }
+  if(R.st==="ask") return '<button type="button" class="b-primary full" data-a="show">看中文意思</button>';
+  if(R.st==="shown") return '<button type="button" class="b-ok" data-a="know">记住了 ✓</button><button type="button" class="b-bad" data-a="dunno">没记住 ✗</button>';
+  return '<button type="button" class="b-primary full" data-a="next">下一张 →</button>';
+}
+function wgMark(c,ok){
+  if(ok){R.ok++; if(wg.scope==="wrong"||R.redo){delete wgW[c.id];wgSaveW()}}
+  else{R.bad++; R.missed.push(c); var w=wgW[c.id]||{n:0}; w.n++; w.t=Date.now(); wgW[c.id]=w; wgSaveW()}
+}
+function wgSubmit(){
+  var c=R.q[R.i], t=$("wgIn"); if(!c||!t) return;
+  R.typed=t.value.trim();
+  if(!R.typed){toast("先写一下；不会就点「不会，看答案」");return}
+  var ok=wgCheck(c,R.typed); R.st=ok?"ok":"bad"; wgMark(c,ok); wgRender();
+  if(!ok) setTimeout(function(){var f=$("wgFb");if(f)try{f.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}},30);
+}
+function wgNext(){R.i++;R.st="ask";R.typed="";wgRender();try{$("wCards").scrollIntoView({block:"start"})}catch(e){}}
+function wgSummary(){
+  var n=R.q.length, pct=n?Math.round(100*R.ok/n):0;
+  var h='<div class="card summary"><h2>'+(R.redo?"错题重练结束":"本轮结束")+'</h2><div class="nums">共 '+n+' 张 · <span style="color:var(--ok)">对 '+R.ok+'</span> · <span style="color:var(--bad)">错 '+R.bad+"</span> · 正确率 "+pct+"%</div>";
+  if(R.missed.length) h+='<div style="color:var(--muted);font-size:14px">本轮错题（已记入语法错题本）：</div><ul class="list">'+R.missed.map(function(c){return '<li><span class="ko" lang="ko">'+esc(c.p)+'</span><br><span class="zh">'+esc(c.zh)+"</span></li>"}).join("")+"</ul>";
+  h+='<div class="actions">'+(R.missed.length?'<button type="button" class="b-bad full" data-a="redo">只练错题（'+R.missed.length+"）</button>":"")+'<button type="button" class="b-primary" data-a="again">再来一轮</button><button type="button" data-a="wrongbook">错题本（'+wgPool("wrong").length+"）</button></div></div>";
+  return h;
+}
+function wgFoot(){return '<footer><div>共 '+GC.length+' 张：句型 '+G.patterns.length+' · 敬语 '+G.honor.length+'</div><div><button type="button" id="wgShare">🔗 复制语法闪卡链接</button> · <button type="button" id="wgClear">清空语法错题本</button></div></footer>'}
+function wgBind(){
+  var box=$("wCards");
+  box.onclick=function(e){
+    var b=e.target.closest("button"); if(!b) return;
+    var seg=b.closest(".seg[data-wg]");
+    if(seg){var k=seg.getAttribute("data-wg"),v=b.getAttribute("data-v");wg[k]=v;wgSaveOpts();if(k==="scope"||R.redo)wgNewRound();else{R.st="ask";R.typed=""}wgRender();return}
+    if(b.id==="wgExitRedo"){wgNewRound();wgRender();return}
+    if(b.id==="wgShare"){copyLink();return}
+    if(b.id==="wgClear"){if(confirm("确定清空语法错题本？")){wgW={};wgSaveW();if(wg.scope==="wrong")wgNewRound();wgRender();toast("已清空")}return}
+    var a=b.getAttribute("data-a"), c=R.q[R.i]; if(!a) return;
+    if(a==="check"){wgSubmit();return}
+    if(a==="giveup"){R.typed=($("wgIn")||{}).value||"";R.st="bad";wgMark(c,false);wgRender();return}
+    if(a==="actually"){R.bad--;R.ok++;R.missed.pop();var w=wgW[c.id];if(w){w.n--;if(w.n<=0)delete wgW[c.id];wgSaveW()}R.st="ok";toast("好的，算你对 👍");wgRender();return}
+    if(a==="next"){wgNext();return}
+    if(a==="show"){R.st="shown";wgRender();return}
+    if(a==="know"){wgMark(c,true);wgNext();return}
+    if(a==="dunno"){wgMark(c,false);R.st="bad";wgRender();return}
+    if(a==="redo"){wgNewRound(R.missed.slice(),true);wgRender();return}
+    if(a==="again"){wgNewRound();wgRender();return}
+    if(a==="wrongbook"){wg.scope="wrong";wgSaveOpts();wgNewRound();wgRender();return}
+  };
+}
+function copyLink(){
+  var u=location.origin+location.pathname+"?cat=writing-grammar"+(wg.mode==="ko2zh"?"&mode=ko2zh":"");
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(u).then(function(){toast("链接已复制")},function(){prompt("复制这个链接：",u)})}else prompt("复制这个链接：",u);
+}
 $("topnav").addEventListener("click",function(e){var b=e.target.closest("button[data-view]");if(b)setView(b.getAttribute("data-view"))});
 $("wtabs").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b)setTab(b.getAttribute("data-tab"))});
 $("wClear").onclick=function(){if(confirm("确定清空写作的自评记录和草稿？")){st={marks:{},drafts:{}};save();revealed=false;setTab(opts.tab);toast("已清空")}};
 $("wReload").onclick=function(){loaded=false;cheatLoaded=false;ensure().then(function(){setTab(opts.tab)})};
-var v0=location.hash==="#writing"?"writing":(location.hash==="#flash"?"flash":(localStorage.getItem(LS_VIEW)||"flash"));
+var WQS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1))});return o})();
+var wgLink=String(WQS.cat||"").toLowerCase()==="writing-grammar"||location.hash==="#writing-grammar";
+if(wgLink){opts.tab="cards";if(WQS.mode==="zh2ko"||WQS.mode==="ko2zh"){wg.mode=WQS.mode;wgSaveOpts()}save()}
+var v0=wgLink||location.hash==="#writing"?"writing":(location.hash==="#flash"?"flash":(localStorage.getItem(LS_VIEW)||"flash"));
 setView(v0);
 })();
 

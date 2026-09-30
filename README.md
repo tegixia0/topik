@@ -93,3 +93,9 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}, drafts:{id:{a,
   - `?deck=2026-09-29`：打开某一天的词库
   - 可加 `&mode=zh2ko`（单词 中→韩）、`ko2zh`（单词 韩→中）、`gko2zh`（语法句 韩→中）、`gzh2ko`（语法句 中→韩）
   - 例：`https://tegixia0.github.io/topik/?cat=taste&mode=zh2ko`
+
+## 写作语法（速查 + 语法闪卡）
+
+- 内容源：`tools/wg_data.py`（句型、判断公式、常见错误、敬语替换表）。例句用 `{"ref":"35-51b","ai":0}` 从 `writing/questions.json` 取真题原句并高亮答案；没有 ref 的标“自拟例句”。
+- 生成：`python3 tools/build_writing_grammar.py` → `writing/cheatsheet.html`（速查页：判断公式 / 句型卡 / 常见错误 / 步骤，带搜索）和 `writing/grammar.json`（语法闪卡数据，含自动判分用的 keys）。
+- 深链接：`?cat=writing-grammar`（或 `#writing-grammar`），可加 `&mode=zh2ko|ko2zh`。语法错题存在 localStorage `topik.wg.wrong.v1`。
