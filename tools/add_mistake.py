@@ -43,7 +43,9 @@ def resolve_tags(d, tags):
     for t in [x.strip() for x in tags.replace("，", ",").split(",") if x.strip()]:
         if t in d["types"]:
             out.append(t); continue
-        hit = [k for k, v in d["types"].items() if t == v["name"] or t in v["name"]]
+        hit = [k for k, v in d["types"].items() if t == v["name"] or t == v["name"].split()[0]]
+        if not hit:
+            hit = [k for k, v in d["types"].items() if t in v["name"]]
         if len(hit) == 1:
             out.append(hit[0]); continue
         sys.exit("unknown/ambiguous tag %r. Known types:\n%s\nAdd one with --new-type ID NAME RULE"
