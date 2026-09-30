@@ -107,6 +107,7 @@ details.gi>summary .z{color:var(--ink);font-size:14.5px;opacity:.9}
 .w54chk{margin:4px 0;padding-left:20px}
 .w54chk li{font-size:15px;line-height:1.65;margin:2px 0}
 .w54tbl td:first-child{white-space:normal}
+.w54tbl td,.w54tbl th{word-break:keep-all;overflow-wrap:anywhere}
 .w54ins{font-weight:700;font-size:16px;line-height:1.65;margin:4px 0 8px;word-break:keep-all;overflow-wrap:anywhere}
 .w54qs{margin:8px 0 0;padding-left:18px}
 .w54qs li{margin:3px 0}
