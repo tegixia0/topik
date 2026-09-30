@@ -1,0 +1,180 @@
+/* TOPIK 中高级语法（中国人视角）—— 数据：grammar/grammar.json（由 tools/grammar_data.py 生成） */
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var LS_OPT="topik.grammar.opt.v1", LS_W="topik.grammar.wrong.v1";
+var D=null, byId={}, CAT={}, opt=load(LS_OPT,{tab:"list",mode:"fill",scope:"all"}), W=load(LS_W,{}), R=null, search="";
+var MODES={zh2ko:"中→韩（写语法）",fill:"句子填空（写形式）",ko2zh:"韩→中（自评）"};
+function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==="object"?v:d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function toast(m){var t=$("toast");if(!t){alert(m);return}t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show")},1800)}
+function norm(s){return String(s||"").normalize("NFC").replace(/[^가-힣ㄱ-ㅎ]/g,"")}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function ensure(){
+  if(D) return Promise.resolve();
+  return fetch("grammar/grammar.json?v="+Date.now().toString(36).slice(0,6),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){
+    D=d; byId={}; d.items.forEach(function(it){byId[it.id]=it}); CAT={}; d.cats.forEach(function(c){CAT[c.id]=c.label});
+  });
+}
+function open(o){
+  o=o||{};
+  if(o.tab) opt.tab=o.tab;
+  if(o.mode&&MODES[o.mode]) opt.mode=o.mode;
+  save(LS_OPT,opt);
+  $("gBody").innerHTML='<div class="card empty">加载中…</div>';
+  ensure().then(function(){
+    if(o.g&&byId[o.g]){opt.tab="list";search=byId[o.g].f}
+    setTab(opt.tab,o.g);
+  }).catch(function(e){$("gBody").innerHTML='<div class="card empty">语法数据加载失败：'+esc(e.message)+"</div>"});
+}
+function setTab(t,focus){
+  if(["list","cmp","cards","wrong"].indexOf(t)<0)t="list";
+  opt.tab=t; save(LS_OPT,opt);
+  Array.prototype.forEach.call(document.querySelectorAll("#gtabs button"),function(b){b.classList.toggle("active",b.getAttribute("data-tab")===t)});
+  if(t==="list") renderList(focus); else if(t==="cmp") renderCmp(); else if(t==="cards"){if(!R)newRound();renderCard()} else renderWrong();
+}
+/* ---------- 语法卡片 ---------- */
+function exHTML(e){var real=/^真题/.test(e.src);return '<div class="gex"><div class="ko">'+esc(e.ko)+(e.src?'<span class="src'+(real?"":" self")+'">'+esc(e.src)+'</span>':"")+'</div><div class="zh">'+esc(e.zh)+'</div></div>'}
+function cmpHTML(id){
+  var c=D.cmp[id]; if(!c) return "";
+  return '<div style="overflow-x:auto"><table class="ctbl"><tr><th>语法</th><th>中文</th><th>语感/用法</th><th>限制</th></tr>'+c.rows.map(function(r){return '<tr>'+r.map(function(x){return '<td>'+esc(x)+'</td>'}).join("")+'</tr>'}).join("")+'</table></div><div class="ctip">💡 '+esc(c.tip)+'</div>';
+}
+function bodyHTML(it){
+  var h='<div class="gbody">';
+  h+='<div class="row"><span class="k">中文</span>'+esc(it.zh)+'</div>';
+  h+='<div class="row"><span class="k mem">记法</span>'+esc(it.mem)+'</div>';
+  h+='<div class="row"><span class="k">接法</span>'+esc(it.join)+'</div>';
+  h+='<div class="row"><span class="k warn">语感/限制</span>'+esc(it.use)+'</div>';
+  h+='<div class="row"><span class="k err">常见错误</span>'+esc(it.err)+'</div>';
+  h+='<div class="row"><span class="k">例句</span></div>'+it.ex.map(exHTML).join("");
+  if(it.cmp&&D.cmp[it.cmp]) h+='<details class="tr"><summary>⚖️ 易混对比：'+esc(D.cmp[it.cmp].title)+'</summary>'+cmpHTML(it.cmp)+'</details>';
+  return h+'</div>';
+}
+function itemHTML(it,openIt){return '<details class="gi" id="g-'+it.id+'"'+(openIt?" open":"")+'><summary><span class="f">'+esc(it.f)+'</span><span class="z">'+esc(it.zh)+'</span></summary>'+bodyHTML(it)+'</details>'}
+function match(it,q){
+  if(!q) return true; var n=norm(q), l=q.toLowerCase();
+  if(n&&(it.keys.some(function(k){return k.indexOf(n)>=0||n.indexOf(k)>=0&&k.length>1})||norm(it.f).indexOf(n)>=0)) return true;
+  return (it.zh+it.mem+it.use+CAT[it.cat]+it.ex.map(function(e){return e.ko+e.zh}).join("")).toLowerCase().indexOf(l)>=0;
+}
+function renderList(focus){
+  var h='<input class="gsearch" id="gQ" type="search" placeholder="搜索：바람에 / 因为 / 让步 / 推测…" value="'+esc(search)+'" autocomplete="off">';
+  h+='<div class="minfo">'+D.items.length+' 个 TOPIK II 高频语法 · 按功能分组 · 点开看中文说法、记法、接法、限制、易混对比、例句（真题例句标“真题”）</div><div id="gList"></div>';
+  $("gBody").innerHTML=h; drawList(focus);
+  $("gQ").oninput=function(){search=this.value;drawList()};
+}
+function drawList(focus){
+  var its=D.items.filter(function(it){return match(it,search)}), h="", few=its.length<=3;
+  D.cats.forEach(function(c){var xs=its.filter(function(it){return it.cat===c.id});if(!xs.length)return;
+    h+='<div class="gcat">'+esc(c.label)+'（'+xs.length+'）</div>'+xs.map(function(it){return itemHTML(it,few||it.id===focus)}).join("")});
+  $("gList").innerHTML=h||'<div class="card empty">没找到，换个关键词试试</div>';
+  if(focus){var el=$("g-"+focus);if(el)setTimeout(function(){el.scrollIntoView({block:"start"})},50)}
+}
+function renderCmp(){
+  var h='<div class="minfo">'+Object.keys(D.cmp).length+' 组最容易混的语法，用中文一眼看懂区别。点语法名跳到详细卡片。</div>';
+  Object.keys(D.cmp).forEach(function(id){var c=D.cmp[id],mem=D.items.filter(function(it){return it.cmp===id});
+    h+='<div class="rcard" id="c-'+id+'"><h3 style="margin:0 0 6px;font-size:16px">'+esc(c.title)+'</h3>'+cmpHTML(id)+
+      '<div class="racts">'+mem.map(function(it){return '<button type="button" class="gbtn" data-go="'+it.id+'">'+esc(it.f)+'</button>'}).join("")+'</div></div>'});
+  $("gBody").innerHTML=h;
+}
+/* ---------- 闪卡 ---------- */
+function pool(){
+  var its=D.items.slice();
+  if(opt.scope==="wrong") its=its.filter(function(it){return W[it.id]});
+  else if(opt.scope!=="all") its=its.filter(function(it){return it.cat===opt.scope});
+  if(opt.mode==="fill") its=its.filter(function(it){return it.fill&&it.fill.length});
+  return its;
+}
+function newRound(list){
+  var its=list||shuffle(pool()).slice(0,15);
+  R={q:its.map(function(it){return {id:it.id,fi:Math.floor(Math.random()*(it.fill.length||1))}}),i:0,ok:0,bad:0,missed:[],st:"ask",typed:""};
+}
+function checkAns(c,typed){
+  var it=byId[c.id], n=norm(typed); if(!n) return false;
+  if(opt.mode==="zh2ko"){
+    return it.keys.some(function(k){return n===k||(k.length>=2&&n.length>=2&&(n.slice(-k.length)===k||(k.slice(-n.length)===n&&n.length>=k.length-1)))});
+  }
+  var ans=(it.fill[c.fi]||it.fill[0]).ans.map(norm);
+  return ans.some(function(a){return n===a||n.slice(-a.length)===a||(a.slice(-n.length)===n&&n.length>=a.length-1)});
+}
+function markW(id,bad){var w=W[id];if(bad){w=W[id]||{n:0};w.n++;w.last=Date.now();W[id]=w}else if(opt.scope==="wrong"&&w){delete W[id]}save(LS_W,W)}
+function renderCard(){
+  var scopes='<option value="all">全部（'+D.items.length+'）</option><option value="wrong"'+(opt.scope==="wrong"?" selected":"")+'>语法错题本（'+Object.keys(W).length+'）</option>'+D.cats.map(function(c){var n=D.items.filter(function(it){return it.cat===c.id}).length;return '<option value="'+c.id+'"'+(opt.scope===c.id?" selected":"")+'>'+esc(c.label)+'（'+n+'）</option>'}).join("");
+  var h='<div class="fbar">'+Object.keys(MODES).map(function(m){return '<button type="button" class="chip'+(opt.mode===m?" on":"")+'" data-mode="'+m+'" style="'+(opt.mode===m?"background:var(--accent);border-color:var(--accent);color:#fff":"")+'">'+MODES[m]+'</button>'}).join("")+'</div>';
+  h+='<div class="fbar"><select id="gScope" aria-label="范围">'+scopes+'</select><button type="button" class="chip" id="gLink">🔗 链接</button></div>';
+  if(!R||!R.q.length){$("gBody").innerHTML=h+'<div class="card empty">'+(opt.scope==="wrong"?"语法错题本是空的 🎉":"这个范围没有题")+'</div>';bindCard();return}
+  if(R.i>=R.q.length){$("gBody").innerHTML=h+summaryHTML();bindCard();return}
+  var c=R.q[R.i], it=byId[c.id], f=it.fill[c.fi]||it.fill[0];
+  h+='<div class="bar"><span>进度 <b>'+(R.i+1)+'/'+R.q.length+'</b></span><span class="sp"></span><span>对 <b style="color:var(--ok)">'+R.ok+'</b></span><span>错 <b style="color:var(--bad)">'+R.bad+'</b></span></div>';
+  h+='<div class="card">';
+  if(opt.mode==="zh2ko"){
+    h+='<div class="minfo">'+esc(CAT[it.cat])+' · 写出对应的韩语语法形式（如 -는 바람에）</div><div class="gq">'+esc(it.zh)+'</div>';
+    if(it.ex[0]) h+='<div class="gsub">例：'+esc(it.ex[0].zh)+'</div>';
+  }else if(opt.mode==="fill"){
+    h+='<div class="minfo">填空：写出＿＿处的语法形式（只写空格部分即可）</div><div class="gq ko">'+esc(f.ko)+'</div><div class="gsub">'+esc(f.zh)+'</div>';
+  }else{
+    h+='<div class="minfo">'+esc(CAT[it.cat])+' · 先在心里说出中文意思和用法，再看答案自评</div><div class="gq ko">'+esc(it.f)+'</div>';
+  }
+  if(opt.mode!=="ko2zh"){
+    if(R.st==="ask") h+='<input class="ginput" id="gIn" lang="ko" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="输入韩语…"><div class="racts"><button type="button" class="gbtn pri" data-a="check">检查</button><button type="button" class="gbtn" data-a="giveup">不会，看答案</button></div>';
+    else{
+      var good=R.st==="ok", ansTxt=opt.mode==="fill"?f.ans.join(" / "):it.f;
+      h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 正确":"✘ 再看看")+'</div><div class="gans">'+esc(ansTxt)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      h+='<div class="racts">'+(good?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button></div>';
+      h+='<details class="gi"'+(good?"":" open")+' style="margin-top:10px"><summary><span class="f">'+esc(it.f)+'</span><span class="z">完整卡片</span></summary>'+bodyHTML(it)+'</details>';
+    }
+  }else{
+    if(R.st==="ask") h+='<div class="racts"><button type="button" class="gbtn pri" data-a="show">显示答案</button></div>';
+    else h+='<div class="gans" style="font-size:17px">'+esc(it.zh)+'</div>'+bodyHTML(it)+(R.st==="shown"?'<div class="racts"><button type="button" class="gbtn pri" data-a="know">✔ 会了</button><button type="button" class="gbtn" data-a="dunno">✘ 不会</button></div>':'<div class="racts"><button type="button" class="gbtn pri" data-a="next">下一题 ▶</button></div>');
+  }
+  h+='</div>';
+  $("gBody").innerHTML=h; bindCard();
+  var inp=$("gIn"); if(inp){inp.focus();inp.onkeydown=function(e){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();submit()}}}
+}
+function summaryHTML(){
+  var h='<div class="card"><div class="score">'+R.ok+' <small>/ '+R.q.length+'</small></div>';
+  if(R.missed.length) h+='<div class="minfo">这轮错的：</div>'+R.missed.map(function(id){return itemHTML(byId[id],false)}).join("");
+  h+='<div class="racts">'+(R.missed.length?'<button type="button" class="gbtn pri" data-a="redo">重练错的（'+R.missed.length+'）</button>':"")+'<button type="button" class="gbtn'+(R.missed.length?"":" pri")+'" data-a="again">再来一轮</button><button type="button" class="gbtn" data-a="wrongbook">练语法错题本</button></div></div>';
+  return h;
+}
+function submit(){
+  var inp=$("gIn"); if(!inp) return; var c=R.q[R.i]; R.typed=inp.value.trim();
+  if(!R.typed){toast("先写一下，或者点“不会”");return}
+  var ok=checkAns(c,R.typed); R.st=ok?"ok":"bad";
+  if(ok){R.ok++;markW(c.id,false)}else{R.bad++;R.missed.push(c.id);markW(c.id,true)}
+  renderCard();
+}
+function next(){R.i++;R.st="ask";R.typed="";renderCard();window.scrollTo(0,0)}
+function bindCard(){
+  var s=$("gScope"); if(s) s.onchange=function(){opt.scope=s.value;save(LS_OPT,opt);newRound();renderCard()};
+  var l=$("gLink"); if(l) l.onclick=function(){var u=location.origin+location.pathname+"?cat=grammar-core&mode="+opt.mode;if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(u).then(function(){toast("链接已复制")});else prompt("复制链接：",u)};
+}
+function renderWrong(){
+  var ids=Object.keys(W).filter(function(id){return byId[id]}).sort(function(a,b){return W[b].n-W[a].n});
+  var h='<div class="card"><h3 style="margin:0 0 4px">语法错题本（'+ids.length+'）</h3><p class="minfo">闪卡答错自动加入；在“错题本”范围里答对就移出。</p>';
+  if(ids.length) h+='<div class="racts" style="margin-bottom:8px"><button type="button" class="gbtn pri" data-a="wrongbook">▶ 练错题</button><button type="button" class="gbtn" data-a="clearw">清空</button></div>'+ids.map(function(id){return itemHTML(byId[id],false)}).join("");
+  else h+='<div class="empty">还没有错题 🎉</div>';
+  $("gBody").innerHTML=h+'</div>';
+}
+function bind(){
+  $("gtabs").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b)setTab(b.getAttribute("data-tab"))});
+  $("gBody").addEventListener("click",function(e){
+    var b=e.target.closest("button"); if(!b) return;
+    var go=b.getAttribute("data-go"); if(go){search="";setTab("list",go);return}
+    var m=b.getAttribute("data-mode"); if(m){opt.mode=m;save(LS_OPT,opt);newRound();renderCard();return}
+    var a=b.getAttribute("data-a"); if(!a) return; var c=R&&R.q[R.i];
+    if(a==="check") submit();
+    else if(a==="giveup"){R.typed="";R.st="bad";R.bad++;R.missed.push(c.id);markW(c.id,true);renderCard()}
+    else if(a==="actually"){R.bad--;R.ok++;R.missed.pop();var w=W[c.id];if(w){w.n--;if(w.n<=0)delete W[c.id];save(LS_W,W)}R.st="ok";toast("好的，算你对 👍");renderCard()}
+    else if(a==="next") next();
+    else if(a==="show"){R.st="shown";renderCard()}
+    else if(a==="know"){R.ok++;markW(c.id,false);next()}
+    else if(a==="dunno"){R.bad++;R.missed.push(c.id);markW(c.id,true);R.st="judged";renderCard()}
+    else if(a==="redo"){newRound(R.missed.map(function(id){return byId[id]}));renderCard()}
+    else if(a==="again"){newRound();renderCard()}
+    else if(a==="wrongbook"){opt.scope="wrong";save(LS_OPT,opt);newRound();setTab("cards")}
+    else if(a==="clearw"){if(confirm("清空语法错题本？")){W={};save(LS_W,W);renderWrong()}}
+  });
+}
+window.TopikGrammar={open:open,init:bind};
+})();

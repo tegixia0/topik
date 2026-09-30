@@ -99,3 +99,20 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}, drafts:{id:{a,
 - 内容源：`tools/wg_data.py`（句型、判断公式、常见错误、敬语替换表）。例句用 `{"ref":"35-51b","ai":0}` 从 `writing/questions.json` 取真题原句并高亮答案；没有 ref 的标“自拟例句”。
 - 生成：`python3 tools/build_writing_grammar.py` → `writing/cheatsheet.html`（速查页：判断公式 / 句型卡 / 常见错误 / 步骤，带搜索）和 `writing/grammar.json`（语法闪卡数据，含自动判分用的 keys）。
 - 深链接：`?cat=writing-grammar`（或 `#writing-grammar`），可加 `&mode=zh2ko|ko2zh`。语法错题存在 localStorage `topik.wg.wrong.v1`。
+
+## 阅读真题（`reading/`）
+
+- 顶部「📖 阅读」：练习（按 回次 / 题型 / 只看错题 筛选，点选项即判，答错展开解析）、整套模拟（50题/70分钟按比例限时，交卷出分和各题型正确率）、阅读错题本、题型攻略。
+- 数据 `reading/rounds.json` 由 `python3 tools/build_reading.py` 生成：
+  - 原文：官方公开 2교시 PDF（kajiritate-no-hangul.com 镜像 `{n}_TOPIK2_2.pdf`）用 `tools/reading_parse.py` 解析 → `tools/reading_src/{n}.json`；
+  - 答案：官方正答表 `{n}_TOPIK2_A.pdf`（第96回为图片，人工读表）；
+  - 注释：`tools/rd{n}.py`（中文翻译、关键句、解析、逐项分析、生词、语法；`FIX` 修正抽取问题/加下划线）。
+  - 5–10 题图片从原卷裁剪：`reading/img/r{n}_q{m}.png`。
+- 已收录：第96回（48题，42–43 官方因版权未公开原文）、第60回（50题）。第64/83/91回官方PDF为扫描图，需 OCR 后再加。
+- 深链接：`?reading=1`、`?reading=1&type=insert`（题型 id：grammar synonym ad match order blank long headline blank2 match2 theme insert long2）、`?reading=1&round=60`、`&tab=mock|wrong|tips`。
+
+## 语法（`grammar/`）
+
+- 顶部「🧩 语法」：语法表（按功能分组 + 搜索）、易混组（中文对比表）、闪卡（中→韩写语法 / 句子填空写形式 / 韩→中自评；宽松判分 + “其实我写对了”）、语法错题本（localStorage `topik.grammar.wrong.v1`）。
+- 内容源 `tools/grammar_data.py`（111 个 TOPIK II 高频语法，16 组易混对比），`python3 tools/build_grammar.py` 生成 `grammar/grammar.json`。例句标“真题 第N回 第M题”的均取自上面核对过的官方试卷，其余标“自拟”。
+- 深链接：`?grammar=1`、`?grammar=1&g=baram`（打开某个语法）、`?cat=grammar-core&mode=zh2ko|fill|ko2zh`。
