@@ -258,7 +258,7 @@ function renderPrac(){
   if(!q){$("w54Body").innerHTML=h+'<div class="card empty">没有题目</div>';return}
   var L=lim(q);
   h+='<div class="card" id="w54QCard"><div class="qhead"><span class="no">'+q.no+'번</span><span class="badge real">'+qLabel(q)+'</span><span class="badge">'+kindZh(q)+" · "+L[0]+"–"+L[1]+'字</span>'+(atts(q.id).length?'<span class="badge done">'+esc(attBadge(q.id))+"</span>":"")+'<span style="margin-left:auto;color:var(--muted);font-size:14px">'+(idx+1)+"/"+list.length+"</span></div>";
-  h+='<div class="w54ins" lang="ko">'+esc(q.ins)+"</div>";
+  h+='<div class="wsq"><div class="w54ins" lang="ko">'+esc(q.ins)+"</div>";
   if(q.box) h+='<div class="passage" lang="ko">'+esc(q.box)+(q.qs?'<ul class="w54qs">'+q.qs.map(function(x){return "<li>"+esc(x)+"</li>"}).join("")+"</ul>":"")+"</div>";
   else if(q.qs) h+='<ul class="w54qs">'+q.qs.map(function(x){return "<li>"+esc(x)+"</li>"}).join("")+"</ul>";
   if(q.img) h+='<img class="rimg" src="'+esc(q.img)+'" alt="第'+q.round+'回 53题 原卷图表" loading="lazy">';
@@ -266,15 +266,17 @@ function renderPrac(){
   h+='<details class="gi"><summary><span class="f">🇨🇳 中文题意</span></summary><div class="gbody">'+esc(q.zh)+"</div></details>";
   h+='<details class="gi"><summary><span class="f">💡 写前提示</span><span class="z">想好了再看</span></summary><div class="gbody"><ul class="w54chk">'+tips(q).map(function(x){return "<li>"+esc(x)+"</li>"}).join("")+"</ul></div></details>";
   if(q.note&&q.round===35) h+='<div class="note">'+esc(q.note)+"</div>";
+  h+="</div>";   // .wsq（专注写作时固定在上方的题目区）
   h+=histHTML(q);
-  h+='<div class="wfield" id="w54Field"><div class="lab">✍️ 我的作文 <span style="font-weight:400;color:var(--muted);font-size:13px">（不保存，每次打开都是空白）</span></div>';
+  h+='<div class="wfield wsa" id="w54Field"><div class="lab">✍️ 我的作文 <span style="font-weight:400;color:var(--muted);font-size:13px">（不保存，每次打开都是空白）</span></div>';
   h+='<textarea class="answer w54essay" id="w54Essay" lang="ko" rows="'+(q.no===53?8:14)+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="'+(q.no===53?"用 -ㄴ다/-였다 体描述图表，200–300字…":"서론–본론–결론，每个问题一段，600–700字…")+'"></textarea>';
   h+='<div class="w54cnt" id="w54Cnt"></div></div>';
-  h+='<div class="actions"><button type="button" class="b-primary full" data-a="copyessay">📋 复制给老师</button><button type="button" class="b-ghost full small" data-a="reveal">'+(revealed?"收起参考答案":"看参考答案")+"</button></div>";
+  h+='<div class="actions wsk"><button type="button" class="b-primary full wskeep" data-a="copyessay">📋 复制给老师</button><button type="button" class="b-ghost full small" data-a="reveal">'+(revealed?"收起参考答案":"看参考答案")+"</button></div>";
   h+='<div id="w54Rev"></div>';
   h+='<div class="wnav"><button type="button" class="btn small" data-a="prev"'+(idx===0?" disabled":"")+'>← 上一题</button><button type="button" class="btn b-primary small" data-a="nextq">'+(idx>=list.length-1?"回到第 1 题":"下一题 →")+"</button></div></div>";
   $("w54Body").innerHTML=h+foot("真题 "+QS.length+" 题：53 × "+c("53")+" · 54 × "+c("54")+"（全部来自官方公开试卷；范文标“官方”的来自官方 정답 및 채점기준표）");
   var ta=$("w54Essay"); ta.value=""; ta.addEventListener("input",updCnt); updCnt();
+  if(window.WSplit) WSplit.attach($("w54QCard"),{label:q.round+"回 "+q.no+"번 "+kindZh(q)});
   if(revealed) renderRev();
 }
 /* ---------- 我之前的作文（writing/essaylog.json） ---------- */
@@ -307,6 +309,7 @@ function rewrite(){
   var ta=$("w54Essay"), hs=$("w54Hist"); if(!ta) return;
   if(ta.value.trim()&&!confirm("清空作文框，从头重写？")) return;
   ta.value=""; updCnt(); if(hs) hs.open=false;
+  var qc=$("w54QCard"); if(qc) qc._wsOff=false;   // 重做 → 允许自动进入专注写作
   try{$("w54Field").scrollIntoView({block:"start",behavior:"smooth"})}catch(e){}
   try{ta.focus({preventScroll:true})}catch(e){ta.focus()}
   toast("开始第 "+(atts(opt.cur).length+1)+" 次，加油 💪");

@@ -243,7 +243,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261002d">
+<link rel="stylesheet" href="assets/modules.css?v=20261002e">
 </head>
 <body>
 <div class="wrap">
@@ -319,7 +319,8 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="assets/accepted.js?v=20261002c"></script>
 <script src="reading/reading.js"></script>
 <script src="grammar/grammar.js?v=20261002c"></script>
-<script src="writing/w5354.js?v=20261002c"></script>
+<script src="assets/wsplit.js?v=20261002e"></script>
+<script src="writing/w5354.js?v=20261002e"></script>
 <script src="bank/bank.js?v=20261002d"></script>
 <script>
 (function(){
@@ -774,16 +775,18 @@ function renderPrac(){
   var q=order[idx]; opts.cur=q.id; save();
   var d=drafts[q.id]||{a:"",b:""};
   h+='<div class="card" id="wCard"><div class="qhead"><span class="no">'+q.no+'번</span><span class="badge '+srcCls(q)+'">'+esc(srcLabel(q))+'</span><span class="badge">'+(q.no===51?"实用文 · -습니다":"说明文 · -(ㄴ/는)다")+"</span>"+(mlSum(q.id)?'<span class="badge done" title="老师批改记录（writing/mylog.json）">📝 '+esc(mlSum(q.id))+"</span>":"")+'<span id="wMk">'+mkBadges(q.id)+'</span><span style="margin-left:auto;color:var(--muted);font-size:14px">'+(idx+1)+"/"+order.length+"</span></div>";
-  if(q.title) h+='<div class="qtitle" lang="ko">'+esc(q.title)+"</div>";
-  h+='<div class="passage" lang="ko">'+blankify(q.text)+"</div>";
+  h+='<div class="wsq">'+(q.title?'<div class="qtitle" lang="ko">'+esc(q.title)+"</div>":"");
+  h+='<div class="passage" lang="ko">'+blankify(q.text)+"</div></div>";
+  h+='<div class="wsa">';
   ["a","b"].forEach(function(k){
     h+='<div class="wfield"><div class="lab">'+(k==="a"?"㉠":"㉡")+"</div>"+mlHint(q.id,k)+
       '<textarea class="answer" id="wIn_'+k+'" lang="ko" rows="2" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="写 '+(k==="a"?"㉠":"㉡")+' 的答案（一句话）…">'+esc(d[k]||"")+"</textarea></div>";
   });
-  h+='<div class="actions"><button type="button" class="b-primary full" id="wShow">'+(revealed?"收起参考答案":"看参考答案")+'</button><button type="button" class="b-ghost full small" id="wCopy">📋 复制我的答案发给老师批改</button></div>';
+  h+="</div>";
+  h+='<div class="actions wsk"><button type="button" class="b-primary full" id="wShow">'+(revealed?"收起参考答案":"看参考答案")+'</button><button type="button" class="b-ghost full small wskeep" id="wCopy">📋 复制我的答案发给老师批改</button></div>';
   h+='<div id="wReveal"></div>';
   h+='<div class="wnav"><button type="button" class="btn small" id="wPrev"'+(idx===0?" disabled":"")+'>← 上一题</button><button type="button" class="btn b-primary small" id="wNext">'+(idx>=order.length-1?"回到第 1 题":"下一题 →")+"</button></div></div>";
-  box.innerHTML=h; bindPrac(); if(revealed) renderReveal();
+  box.innerHTML=h; bindPrac(); if(window.WSplit) WSplit.attach($("wCard"),{label:srcLabel(q)+" · "+q.no+"번"}); if(revealed) renderReveal();
 }
 function renderReveal(){
   var q=order[idx], r=$("wReveal"); if(!q||!r)return;

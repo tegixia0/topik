@@ -208,3 +208,43 @@ textarea.w54essay{font-size:17px;line-height:1.7;min-height:200px}
 .bk-days i{display:block;width:70%;background:var(--accent);border-radius:3px 3px 0 0;min-height:1px}
 .bk-days b{color:var(--ink);font-size:10.5px;font-weight:600}
 .bk-stats b small{font-size:13px;color:var(--muted);font-weight:600}
+/* ---------- 写作「专注写作」分屏（assets/wsplit.js） ---------- */
+.toast{z-index:3000}
+.wsbar,.wsgrip{display:none}
+.wsgo{margin-left:auto;font-size:13px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid #35527e;background:#16233a;color:#9cc4ff}
+.wsq img{cursor:zoom-in}
+html.ws-lock,html.ws-lock body{overflow:hidden;overscroll-behavior:none}
+.card.wsplit.ws-on{position:fixed;left:0;right:0;top:0;height:100vh;z-index:2000;margin:0;border-radius:0;border:none;padding:0 10px calc(6px + env(safe-area-inset-bottom));display:flex;flex-direction:column;overflow:hidden;box-shadow:none;background:var(--bg)}
+.ws-on>*{display:none!important}
+.ws-on>.wsbar{display:flex!important;align-items:center;gap:6px;flex:none;padding:6px 0;min-height:40px}
+.ws-on>.wsq{display:block!important;flex:none;max-height:var(--wsqmax,40vh);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
+.ws-on.ws-col>.wsq{display:none!important}
+.ws-on>.wsgrip{display:block!important;flex:none;height:16px;touch-action:none;cursor:ns-resize;position:relative}
+.ws-on>.wsgrip::after{content:"";position:absolute;left:50%;top:6px;width:44px;height:4px;margin-left:-22px;border-radius:2px;background:#3a4d6b}
+.ws-on.ws-col>.wsgrip{display:none!important}
+.ws-on>.wsa{display:flex!important;flex-direction:column;flex:1 1 auto;min-height:0;margin-top:2px;overflow-y:auto}
+.ws-on>.wsa>*{flex:none}
+.ws-on>.wsk{display:grid!important;flex:none;margin-top:6px;gap:6px}
+.ws-on>.wsk button{min-height:40px;font-size:15px;border-radius:12px}
+.ws-on>.wsk button:not(.wskeep){display:none}
+.wsbar button{font-size:13.5px;font-weight:700;padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:var(--ink);white-space:nowrap}
+.wsbar [data-ws=exit]{color:var(--muted)}
+.wsbar .wsl{flex:1;min-width:0;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws-on .wsq .w54ins{font-size:15px;margin:0 0 6px}
+.ws-on .wsq .passage{font-size:15.5px;line-height:1.7;padding:8px 10px}
+.ws-on .wsq .gi{margin:6px 0}
+.ws-on .wsq .rimg{margin:4px 0}
+.ws-on .wsa .lab{margin-bottom:2px;font-size:14px}
+.ws-on .wsa .wsgo,.ws-on .wsa .lab span{display:none}
+.ws-on textarea.w54essay{flex:1 1 auto;height:auto!important;min-height:90px;font-size:16.5px;padding:10px 12px}
+.ws-on .w54cnt{flex:none;margin-top:4px;font-size:13.5px}
+.ws-on .w54cnt .sub{display:none}
+.ws-on .w54cnt b{font-size:16px}
+.ws-on .wsa .wfield{margin-top:6px}
+.wszoom{position:fixed;inset:0;z-index:2500;background:#000e;display:flex;flex-direction:column}
+.wszoom .wszi{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:center;justify-content:center}
+.wszoom img{max-width:100%;max-height:100%;background:#fff;cursor:zoom-in}
+.wszoom.big .wszi{display:block}
+.wszoom.big img{max-width:none;max-height:none;width:200%;cursor:zoom-out}
+.wszoom .wsx{position:absolute;top:calc(10px + env(safe-area-inset-top));right:10px;z-index:1;font-size:20px;width:44px;height:44px;border-radius:50%;border:none;background:#fff3;color:#fff}
+.wszoom .wszh{flex:none;text-align:center;color:#ccc;font-size:13px;padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
