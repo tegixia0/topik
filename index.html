@@ -243,7 +243,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css">
+<link rel="stylesheet" href="assets/modules.css?v=20261002">
 </head>
 <body>
 <div class="wrap">
@@ -316,7 +316,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <div class="toast" id="toast"></div>
 <script src="reading/reading.js"></script>
 <script src="grammar/grammar.js"></script>
-<script src="writing/w5354.js"></script>
+<script src="writing/w5354.js?v=20261002"></script>
 <script>
 (function(){
 "use strict";
@@ -758,11 +758,11 @@ function renderPrac(){
     h+=segHTML("src",[["all","全部",cnt(noF)],["real","真题",cnt(function(q){return noF(q)&&q.kind!=="mock"})],["official","官方公开",cnt(function(q){return noF(q)&&srcGroup(q)==="official"})],["recalled","回忆版",cnt(function(q){return noF(q)&&srcGroup(q)==="recalled"})],["mock","模拟题",cnt(function(q){return noF(q)&&q.kind==="mock"})]],opts.src);
   }
   h+='<div class="wrow"><select id="wPick" aria-label="选择题目">'+order.map(function(q,i){var m=st.marks[q.id];
-    return '<option value="'+i+'"'+(i===idx?" selected":"")+">"+(i+1)+". "+esc(srcLabel(q))+" · "+q.no+"番"+(m?(isWrong(q.id)?" ✗":" ✓"):"")+"</option>"}).join("")+'</select><label><input type="checkbox" id="wRnd"'+(opts.rnd?" checked":"")+"> 随机</label></div>";
+    return '<option value="'+i+'"'+(i===idx?" selected":"")+">"+(i+1)+". "+esc(srcLabel(q))+" · "+q.no+"番"+(m?(isWrong(q.id)?" ✗":" ✓"):"")+(mlSum(q.id)?" · 📝"+mlSum(q.id):"")+"</option>"}).join("")+'</select><label><input type="checkbox" id="wRnd"'+(opts.rnd?" checked":"")+"> 随机</label></div>";
   if(!order.length){box.innerHTML=h+'<div class="card empty">'+(wrongOnly?"没有错题了 🎉":(opts.src==="mock"?"模拟题暂时为空（真题已足够，之后可在 writing/questions.json 里添加 kind:\"mock\" 的题）":"没有符合条件的题"))+"</div>";bindPrac();return}
   var q=order[idx]; opts.cur=q.id; save();
   var d=drafts[q.id]||{a:"",b:""};
-  h+='<div class="card" id="wCard"><div class="qhead"><span class="no">'+q.no+'번</span><span class="badge '+srcCls(q)+'">'+esc(srcLabel(q))+'</span><span class="badge">'+(q.no===51?"实用文 · -습니다":"说明文 · -(ㄴ/는)다")+"</span>"+'<span id="wMk">'+mkBadges(q.id)+'</span><span style="margin-left:auto;color:var(--muted);font-size:14px">'+(idx+1)+"/"+order.length+"</span></div>";
+  h+='<div class="card" id="wCard"><div class="qhead"><span class="no">'+q.no+'번</span><span class="badge '+srcCls(q)+'">'+esc(srcLabel(q))+'</span><span class="badge">'+(q.no===51?"实用文 · -습니다":"说明文 · -(ㄴ/는)다")+"</span>"+(mlSum(q.id)?'<span class="badge done" title="老师批改记录（writing/mylog.json）">📝 '+esc(mlSum(q.id))+"</span>":"")+'<span id="wMk">'+mkBadges(q.id)+'</span><span style="margin-left:auto;color:var(--muted);font-size:14px">'+(idx+1)+"/"+order.length+"</span></div>";
   if(q.title) h+='<div class="qtitle" lang="ko">'+esc(q.title)+"</div>";
   h+='<div class="passage" lang="ko">'+blankify(q.text)+"</div>";
   ["a","b"].forEach(function(k){
@@ -838,6 +838,12 @@ function copyMine(){
 /* 个人易错记录（writing/mylog.json，老师批改后用 tools/add_mistake.py 追加） */
 function mlOf(id,k){return LOG.entries.filter(function(e){return e.q===id&&(!k||e.k===k)}).sort(function(a,b){return a.try-b.try})}
 function mlWrong(id,k){return mlOf(id,k).filter(function(e){return !e.ok})}
+function mlSum(id){   // 批改记录摘要：做过 N 次 · 每空最近一次 ✓/✗
+  var E=mlOf(id); if(!E.length) return "";
+  var n=Math.max.apply(null,E.map(function(e){return e.try})), last={};
+  E.forEach(function(e){last[e.k]=e});
+  return "批改"+n+"次 "+["a","b"].filter(function(k){return last[k]}).map(function(k){return (k==="a"?"㉠":"㉡")+(last[k].ok?"✓":"✗")}).join("");
+}
 function tName(t){return (LOG.types[t]||{}).name||t}
 function mlHint(id,k){
   var w=mlWrong(id,k); if(!w.length) return "";

@@ -4,6 +4,7 @@
 "use strict";
 var $=function(id){return document.getElementById(id)};
 var LS_OPT="topik.w54.opt.v1", LS_W="topik.w54.wrong.v1";
+var E={tags:{},attempts:{}};   // writing/essaylog.json：老师批改过的 53/54 作文（tools/add_essay.py 追加）
 var D=null, GRP={}, CARDS=[], QS=[], QBY={}, opt=load(LS_OPT,{tab:"cheat",cst:"53",mode:"zh2ko",scope:"all",no:"53",cur:null}), W=load(LS_W,{}), R=null, revealed=false, search="";
 if(opt.mode!=="ko2zh")opt.mode="zh2ko";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==="object"?v:d}catch(e){return d}}
@@ -19,7 +20,8 @@ function copyText(t,msg){
 }
 function ensure(){
   if(D) return Promise.resolve();
-  return fetch("writing/w5354.json?v="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){
+  var lg=fetch("writing/essaylog.json?v="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d&&d.attempts){E=d;E.tags=E.tags||{}}}).catch(function(){});
+  return Promise.all([lg,fetch("writing/w5354.json?v="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})]).then(function(rs){var d=rs[1];
     D=d; GRP={}; d.groups.forEach(function(g){GRP[g.id]=g});
     CARDS=d.items.filter(function(c){return c.card!==false});
     QS=d.questions.slice().sort(function(a,b){return a.no-b.no||a.round-b.round}); QBY={}; QS.forEach(function(q){QBY[q.id]=q});
@@ -212,6 +214,7 @@ function renderWrong(){
   else h+='<div class="actions"><button type="button" class="b-bad full" data-a="dowrong">只练错题（'+L.length+"）</button></div>";
   h+="</div>";
   h+=L.map(function(c){return itemHTML(c,false).replace('<span class="z">','<span class="z"><span class="wn">✗'+W[c.id].n+"</span> ")}).join("");
+  h=essayTagsHTML()+h;
   $("w54Body").innerHTML=h+foot('<button type="button" data-a="clear">清空错题本</button>');
 }
 
@@ -238,10 +241,12 @@ function renderPrac(){
   var q=list[idx]; if(q){opt.cur=q.id;save()}
   var c=function(no){return QS.filter(function(x){return no==="all"||String(x.no)===no}).length};
   var h='<div class="seg" data-w54="no">'+[["all","全部"],["53","53 图表"],["54","54 议论文"]].map(function(x){return '<button type="button" data-v="'+x[0]+'" class="'+(opt.no===x[0]?"active":"")+'">'+x[1]+" "+c(x[0])+"</button>"}).join("")+"</div>";
-  h+='<div class="wrow"><select id="w54Pick" aria-label="选择题目">'+list.map(function(x,i){return '<option value="'+i+'"'+(i===idx?" selected":"")+">"+(i+1)+". "+qLabel(x)+" · "+x.no+"번 "+kindZh(x)+"</option>"}).join("")+"</select></div>";
+  var done=list.filter(function(x){return atts(x.id).length});
+  if(done.length) h+='<div class="w54done"><span class="lb">📚 做过</span>'+done.map(function(x){return '<button type="button" class="'+(x.id===(q&&q.id)?"on":"")+'" data-a="goq" data-q="'+esc(x.id)+'">第'+x.round+"回 "+x.no+' <span class="dn">'+esc(attBadge(x.id))+"</span></button>"}).join("")+"</div>";
+  h+='<div class="wrow"><select id="w54Pick" aria-label="选择题目">'+list.map(function(x,i){return '<option value="'+i+'"'+(i===idx?" selected":"")+">"+(i+1)+". "+qLabel(x)+" · "+x.no+"번 "+kindZh(x)+(atts(x.id).length?" ✓ "+attBadge(x.id):"")+"</option>"}).join("")+"</select></div>";
   if(!q){$("w54Body").innerHTML=h+'<div class="card empty">没有题目</div>';return}
   var L=lim(q);
-  h+='<div class="card" id="w54QCard"><div class="qhead"><span class="no">'+q.no+'번</span><span class="badge real">'+qLabel(q)+'</span><span class="badge">'+kindZh(q)+" · "+L[0]+"–"+L[1]+'字</span><span style="margin-left:auto;color:var(--muted);font-size:14px">'+(idx+1)+"/"+list.length+"</span></div>";
+  h+='<div class="card" id="w54QCard"><div class="qhead"><span class="no">'+q.no+'번</span><span class="badge real">'+qLabel(q)+'</span><span class="badge">'+kindZh(q)+" · "+L[0]+"–"+L[1]+'字</span>'+(atts(q.id).length?'<span class="badge done">'+esc(attBadge(q.id))+"</span>":"")+'<span style="margin-left:auto;color:var(--muted);font-size:14px">'+(idx+1)+"/"+list.length+"</span></div>";
   h+='<div class="w54ins" lang="ko">'+esc(q.ins)+"</div>";
   if(q.box) h+='<div class="passage" lang="ko">'+esc(q.box)+(q.qs?'<ul class="w54qs">'+q.qs.map(function(x){return "<li>"+esc(x)+"</li>"}).join("")+"</ul>":"")+"</div>";
   else if(q.qs) h+='<ul class="w54qs">'+q.qs.map(function(x){return "<li>"+esc(x)+"</li>"}).join("")+"</ul>";
@@ -250,7 +255,8 @@ function renderPrac(){
   h+='<details class="gi"><summary><span class="f">🇨🇳 中文题意</span></summary><div class="gbody">'+esc(q.zh)+"</div></details>";
   h+='<details class="gi"><summary><span class="f">💡 写前提示</span><span class="z">想好了再看</span></summary><div class="gbody"><ul class="w54chk">'+tips(q).map(function(x){return "<li>"+esc(x)+"</li>"}).join("")+"</ul></div></details>";
   if(q.note&&q.round===35) h+='<div class="note">'+esc(q.note)+"</div>";
-  h+='<div class="wfield"><div class="lab">✍️ 我的作文 <span style="font-weight:400;color:var(--muted);font-size:13px">（不保存，每次打开都是空白）</span></div>';
+  h+=histHTML(q);
+  h+='<div class="wfield" id="w54Field"><div class="lab">✍️ 我的作文 <span style="font-weight:400;color:var(--muted);font-size:13px">（不保存，每次打开都是空白）</span></div>';
   h+='<textarea class="answer w54essay" id="w54Essay" lang="ko" rows="'+(q.no===53?8:14)+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="'+(q.no===53?"用 -ㄴ다/-였다 体描述图表，200–300字…":"서론–본론–결론，每个问题一段，600–700字…")+'"></textarea>';
   h+='<div class="w54cnt" id="w54Cnt"></div></div>';
   h+='<div class="actions"><button type="button" class="b-primary full" data-a="copyessay">📋 复制给老师</button><button type="button" class="b-ghost full small" data-a="reveal">'+(revealed?"收起参考答案":"看参考答案")+"</button></div>";
@@ -259,6 +265,63 @@ function renderPrac(){
   $("w54Body").innerHTML=h+foot("真题 "+QS.length+" 题：53 × "+c("53")+" · 54 × "+c("54")+"（全部来自官方公开试卷；范文标“官方”的来自官方 정답 및 채점기준표）");
   var ta=$("w54Essay"); ta.value=""; ta.addEventListener("input",updCnt); updCnt();
   if(revealed) renderRev();
+}
+/* ---------- 我之前的作文（writing/essaylog.json） ---------- */
+function atts(id){return ((E.attempts||{})[id]||[]).slice().sort(function(a,b){return a.try-b.try})}
+function shortScore(s){s=String(s||"").trim();var t=s.replace(/^约\s*/,"").replace(/\s*\/\s*\d+\s*(分)?$/,"");return /^[\d.]+(\s*[–~\-]\s*[\d.]+)?$/.test(t)?t.replace(/\s+/g,"")+"分":s}
+function attBadge(id){var L=atts(id);if(!L.length)return "";var sc=shortScore(L[L.length-1].score);return "已做 "+L.length+" 次"+(sc?" · 最近 "+sc:"")}
+function markEssay(t,errs){   // 在原文里给错误片段标红（只标能原样找到的）
+  var R=[];(errs||[]).forEach(function(e){var w=String(e.wrong||"");if(w.length<2)return;var i=t.indexOf(w);while(i>=0){R.push([i,i+w.length]);i=t.indexOf(w,i+w.length)}});
+  R.sort(function(a,b){return a[0]-b[0]||b[1]-a[1]});var out="",p=0;
+  R.forEach(function(r){if(r[0]<p)return;out+=esc(t.slice(p,r[0]))+'<mark>'+esc(t.slice(r[0],r[1]))+"</mark>";p=r[1]});
+  return out+esc(t.slice(p));
+}
+function chips(ts){return (ts||[]).map(function(t){return '<span class="mlchip">'+esc(t)+"</span>"}).join("")}
+function attHTML(a,last){
+  var h='<details class="w54att"'+(last?" open":"")+'><summary><b>第'+a.try+"次</b> · "+esc(a.date)+(a.score?' · <span class="sc">'+esc(a.score)+"</span>":"")+(a.errors&&a.errors.length?' · 错误 '+a.errors.length+" 处":"")+"</summary>";
+  h+='<div class="ah">✍️ 我写的</div><div class="w54mine" lang="ko">'+markEssay(a.essay||"",a.errors)+"</div>";
+  if(a.errors&&a.errors.length) h+='<div class="ah">❌ 主要错误</div><ul class="w54errs">'+a.errors.map(function(e){return '<li><div lang="ko"><span class="x">'+esc(e.wrong)+'</span> → <span class="o">'+esc(e.right)+"</span></div>"+(e.cause?'<div class="c">'+esc(e.cause)+"</div>":"")+(e.tags&&e.tags.length?"<div>"+chips(e.tags)+"</div>":"")+"</li>"}).join("")+"</ul>";
+  if(a.rewrite) h+='<div class="ah">✅ 改写示范</div><div class="w54rw" lang="ko">'+esc(a.rewrite)+"</div>";
+  if(a.rules&&a.rules.length) h+='<div class="ah">📌 要记住的规则</div><ul class="w54chk">'+a.rules.map(function(x){return "<li>"+esc(x)+"</li>"}).join("")+"</ul>";
+  return h+"</details>";
+}
+function histHTML(q){
+  var L=atts(q.id); if(!L.length) return "";
+  var last=L[L.length-1];
+  return '<div class="w54hwrap"><details class="gi w54hist" id="w54Hist"><summary><span class="f">📚 我之前的作文（'+L.length+' 次）</span><span class="z">最近 '+esc(last.date)+(last.score?" · "+esc(shortScore(last.score)):"")+'</span></summary><div class="gbody"><div class="minfo">建议先在下面空白框重写一遍，再展开对照。</div>'+
+    L.slice().reverse().map(function(a,i){return attHTML(a,i===0)}).join("")+'</div></details>'+
+    '<div class="actions"><button type="button" class="b-primary full w54redo" data-a="rewrite">🔁 重做（空白重写，第 '+(L.length+1)+' 次）</button></div></div>';
+}
+function rewrite(){
+  var ta=$("w54Essay"), hs=$("w54Hist"); if(!ta) return;
+  if(ta.value.trim()&&!confirm("清空作文框，从头重写？")) return;
+  ta.value=""; updCnt(); if(hs) hs.open=false;
+  try{$("w54Field").scrollIntoView({block:"start",behavior:"smooth"})}catch(e){}
+  try{ta.focus({preventScroll:true})}catch(e){ta.focus()}
+  toast("开始第 "+(atts(opt.cur).length+1)+" 次，加油 💪");
+}
+function goQid(id){
+  var q=QBY[id]; if(!q) return;
+  if(opt.tab==="prac"&&id!==opt.cur&&!leaveOK()) return;
+  if(opt.no!=="all"&&opt.no!==String(q.no)) opt.no=String(q.no);
+  opt.cur=id; revealed=false; save();
+  if(opt.tab==="prac") renderPrac(); else setTab("prac");
+  try{$("w54").scrollIntoView({block:"start"})}catch(e){}
+}
+function essayTagsHTML(){
+  var by={}, n=0;
+  Object.keys(E.attempts||{}).forEach(function(id){atts(id).forEach(function(a){n++;(a.errors||[]).forEach(function(e){(e.tags&&e.tags.length?e.tags:["其他"]).forEach(function(t){(by[t]=by[t]||[]).push({id:id,a:a,e:e})})})})});
+  var ts=Object.keys(by).sort(function(a,b){return by[b].length-by[a].length||a.localeCompare(b)});
+  if(!n) return "";
+  var h='<div class="card"><h2 style="margin:0 0 4px;font-size:20px">✍️ 作文易错点（'+n+' 篇批改）</h2><div style="color:var(--muted);font-size:14.5px">老师批改的 53/54 作文错误，按类型从多到少。点例子去那道题重做。</div></div>';
+  ts.forEach(function(t,i){
+    h+='<details class="mtype"'+(i<3?" open":"")+'><summary><span>'+esc(t)+'</span><span class="cnt">'+by[t].length+" 次</span></summary>";
+    if(E.tags[t]) h+='<div class="rule">✅ 下次怎么做：'+esc(E.tags[t])+"</div>";
+    by[t].forEach(function(x){var q=QBY[x.id];
+      h+='<div class="ex" data-q="'+esc(x.id)+'"><div class="src">'+(q?"第"+q.round+"回 "+q.no+"번":esc(x.id))+" · 第"+x.a.try+"次 · "+esc(x.a.date)+' ›</div><div lang="ko"><span style="color:var(--bad)">'+esc(x.e.wrong)+'</span> → <span style="color:var(--ok)">'+esc(x.e.right)+'</span></div><div style="color:var(--muted);font-size:13px">'+esc(x.e.cause)+"</div></div>"});
+    h+="</details>";
+  });
+  return h;
 }
 function tips(q){
   if(q.tips) return q.tips;
@@ -293,7 +356,7 @@ function copyEssay(){
   if(!txt&&!confirm("作文还是空的，仍然复制题目？")) return;
   var title=q.ins+(q.box?"\n"+q.box:"")+(q.qs?"\n"+q.qs.map(function(x){return "· "+x}).join("\n"):"");
   var ct=chartText(q); if(ct) title+="\n[图表内容]\n"+ct;
-  copyText("【TOPIK II 写作】"+qLabel(q)+" · 第"+q.no+"题（"+kindZh(q)+"）\n题目："+title+"\n我的作文："+(txt||"（未填写）")+"\n请帮我批改语法、语体、结构和是否符合题目要求，谢谢！","已复制，可以粘贴发给老师");
+  copyText("【TOPIK II 写作】"+qLabel(q)+" · 第"+q.no+"题（"+kindZh(q)+"）\n题目："+title+(atts(q.id).length?"\n（这是我第 "+(atts(q.id).length+1)+" 次写这道题）":"")+"\n我的作文："+(txt||"（未填写）")+"\n请帮我批改语法、语体、结构和是否符合题目要求，谢谢！","已复制，可以粘贴发给老师");
 }
 function goQ(d){var list=qList(), i=0;for(var k=0;k<list.length;k++)if(list[k].id===opt.cur)i=k;
   if(!leaveOK())return; i=(i+d+list.length)%list.length; opt.cur=list[i].id; revealed=false; save(); renderPrac(); try{$("w54").scrollIntoView({block:"start"})}catch(e){}}
@@ -304,6 +367,7 @@ function bind(){
   $("w54tabs").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b)setTab(b.getAttribute("data-tab"))});
   $("w54Body").addEventListener("change",function(e){if(e.target.id==="w54Pick"){var list=qList(),i=+e.target.value;if(!leaveOK()){e.target.value=String(list.indexOf(QBY[opt.cur]));return}opt.cur=list[i].id;revealed=false;save();renderPrac()}});
   $("w54Body").addEventListener("click",function(e){
+    var ex=e.target.closest(".ex[data-q]"); if(ex){goQid(ex.getAttribute("data-q"));return}
     var b=e.target.closest("button"); if(!b) return;
     var seg=b.closest(".seg[data-w54]");
     if(seg&&b.hasAttribute("data-v")){var k=seg.getAttribute("data-w54"),v=b.getAttribute("data-v");
@@ -328,6 +392,8 @@ function bind(){
       case "wrongbook": opt.scope="wrong";save();newRound();renderCard(); return;
       case "dowrong": opt.scope="wrong";save();newRound();setTab("cards"); return;
       case "copyessay": copyEssay(); return;
+      case "rewrite": rewrite(); return;
+      case "goq": goQid(b.getAttribute("data-q")); return;
       case "reveal": revealed=!revealed;b.textContent=revealed?"收起参考答案":"看参考答案";renderRev();if(revealed){try{$("w54Rev").scrollIntoView({block:"start",behavior:"smooth"})}catch(x){}} return;
       case "prev": goQ(-1); return;
       case "nextq": goQ(1); return;

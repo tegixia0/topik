@@ -121,3 +121,27 @@ textarea.w54essay{font-size:17px;line-height:1.7;min-height:200px}
 .w54cnt .sub{display:block;font-size:12.5px;margin-top:2px}
 .w54model p{margin:0 0 8px;text-indent:1em;font-size:16px;line-height:1.85;word-break:keep-all;overflow-wrap:anywhere}
 .wn{color:var(--bad);font-weight:800;margin-right:4px}
+/* 53·54 我之前的作文（writing/essaylog.json） */
+.badge.done{background:#1d2b40;border-color:#35527e;color:#9cc4ff}
+.w54done{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 8px}
+.w54done .lb{font-size:13px;color:var(--muted)}
+.w54done button{font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid #35527e;background:#16233a;color:var(--ink)}
+.w54done button.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.w54done .dn{color:#9cc4ff}
+.w54hwrap{margin:10px 0 4px}
+.w54hist{border-color:#35527e}
+.w54hwrap .actions{margin-top:8px}
+.w54att{border:1px solid var(--border);border-radius:10px;margin:8px 0;padding:0 10px;background:#131b27}
+.w54att>summary{cursor:pointer;padding:8px 0;font-size:14.5px}
+.w54att>summary .sc{color:var(--warn);font-weight:700}
+.w54att .ah{font-weight:700;font-size:14px;margin:10px 0 4px;color:var(--accent)}
+.w54mine,.w54rw{white-space:pre-wrap;font-size:15.5px;line-height:1.8;word-break:keep-all;overflow-wrap:anywhere;border-radius:8px;padding:8px 10px}
+.w54mine{background:#1e1a14;border:1px dashed #5a4a2a}
+.w54mine mark{background:transparent;color:#ff9b9b;text-decoration:underline wavy #ff6b6b;text-underline-offset:3px}
+.w54rw{background:#14261c;border:1px solid #2f6b45}
+.w54errs{list-style:none;margin:0;padding:0}
+.w54errs li{border-top:1px dashed var(--border);padding:6px 0;font-size:15px;word-break:keep-all;overflow-wrap:anywhere}
+.w54errs li:first-child{border-top:0}
+.w54errs .x{color:#ff9b9b;text-decoration:line-through;text-decoration-color:#ff6b6b88}
+.w54errs .o{color:#8fe0ae;font-weight:700}
+.w54errs .c{color:var(--muted);font-size:13.5px;margin-top:2px}
