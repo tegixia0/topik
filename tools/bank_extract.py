@@ -131,16 +131,41 @@ def main():
         e["lvl"] = "B" if any(h["lvl"] == "B" for h in e["homs"]) else "C"
         e["rank"] = min(h["rank"] for h in e["homs"])
         out.append(e)
+    need = set()
     # lookup for syn/ant zh (any krdict headword, first sense)
     look = {}
+    graded = set()
+    for r in rows:   # 有等级的词优先（同形词里取学习者常用的那个）
+        k = r.get("표제어")
+        if k and r.get("구분") == "단어" and r.get("중국어 대역어") and r.get("어휘 등급") in ("초급", "중급", "고급"):
+            graded.add(k)
+            if k not in look: look[k] = r["중국어 대역어"]
     for r in rows:
         k = r.get("표제어")
         if k and k not in look and r.get("구분") == "단어" and r.get("중국어 대역어"): look[k] = r["중국어 대역어"]
-    need = set()
+    need |= graded
     for e in out:
         for h in e["homs"]:
             for s_ in h.get("senses", []):
                 need.update(s_.get("syn", [])); need.update(s_.get("ant", []))
+    # 近义词候选：基础词典里有等级（初/中/高级）的词，和本词同词性、某个义项的中文对译完全相同
+    BAD = re.compile(r"用于|表示|……|指|的人$")
+    def ztoks(z): return [t.strip() for t in re.split(r"[，,、；;]", re.sub(r"\(无对应词汇\)", "", z or "")) if 2 <= len(t.strip()) <= 6 and not BAD.search(t)]
+    tm = collections.defaultdict(list)
+    for r in rows:
+        if r.get("구분") != "단어" or r.get("어휘 등급") not in ("초급", "중급", "고급"): continue
+        for t in ztoks(r.get("중국어 대역어"))[:3]:
+            k = (t, r.get("품사")); w = r["표제어"]
+            if w not in tm[k]: tm[k].append(w)
+    for e in out:
+        cand = []
+        for h in e["homs"]:
+            for s_ in (h.get("senses") or [])[:2]:
+                for t in ztoks(s_.get("zh"))[:2]:
+                    for w in tm.get((t, h.get("kpos")), []):
+                        if w != e["ko"] and w not in cand and not (w.startswith(e["ko"]) or e["ko"].startswith(w)): cand.append(w)
+        e["cand"] = cand[:5]
+        need.update(cand[:5])
     json.dump(dict(source="NIKL 한국어 학습용 어휘 목록(2003) B+C + 한국어기초사전(xls_20230601)", words=out,
                    lookup={k: look[k] for k in sorted(need) if k in look}),
               open(OUT, "w"), ensure_ascii=False, separators=(",", ":"))

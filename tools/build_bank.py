@@ -192,6 +192,8 @@ SUFFIX_RULES = [  # 固有词/派生词 拆词记忆
  ("하다",""),("되다",""),("시키다","…시키다＝“使…、让…”"),("거리다","…거리다＝“反复地…（拟声拟态动词）”"),("대다","…대다＝“不停地…”"),
 ]
 
+ONE_SYL = set("발 밤 땅 속 값 손 눈 물 불 집 길 몸 힘 말 맛 꿈 빛 옷 밥 술 잠 돈 문 산 강 별 꽃 뒤 앞 옆 위 밑 안 겉 첫 맨 새 헛 날 해 달 피 땀 귀 코 입 목 등 배 팔 다 못".split())
+SAFE_V = set("먹다 늦다 차다 없다 있다 나다 들다 내다 오다 가다 보다 주다 놓다 두다 받다 잡다 지다 서다 쓰다 맞다 걸다 열다 닫다 넘다 빠지다 빼다 새다 좋다 많다 적다 높다 낮다 길다 짧다 크다 작다".split())
 def auto_native(ko, kpos, zhs, kdlook, banknames):
     """派生/合成词的拆词说明（只在能找到组成部分的中文意思时生成）"""
     z = lambda w: (split_zh(kdlook.get(w, "")) or [""])[0]
@@ -222,7 +224,8 @@ def auto_native(ko, kpos, zhs, kdlook, banknames):
     best = None
     for i in range(1, len(s)):
         a, b = s[:i], s[i:]
-        if a in kdlook and b in kdlook and z(a) and z(b) and len(a) + len(b) >= 3:
+        ok1 = lambda x: len(x) >= 2 or x in ONE_SYL
+        if a in kdlook and b in kdlook and z(a) and z(b) and ok1(a) and len(b) >= 2 and (len(a) >= 2 or not b.endswith("다") or b in SAFE_V):
             if best is None or min(len(a), len(b)) > min(len(best[0]), len(best[1])): best = (a, b)
     if best:
         a, b = best; return "拆词：" + a + "（" + z(a) + "）+ " + b + "（" + z(b) + "）→ " + (zhs[0] if zhs else "") + "。"
@@ -261,6 +264,7 @@ def main():
     WI = jload(os.path.join(SITE, "wordinfo.json")) if os.path.exists(os.path.join(SITE, "wordinfo.json")) else {}
     lem, rtext = reading_tokens()
     words = base["words"]
+    CAND = {e["ko"]: e.get("cand", []) for e in words}
     # 词典查询表：本词库词 + 关联词
     kdlook = dict(look)
     for e in words:
@@ -351,6 +355,9 @@ def main():
             for w in tokmap.get((t, e["_kpos"]), []):
                 if w != ko and w not in [s["ko"] for s in syn] and not (w.startswith(ko) or ko.startswith(w)) and len(syn) < 3:
                     syn.append({"ko": w, "zh": zz(w)})
+        for w in CAND.get(ko, []):
+            if len(syn) >= 3: break
+            if w not in [s["ko"] for s in syn] and zz(w): syn.append({"ko": w, "zh": zz(w)})
         ant = [{"ko": w, "zh": zz(w)} for w in e.pop("_ant")]
         e["syn"] = syn; e["ant"] = ant
         # 已有手写词条（wordinfo.json）优先，然后人工补充覆盖
