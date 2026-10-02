@@ -49,6 +49,10 @@ def cards():
                 continue
             e = out.setdefault("v:" + v["ko"], {"deck": "单词", "decks": [], "ko": v["ko"], "zh": v.get("zh", "")})
             e["decks"].append(name)
+    if os.path.exists(os.path.join(SITE, "bank", "index.json")):   # 📚 词库：同样用 v:<韩语词>
+        for w in jload("bank/index.json")["words"]:
+            e = out.setdefault("v:" + w[0], {"deck": "单词", "decks": [], "ko": w[0], "zh": w[1]})
+            e["decks"].append("词库")
     for c in jload("writing/w5354.json")["items"]:
         if c.get("card") is not False:
             out["w54:" + c["id"]] = {"deck": "writing-5354", "ko": c["ko"], "zh": c["zh"]}

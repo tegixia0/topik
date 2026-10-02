@@ -243,15 +243,16 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261002b">
+<link rel="stylesheet" href="assets/modules.css?v=20261002d">
 </head>
 <body>
 <div class="wrap">
-  <nav class="topnav" id="topnav">
+  <nav class="topnav n5" id="topnav">
     <button type="button" data-view="flash">📇 闪卡</button>
     <button type="button" data-view="writing">✍️ 写作</button>
     <button type="button" data-view="reading">📖 阅读</button>
     <button type="button" data-view="grammar">🧩 语法</button>
+    <button type="button" data-view="bank">📚 词库</button>
   </nav>
   <div id="flash">
   <header>
@@ -308,6 +309,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
     <div id="rBody"></div>
     <footer><div>阅读真题：官方公开的 TOPIK II 第96·91·83·60回 读解试卷（83·91回为扫描版，OCR 后逐行对照原图校对），答案以官方正答表为准。</div></footer>
   </div>
+  <div id="bank" hidden></div>
   <div id="grammar" hidden>
     <div class="mtabs" id="gtabs"><button type="button" data-tab="list">语法表</button><button type="button" data-tab="cmp">易混组</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="wrong">错题本</button></div>
     <div id="gBody"></div>
@@ -318,6 +320,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="reading/reading.js"></script>
 <script src="grammar/grammar.js?v=20261002c"></script>
 <script src="writing/w5354.js?v=20261002c"></script>
+<script src="bank/bank.js?v=20261002d"></script>
 <script>
 (function(){
 "use strict";
@@ -333,7 +336,7 @@ var source="latest";            // "latest" | date | "cat-<slug>" | "all" | "wro
 /* 深链接：?cat=taste  ?deck=2026-09-29  &mode=zh2ko|ko2zh（旧的 gko2zh|gzh2ko → zh2ko） */
 var QS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1).replace(/\+/g," "))});return o})();
 var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"v_zh_ko",gzh2ko:"v_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"v_zh_ko",g_zh_ko:"v_zh_ko"};
-if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.grammar||QS.writing){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
+if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.grammar||QS.writing||QS.bank){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
 else if(QS.deck) source=QS.deck;
@@ -365,7 +368,7 @@ function recordRight(c){
 }
 function wrongCards(m){
   var w=loadWrong(),out=[];
-  Object.keys(w).forEach(function(k){var e=w[k];if(e.t==="v"&&e.m&&e.m[m]) out.push({t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,exzh:e.exzh,point:e.point,date:e.date})});
+  Object.keys(w).forEach(function(k){var e=w[k];if(e.t==="v"&&e.m&&e.m[m]){var c={t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,exzh:e.exzh,point:e.point,date:e.date};INFO_KEYS.forEach(function(f){if(e[f]!=null)c[f]=e[f]});out.push(c)}});   // 📚 词库记的错题自带词条信息
   return out;
 }
 
@@ -690,13 +693,14 @@ function mkBadges(id){var m=st.marks[id];if(!m)return "";var h="";["a","b"].forE
 
 /* 视图切换 */
 function setView(v,o){
-  if(["writing","reading","grammar"].indexOf(v)<0)v="flash";
-  $("flash").hidden=v!=="flash"; $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("grammar").hidden=v!=="grammar";
+  if(["writing","reading","grammar","bank"].indexOf(v)<0)v="flash";
+  $("flash").hidden=v!=="flash"; $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("grammar").hidden=v!=="grammar"; $("bank").hidden=v!=="bank";
   Array.prototype.forEach.call(document.querySelectorAll("#topnav button"),function(b){b.classList.toggle("active",b.getAttribute("data-view")===v)});
   try{localStorage.setItem(LS_VIEW,v)}catch(e){}
-  document.title={writing:opts.part==="5354"?"TOPIK 写作 53·54":"TOPIK 写作 51·52",reading:"TOPIK 阅读真题",grammar:"TOPIK 语法"}[v]||"TOPIK 闪卡";
+  document.title={writing:opts.part==="5354"?"TOPIK 写作 53·54":"TOPIK 写作 51·52",reading:"TOPIK 阅读真题",grammar:"TOPIK 语法",bank:"TOPIK 词库"}[v]||"TOPIK 闪卡";
   if(v==="reading"&&window.TopikReading) TopikReading.open(o||{});
   if(v==="grammar"&&window.TopikGrammar) TopikGrammar.open(o||{});
+  if(v==="bank"&&window.TopikBank) TopikBank.open(o||{});
   if(v==="writing") setPart(opts.part,o);
 }
 function setPart(p,o){
@@ -1131,7 +1135,8 @@ if(window.TopikReading) TopikReading.init();
 if(window.TopikGrammar) TopikGrammar.init();
 var o0={}, catL=String(WQS.cat||"").toLowerCase(), hash=location.hash.replace("#","");
 var v0;
-if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1"}}
+if(WQS.bank||hash==="bank"){v0="bank";var bk=String(WQS.bank||"");o0={tab:{hf:"hf",daily:"daily",cat:"cat",progress:"prog",prog:"prog"}[bk]||(bk==="1"||!bk?null:"daily"),c:WQS.c}}   // 📚 词库：?bank=1|hf|daily|cat&c=<id>|progress
+else if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1"}}
 else if(WQS.grammar||catL==="grammar-core"||hash==="grammar"||hash==="grammar-core"){v0="grammar";o0={tab:catL==="grammar-core"||hash==="grammar-core"?"cards":WQS.tab,mode:WQS.mode,g:WQS.g}}
 else if(hash==="mistakes"||WQS.writing==="mistakes"){opts.tab="mine";save();v0="writing"}   // 我的易错点：#mistakes 或 ?writing=mistakes
 else if(w54Link){v0="writing";o0=w54o}
