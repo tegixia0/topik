@@ -258,6 +258,7 @@ python3 tools/add_accepted.py --remove w54:p11 "증가하다가 줄어들었다"
 4. `wordinfo.json` 里已有的手写词条（和每日词库保持一致）。
 5. 人工补充 `tools/bank_src/manual*.txt`（固有词记忆法、易错、近反义词、修正中文意思和分类）：
    `가꾸다 | mem=… | tip=… | syn=꾸미다(装饰), 기르다(养) | ant=… | zh=… | cat=daily | ex=… | exzh=…`（`tipadd=` 在自动易错后面追加）。
+   现状（2026-10-02）：全部 4,687 词都有 中文意思＋词性＋记忆法＋近义/同类或反义词；`manual_hf1-7.txt` 是高频 1500 词逐条人工校对，`manual_rest1-7.txt` 是其余词（固有词记忆法、派生词补释义、近反义词）。其余词里汉字词的记忆法和部分近义词是自动生成的，比高频部分粗；具体物品名的「近义词」多是同类词（标“同类”）。
 
 生成：`python3 tools/build_bank.py`（`--stats` 只看统计）→ `bank/index.json`（词表 ~210KB：韩语、中文、分类、级别、高频、词性）＋ `bank/o-NN.json`（按学习顺序每 250 词一块的详情，每日/高频练习用）＋ `bank/c-<分类>.json`（按分类的详情）。详情文件带 `?v=<build>` 缓存，改了内容 build 号自动变。
 原始数据重新抽取：`python3 tools/bank_extract.py`（需要官方 xls 和词典导出，见脚本开头）→ `tools/bank_src/base.json`。
