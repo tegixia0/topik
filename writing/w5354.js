@@ -21,7 +21,7 @@ function copyText(t,msg){
 function ensure(){
   if(D) return Promise.resolve();
   var lg=fetch("writing/essaylog.json?v="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d&&d.attempts){E=d;E.tags=E.tags||{}}}).catch(function(){});
-  return Promise.all([lg,fetch("writing/w5354.json?v="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})]).then(function(rs){var d=rs[1];
+  return Promise.all([lg,window.TopikAcc?TopikAcc.load():null,fetch("writing/w5354.json?v="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})]).then(function(rs){var d=rs[2];
     D=d; GRP={}; d.groups.forEach(function(g){GRP[g.id]=g});
     CARDS=d.items.filter(function(c){return c.card!==false});
     QS=d.questions.slice().sort(function(a,b){return a.no-b.no||a.round-b.round}); QBY={}; QS.forEach(function(q){QBY[q.id]=q});
@@ -137,10 +137,20 @@ function check(c,input){
       var ch=u.charCodeAt(u.length-rest.length-1)-0xAC00; return ch>=0&&ch<11172&&ch%28===J});   // 「증가한 반면」「할 것으로」：词干＋ㄴ/ㄹ/ㅁ 收音
   });
 }
+/* 老师认可的写法（accepted.json，卡片ID = "w54:"+c.id） */
+function cid(c){return "w54:"+c.id}
+function judge(c,input){   // "std" 标准答案 / {a,note} 老师认可 / "ok" 宽松规则判对 / null 错
+  var U=expand(input), S=expand(c.ko);
+  if(U.some(function(u){return S.indexOf(u)>=0})) return "std";
+  var alt=window.TopikAcc&&TopikAcc.find(cid(c),input,function(u,a){return check({ko:a},u)});
+  if(alt) return alt;
+  return check(c,input)?"ok":null;
+}
 function cardInfo(c,openIt){
   return '<details class="wi'+(openIt?" hot":"")+'"'+(openIt?" open":"")+'><summary>📖 记忆法 · 易错 · 例句</summary><div class="body wgc">'+
     '<div class="row"><span class="rk">中文意思</span>'+esc(c.zh)+"</div>"+
     '<div class="row"><span class="rk">韩语</span><b lang="ko" style="color:#ffd98a">'+esc(c.ko)+"</b></div>"+
+    (window.TopikAcc?TopikAcc.altsHTML(cid(c)):"")+
     '<div class="row mem"><span class="rk">🧠 记忆法</span>'+esc(c.mem)+"</div>"+
     '<div class="row err"><span class="rk">⚠️ 易错</span>'+esc(c.err)+"</div>"+
     '<div class="row"><span class="rk">例句</span>'+exHTML(c)+"</div>"+
@@ -174,13 +184,14 @@ function renderCard(){
 }
 function feedback(c){
   if(opt.mode==="zh2ko"){var ok=R.st==="ok";
+    if(ok&&R.acc&&window.TopikAcc) return '<div class="fbx ok">'+TopikAcc.okHTML(R.acc,c.ko)+'<div class="mine">你写的：<span lang="ko">'+esc(R.typed)+"</span></div></div>"+cardInfo(c,false);
     return '<div class="fbx '+(ok?"ok":"bad")+'"><div class="title">'+(ok?"✓ 对了":(R.typed?"✗ 不对":"看答案"))+'</div><div class="ansline" lang="ko">'+esc(c.ko)+"</div>"+(R.typed?'<div class="mine">你写的：<span lang="ko">'+esc(R.typed)+"</span></div>":"")+"</div>"+cardInfo(c,!ok);}
   return '<div class="fbx"><div class="ansline">'+esc(c.zh)+"</div></div>"+cardInfo(c,R.st==="bad"||R.st==="shown");
 }
 function buttons(){
   if(opt.mode==="zh2ko"){
     if(R.st==="ask") return '<button type="button" class="b-primary" data-a="check">检查</button><button type="button" class="b-ghost" data-a="giveup">不会，看答案</button>';
-    if(R.st==="bad") return '<button type="button" class="b-ok" data-a="actually">其实我写对了</button><button type="button" class="b-primary" data-a="next">下一张 →</button>';
+    if(R.st==="bad") return '<button type="button" class="b-ok" data-a="actually">其实我写对了</button><button type="button" class="b-primary" data-a="next">下一张 →</button>'+(R.typed&&window.TopikAcc?'<button type="button" class="b-ghost small full acc-copy" data-a="askt">'+TopikAcc.BTN+"</button>":"");
     return '<button type="button" class="b-primary full" data-a="next">下一张 →</button>';
   }
   if(R.st==="ask") return '<button type="button" class="b-primary full" data-a="show">看中文意思</button>';
@@ -194,10 +205,10 @@ function mark(c,ok){
 function submit(){
   var c=R.q[R.i], t=$("w54In"); if(!c||!t) return;
   R.typed=t.value.trim(); if(!R.typed){toast("先写一下；不会就点「不会，看答案」");return}
-  var ok=check(c,R.typed); R.st=ok?"ok":"bad"; mark(c,ok); renderCard();
+  var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object")?j:null; R.st=ok?"ok":"bad"; mark(c,ok); renderCard();
   if(!ok) setTimeout(function(){var f=$("w54Fb");if(f)try{f.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}},30);
 }
-function next(){R.i++;R.st="ask";R.typed="";renderCard();try{$("w54").scrollIntoView({block:"start"})}catch(e){}}
+function next(){R.i++;R.st="ask";R.typed="";R.acc=null;renderCard();try{$("w54").scrollIntoView({block:"start"})}catch(e){}}
 function summary(){
   var n=R.q.length, pct=n?Math.round(100*R.ok/n):0;
   var h='<div class="card summary"><h2>'+(R.redo?"错题重练结束":"本轮结束")+'</h2><div class="nums">共 '+n+' 张 · <span style="color:var(--ok)">对 '+R.ok+'</span> · <span style="color:var(--bad)">错 '+R.bad+"</span> · 正确率 "+pct+"%</div>";
@@ -384,6 +395,7 @@ function bind(){
       case "giveup": R.typed=($("w54In")||{}).value||"";R.st="bad";mark(c,false);renderCard(); return;
       case "actually": R.bad--;R.ok++;R.missed.pop();var w=W[c.id];if(w){w.n--;if(w.n<=0)delete W[c.id];saveW()}R.st="ok";toast("好的，算你对 👍");renderCard(); return;
       case "next": next(); return;
+      case "askt": if(window.TopikAcc) TopikAcc.copy({deck:"写作53·54 闪卡（writing-5354）",id:cid(c),zh:c.zh,ans:c.ko,mine:R.typed}); return;
       case "show": R.st="shown";renderCard(); return;
       case "know": mark(c,true);next(); return;
       case "dunno": mark(c,false);R.st="bad";renderCard(); return;

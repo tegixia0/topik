@@ -145,3 +145,13 @@ textarea.w54essay{font-size:17px;line-height:1.7;min-height:200px}
 .w54errs .x{color:#ff9b9b;text-decoration:line-through;text-decoration-color:#ff6b6b88}
 .w54errs .o{color:#8fe0ae;font-weight:700}
 .w54errs .c{color:var(--muted);font-size:13.5px;margin-top:2px}
+/* 老师认可的写法（assets/accepted.js） */
+.acc-ok{margin-top:6px}
+.acc-ok .acc-t{color:var(--ok);font-weight:800;font-size:18px}
+.acc-ok .acc-n{margin-top:6px;padding:7px 10px;border-radius:10px;background:#16271f;color:#bff0cf;font-size:15px}
+.acc-ok .acc-s{margin-top:6px;font-size:15.5px;color:var(--muted)}
+.acc-ok .acc-s b{color:#ffd98a;font-size:18px}
+.acc-alts{background:#16271f;border-radius:10px;padding:7px 9px}
+.acc-a{font-size:15px;margin-top:2px}.acc-a b{color:#bff0cf}
+.acc-an{color:var(--muted);font-size:13.5px}
+.acc-copy{border:1px dashed #6b5a1e!important;background:#221f12!important;color:var(--warn)!important}

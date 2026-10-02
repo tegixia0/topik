@@ -243,7 +243,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261002">
+<link rel="stylesheet" href="assets/modules.css?v=20261002b">
 </head>
 <body>
 <div class="wrap">
@@ -314,9 +314,10 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<script src="assets/accepted.js?v=20261002b"></script>
 <script src="reading/reading.js"></script>
-<script src="grammar/grammar.js"></script>
-<script src="writing/w5354.js?v=20261002"></script>
+<script src="grammar/grammar.js?v=20261002b"></script>
+<script src="writing/w5354.js?v=20261002b"></script>
 <script>
 (function(){
 "use strict";
@@ -397,15 +398,18 @@ function chips(list,cls){
     return '<span class="chip '+cls+'"><b lang="ko">'+esc(x.ko)+"</b>"+(x.zh?" <span>"+esc(x.zh)+"</span>":"")+"</span>";
   }).join("")+"</div>";
 }
+function vid(c){return "v:"+c.ko}   // 稳定卡片ID：单词卡按韩语词（各天/分类共用同一个ID）
+var ACC=window.TopikAcc||{load:function(){return Promise.resolve()},alts:function(){return []},find:function(){return null},altsHTML:function(){return ""},okHTML:function(){return ""},copy:function(){}};
 function infoHTML(c,open){
-  var i=info(c); if(!i) return "";
-  var b="";
+  var i=info(c), accH=c&&c.t==="v"?ACC.altsHTML(vid(c)):""; if(!i&&!accH) return "";
+  i=i||{};
+  var b=accH;
   if(i.pos||i.hanja) b+='<div class="row">'+(i.pos?'<span class="posb">'+esc(i.pos)+"</span> ":"")+(i.hanja?'<span class="k" style="display:inline;margin-left:4px">汉字</span> <span class="hj">'+esc(i.hanja)+"</span>":"")+"</div>";
   if(i.mem) b+='<div class="row"><span class="k">🧠 记忆法</span>'+esc(i.mem)+"</div>";
   if(i.tip) b+='<div class="tipbox">⚠️ 易错：'+esc(i.tip)+"</div>";
   if(i.syn&&i.syn.length) b+='<div class="row"><span class="k">≈ 近义词 / 同类词</span>'+chips(i.syn,"syn")+"</div>";
   if(i.ant&&i.ant.length) b+='<div class="row"><span class="k">⇄ 反义词</span>'+chips(i.ant,"ant")+"</div>";
-  return '<details class="wi'+(open?" hot":"")+'" id="wi"'+(open?" open":"")+'><summary>📖 词性·记忆法·近反义词</summary><div class="body">'+b+"</div></details>";
+  return '<details class="wi'+(open?" hot":"")+'" id="wi"'+(open?" open":"")+'><summary>📖 词性·记忆法·近反义词'+(accH?" · 也可以写":"")+'</summary><div class="body">'+b+"</div></details>";
 }
 function openInfo(){var d=$("wi");if(d){d.open=true;d.classList.add("hot");try{d.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}}}
 
@@ -529,10 +533,13 @@ function check(){
     if(!user){toast("先输入韩语再核对");a.focus();return}
     a.disabled=true;
     if(match(user,cur.ko)){ grade(true,true); return; }
+    var alt=ACC.find(vid(cur),user,match);
+    if(alt){ grade(true,true,alt); return; }
     state="wrong1";
     fb.className="feedback bad";
     fb.innerHTML='<div class="title">✗ 拼写不对</div>你写的：<span lang="ko">'+esc(user)+"</span><br>正确："+refHTML()+exLine()+infoHTML(cur,true);
     setActions([{text:"再试一次",cls:"b-primary",fn:retry},{text:"下一张",cls:"",fn:function(){grade(false)}},
+      {text:ACC.BTN||"📋 复制给老师",cls:"b-ghost small full acc-copy",fn:function(){askTeacher(user)}},
       {text:"其实我写对了（算对）",cls:"b-ghost small full",fn:function(){grade(true)}}]);
     if(canSpeak()) speak(cur.ko);
     return;
@@ -572,11 +579,15 @@ function retry(){
   setActions([{text:"核对",cls:"b-primary",fn:check},{text:"不会 · 看答案",cls:"b-ghost",fn:giveUp}]);
   a.focus();
 }
-function grade(right,auto){
+function askTeacher(user){
+  var d=cur.date||"", L=deckLabel();
+  ACC.copy({deck:"单词 中→韩 · "+(source==="all"||source==="wrong"?L+" → "+mmdd(d):L)+(d?"（"+d+"）":""),id:vid(cur),zh:cur.zh,ans:cur.ko,mine:user});
+}
+function grade(right,auto,alt){
   if(right){ok++;recordRight(cur)} else {bad++;missed.push(cur);recordWrong(cur)}
   if(auto){
     state="right"; var fb=$("fb"); fb.className="feedback ok";
-    fb.innerHTML='<div class="title">✓ 正确！</div>'+refHTML()+exLine()+infoHTML(cur,false);
+    fb.innerHTML=(alt?ACC.okHTML(alt,cur.ko)+'<div class="sub">你写的：<span lang="ko">'+esc($("answer").value.trim())+"</span></div>":'<div class="title">✓ 正确！</div>'+refHTML())+exLine()+infoHTML(cur,false);
     setActions([{text:"下一张",cls:"b-primary full",fn:next}]);
     updateBar(); focusNextBtn(); return;
   }
@@ -637,10 +648,10 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Enter"&&state!=="ask"&&!$("flash").hidden&&document.activeElement.tagName!=="BUTTON"){var b=$("actions").querySelector("button");if(b&&!$("quiz").hidden){e.preventDefault();b.click()}}
 });
 $("clearWrong").onclick=function(){if(confirm("确定清空所有错题记录？")){saveWrong({});renderDeckSel();if(source==="wrong")reload();toast("已清空")}};
-$("reload").onclick=function(){cache={};Promise.all([loadIndex(),loadWI()]).then(reload)};
+$("reload").onclick=function(){cache={};Promise.all([loadIndex(),loadWI(),ACC.load(true)]).then(reload)};
 
 Array.prototype.forEach.call(document.querySelectorAll("#modes button"),function(b){b.classList.toggle("active",b.getAttribute("data-mode")===mode)});
-Promise.all([loadIndex(),loadWI()]).then(reload).catch(function(e){$("deckInfo").textContent="题库加载失败："+e.message});
+Promise.all([loadIndex(),loadWI(),ACC.load()]).then(reload).catch(function(e){$("deckInfo").textContent="题库加载失败："+e.message});
 })();
 </script>
 <script>
@@ -951,7 +962,7 @@ function wgSaveW(){try{localStorage.setItem(LS_WGW,JSON.stringify(wgW))}catch(e)
 function wgOpen(){
   if(G){wgRender();return}
   $("wCards").innerHTML='<div class="card empty">加载中…</div>';
-  fetch(bust("writing/grammar.json"),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){
+  Promise.all([fetch(bust("writing/grammar.json"),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}),WACC?WACC.load():null]).then(function(rs){var d=rs[0];
     G=d; GC=[]; GBY={}; GGRP={};
     d.groups.forEach(function(g){GGRP[g.id]=g});
     d.patterns.forEach(function(c){c.kind="p";GC.push(c)});
@@ -981,6 +992,15 @@ function wgExpand(s){ // 把输入里的 (으)、아/어 展开成多个候选
   return Object.keys(out);
 }
 function wgCore(k){return k.replace(/^[아어여으을ㄹ은ㄴ는이가과와를]{1,2}/,"")}
+var WACC=window.TopikAcc;
+function wgId(c){return "wg:"+c.id}
+function wgJudge(c,input){   // "std" 标准答案 / {a,note} 老师认可 / "ok" 宽松规则判对 / null 错
+  var cands=wgExpand(input), std=wgExpand(c.p);
+  if(cands.some(function(t){return std.indexOf(t)>=0})) return "std";
+  var alt=WACC&&WACC.find(wgId(c),input,function(u,a){return wgCheck({keys:wgExpand(a)},u)});
+  if(alt) return alt;
+  return wgCheck(c,input)?"ok":null;
+}
 function wgCheck(c,input){
   var cands=wgExpand(input); if(!cands.length) return false;
   var keys=c.keys||[], core={}; keys.forEach(function(k){core[wgCore(k)]=1});
@@ -992,9 +1012,11 @@ function wgCardHTML(c,open){
     h+='<div class="row"><span class="rk">敬语替换</span><span lang="ko">'+esc(c.plain)+'</span> → <b lang="ko" style="color:#ffd98a">'+esc(c.p)+"</b>　"+esc(c.zh)+"</div>";
     if(c.note) h+='<div class="row"><span class="rk">例</span><span lang="ko">'+esc(c.note)+"</span></div>";
     h+='<div class="row cue"><span class="rk">🔎 什么时候用</span>对象是老师、长辈、顾客或陌生读者时。</div>';
+    if(WACC) h+=WACC.altsHTML(wgId(c));
   }else{
     h+='<div class="row"><span class="rk">中文意思</span>'+esc(c.zh)+"</div>";
     h+='<div class="row"><span class="rk">接法</span><span lang="ko">'+esc(c.att)+"</span></div>";
+    if(WACC) h+=WACC.altsHTML(wgId(c));
     h+='<div class="row mem"><span class="rk">🧠 中文对照记忆</span>'+esc(c.mem)+"</div>";
     h+='<div class="row"><span class="rk">例句</span>'+c.ex.map(function(e){
       var ko=e.hl?esc(e.ko.slice(0,e.hl[0]))+"<mark>"+esc(e.ko.slice(e.hl[0],e.hl[1]))+"</mark>"+esc(e.ko.slice(e.hl[1])):esc(e.ko);
@@ -1034,6 +1056,7 @@ function wgRender(){
 function wgFeedback(c){
   if(wg.mode==="zh2ko"){
     var ok=R.st==="ok";
+    if(ok&&R.acc&&WACC) return '<div class="fbx ok">'+WACC.okHTML(R.acc,c.p)+'<div class="mine">你写的：<span lang="ko">'+esc(R.typed)+"</span></div></div>"+wgCardHTML(c,false);
     return '<div class="fbx '+(ok?"ok":"bad")+'"><div class="title">'+(ok?"✓ 对了":(R.typed?"✗ 不对":"看答案"))+'</div><div class="ansline" lang="ko">'+esc(c.p)+"</div>"+(R.typed?'<div class="mine">你写的：<span lang="ko">'+esc(R.typed)+"</span></div>":"")+"</div>"+wgCardHTML(c,!ok);
   }
   return '<div class="fbx"><div class="ansline">'+esc(c.zh)+"</div></div>"+wgCardHTML(c,R.st==="bad"||R.st==="shown");
@@ -1041,7 +1064,7 @@ function wgFeedback(c){
 function wgButtons(){
   if(wg.mode==="zh2ko"){
     if(R.st==="ask") return '<button type="button" class="b-primary" data-a="check">检查</button><button type="button" class="b-ghost" data-a="giveup">不会，看答案</button>';
-    if(R.st==="bad") return '<button type="button" class="b-ok" data-a="actually">其实我写对了</button><button type="button" class="b-primary" data-a="next">下一张 →</button>';
+    if(R.st==="bad") return '<button type="button" class="b-ok" data-a="actually">其实我写对了</button><button type="button" class="b-primary" data-a="next">下一张 →</button>'+(R.typed&&WACC?'<button type="button" class="b-ghost small full acc-copy" data-a="askt">'+WACC.BTN+"</button>":"");
     return '<button type="button" class="b-primary full" data-a="next">下一张 →</button>';
   }
   if(R.st==="ask") return '<button type="button" class="b-primary full" data-a="show">看中文意思</button>';
@@ -1056,10 +1079,10 @@ function wgSubmit(){
   var c=R.q[R.i], t=$("wgIn"); if(!c||!t) return;
   R.typed=t.value.trim();
   if(!R.typed){toast("先写一下；不会就点「不会，看答案」");return}
-  var ok=wgCheck(c,R.typed); R.st=ok?"ok":"bad"; wgMark(c,ok); wgRender();
+  var j=wgJudge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object")?j:null; R.st=ok?"ok":"bad"; wgMark(c,ok); wgRender();
   if(!ok) setTimeout(function(){var f=$("wgFb");if(f)try{f.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}},30);
 }
-function wgNext(){R.i++;R.st="ask";R.typed="";wgRender();try{$("wCards").scrollIntoView({block:"start"})}catch(e){}}
+function wgNext(){R.i++;R.st="ask";R.typed="";R.acc=null;wgRender();try{$("wCards").scrollIntoView({block:"start"})}catch(e){}}
 function wgSummary(){
   var n=R.q.length, pct=n?Math.round(100*R.ok/n):0;
   var h='<div class="card summary"><h2>'+(R.redo?"错题重练结束":"本轮结束")+'</h2><div class="nums">共 '+n+' 张 · <span style="color:var(--ok)">对 '+R.ok+'</span> · <span style="color:var(--bad)">错 '+R.bad+"</span> · 正确率 "+pct+"%</div>";
@@ -1082,6 +1105,7 @@ function wgBind(){
     if(a==="giveup"){R.typed=($("wgIn")||{}).value||"";R.st="bad";wgMark(c,false);wgRender();return}
     if(a==="actually"){R.bad--;R.ok++;R.missed.pop();var w=wgW[c.id];if(w){w.n--;if(w.n<=0)delete wgW[c.id];wgSaveW()}R.st="ok";toast("好的，算你对 👍");wgRender();return}
     if(a==="next"){wgNext();return}
+    if(a==="askt"){if(WACC)WACC.copy({deck:"写作51·52 语法闪卡（writing-grammar）",id:wgId(c),zh:c.zh,ans:c.p,mine:R.typed});return}
     if(a==="show"){R.st="shown";wgRender();return}
     if(a==="know"){wgMark(c,true);wgNext();return}
     if(a==="dunno"){wgMark(c,false);R.st="bad";wgRender();return}

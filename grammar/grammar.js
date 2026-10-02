@@ -13,7 +13,7 @@ function norm(s){return String(s||"").normalize("NFC").replace(/[^가-힣ㄱ-ㅎ
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
 function ensure(){
   if(D) return Promise.resolve();
-  return fetch("grammar/grammar.json?v="+Date.now().toString(36).slice(0,6),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){
+  return Promise.all([window.TopikAcc?TopikAcc.load():null,fetch("grammar/grammar.json?v="+Date.now().toString(36).slice(0,6),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})]).then(function(rs){var d=rs[1];
     D=d; byId={}; d.items.forEach(function(it){byId[it.id]=it}); CAT={}; d.cats.forEach(function(c){CAT[c.id]=c.label});
   });
 }
@@ -89,6 +89,16 @@ function newRound(list){
   var its=list||shuffle(pool()).slice(0,15);
   R={q:its.map(function(it){return {id:it.id,fi:Math.floor(Math.random()*(it.fill.length||1))}}),i:0,ok:0,bad:0,missed:[],st:"ask",typed:""};
 }
+/* 卡片ID：中→韩 "gc:<id>"；句子填空 "gc:<id>#<第几句，从0起>" */
+function cid(c){return "gc:"+c.id+(opt.mode==="fill"?"#"+c.fi:"")}
+function judge(c,typed){   // "std" / {a,note} 老师认可 / "ok" 宽松判对 / null 错
+  var it=byId[c.id], n=norm(typed); if(!n) return null;
+  var std=opt.mode==="zh2ko"?it.keys.concat([norm(it.f)]):(it.fill[c.fi]||it.fill[0]).ans.map(norm);
+  if(std.indexOf(n)>=0) return "std";
+  var alt=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u),k=norm(a);return !!k&&(x===k||(k.length>=2&&x.slice(-k.length)===k&&x.length<=k.length+4))});
+  if(alt) return alt;
+  return checkAns(c,typed)?"ok":null;
+}
 function checkAns(c,typed){
   var it=byId[c.id], n=norm(typed); if(!n) return false;
   if(opt.mode==="zh2ko"){
@@ -118,9 +128,11 @@ function renderCard(){
   if(opt.mode!=="ko2zh"){
     if(R.st==="ask") h+='<input class="ginput" id="gIn" lang="ko" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="输入韩语…"><div class="racts"><button type="button" class="gbtn pri" data-a="check">检查</button><button type="button" class="gbtn" data-a="giveup">不会，看答案</button></div>';
     else{
-      var good=R.st==="ok", ansTxt=opt.mode==="fill"?f.ans.join(" / "):it.f;
-      h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 正确":"✘ 再看看")+'</div><div class="gans">'+esc(ansTxt)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
-      h+='<div class="racts">'+(good?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button></div>';
+      var good=R.st==="ok", ansTxt=opt.mode==="fill"?f.ans.join(" / "):it.f, TA=window.TopikAcc;
+      if(good&&R.acc&&TA) h+='<div class="gfb ok">'+TA.okHTML(R.acc,ansTxt)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
+      else h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 正确":"✘ 再看看")+'</div><div class="gans">'+esc(ansTxt)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      if(TA) h+=TA.altsHTML(cid(c)).replace('class="row acc-alts"','class="row acc-alts" style="margin-top:8px"');
+      h+='<div class="racts">'+(good?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button>'+(!good&&R.typed&&TA?'<button type="button" class="gbtn acc-copy" data-a="askt">'+TA.BTN+'</button>':"")+'</div>';
       h+='<details class="gi"'+(good?"":" open")+' style="margin-top:10px"><summary><span class="f">'+esc(it.f)+'</span><span class="z">完整卡片</span></summary>'+bodyHTML(it)+'</details>';
     }
   }else{
@@ -140,11 +152,11 @@ function summaryHTML(){
 function submit(){
   var inp=$("gIn"); if(!inp) return; var c=R.q[R.i]; R.typed=inp.value.trim();
   if(!R.typed){toast("先写一下，或者点“不会”");return}
-  var ok=checkAns(c,R.typed); R.st=ok?"ok":"bad";
+  var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object")?j:null; R.st=ok?"ok":"bad";
   if(ok){R.ok++;markW(c.id,false)}else{R.bad++;R.missed.push(c.id);markW(c.id,true)}
   renderCard();
 }
-function next(){R.i++;R.st="ask";R.typed="";renderCard();window.scrollTo(0,0)}
+function next(){R.i++;R.st="ask";R.typed="";R.acc=null;renderCard();window.scrollTo(0,0)}
 function bindCard(){
   var s=$("gScope"); if(s) s.onchange=function(){opt.scope=s.value;save(LS_OPT,opt);newRound();renderCard()};
   var l=$("gLink"); if(l) l.onclick=function(){var u=location.origin+location.pathname+"?cat=grammar-core&mode="+opt.mode;if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(u).then(function(){toast("链接已复制")});else prompt("复制链接：",u)};
@@ -167,6 +179,7 @@ function bind(){
     else if(a==="giveup"){R.typed="";R.st="bad";R.bad++;R.missed.push(c.id);markW(c.id,true);renderCard()}
     else if(a==="actually"){R.bad--;R.ok++;R.missed.pop();var w=W[c.id];if(w){w.n--;if(w.n<=0)delete W[c.id];save(LS_W,W)}R.st="ok";toast("好的，算你对 👍");renderCard()}
     else if(a==="next") next();
+    else if(a==="askt"){var it2=byId[c.id],f2=it2.fill[c.fi]||it2.fill[0];if(window.TopikAcc)TopikAcc.copy(opt.mode==="fill"?{deck:"语法闪卡·句子填空（grammar-core）",id:cid(c),extra:"题目："+f2.ko,zh:f2.zh,ans:f2.ans.join(" / "),mine:R.typed}:{deck:"语法闪卡·中→韩（grammar-core）",id:cid(c),zh:it2.zh,ans:it2.f,mine:R.typed})}
     else if(a==="show"){R.st="shown";renderCard()}
     else if(a==="know"){R.ok++;markW(c.id,false);next()}
     else if(a==="dunno"){R.bad++;R.missed.push(c.id);markW(c.id,true);R.st="judged";renderCard()}

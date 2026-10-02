@@ -179,3 +179,48 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 - 顶部「🧩 语法」：语法表（按功能分组 + 搜索）、易混组（中文对比表）、闪卡（中→韩写语法 / 句子填空写形式 / 韩→中自评；宽松判分 + “其实我写对了”）、语法错题本（localStorage `topik.grammar.wrong.v1`）。
 - 内容源 `tools/grammar_data.py`（111 个 TOPIK II 高频语法，16 组易混对比），`python3 tools/build_grammar.py` 生成 `grammar/grammar.json`。例句标“真题 第N回 第M题”的均取自上面核对过的官方试卷，其余标“自拟”。
 - 深链接：`?grammar=1`、`?grammar=1&g=baram`（打开某个语法）、`?cat=grammar-core&mode=zh2ko|fill|ko2zh`。
+
+## 问老师 · 老师认可的写法（`accepted.json`）
+
+所有打字闪卡（单词 中→韩、`?cat=writing-5354`、`?cat=writing-grammar`、`?cat=grammar-core` 中→韩/句子填空）
+判错时会多一个 **📋 复制给老师** 按钮，复制的内容：
+
+```
+【闪卡待判】卡组：写作53·54 闪卡（writing-5354） · 卡片ID：w54:p11
+中文：先增加后减少（增长后转为下降）
+标准答案：증가하다가 감소하였다
+我写的：늘어가다가 줄어들었다
+请帮我判断对不对，对的话加到正确答案里。
+```
+
+老师判断是对的，就把这个写法加进 `accepted.json`。之后在任何卡组里写出这个写法都判对，显示
+「✅ 对（老师认可的写法）」＋老师说明＋标准答案；卡片的详情面板（📖）里列出「✅ 也可以写（老师认可）」。
+比较时按各卡组自己的判分规则（忽略空格/标点；53·54 里 하였/했、되었/됐 视为相同，也接受前面多写词干）。
+标准答案本身仍显示普通的「✓ 对了」。
+
+**卡片ID**（稳定、唯一，复制给老师的文字里就有）：
+
+| 前缀 | 卡组 | 例子 |
+|---|---|---|
+| `v:<韩语词>` | 每日/分类单词卡（同一个词在各天、各分类共用一个ID） | `v:고령화` |
+| `w54:<id>` | 写作 53·54 闪卡（`writing/w5354.json` 的 id） | `w54:p11` |
+| `wg:<id>` | 写作 51·52 语法闪卡（`writing/grammar.json`） | `wg:req-jusigi` |
+| `gc:<id>` | 语法闪卡 中→韩（`grammar/grammar.json`） | `gc:baram` |
+| `gc:<id>#<n>` | 语法闪卡 句子填空第 n 句（从 0 起） | `gc:baram#0` |
+
+**命令行** `tools/add_accepted.py`：
+
+```bash
+python3 tools/add_accepted.py --find "先增加后减少"            # 用韩语或中文查卡片ID（空格分隔=同时包含）
+python3 tools/add_accepted.py w54:p11 "늘어나다가 줄어들었다" "固有词版本，同样标准" --commit
+python3 tools/add_accepted.py --show w54:p11                  # 标准答案 + 已认可的写法
+python3 tools/add_accepted.py --list
+python3 tools/add_accepted.py --remove w54:p11 "증가하다가 줄어들었다" --commit
+```
+
+- 第三个参数「说明」可省略；同一写法再加一次只会更新说明。和标准答案相同的写法会被拒绝（已经算对）。
+- 找不到的卡片ID会报错（防止打错），确实要加用 `--force`。
+- `--commit`：只 add `accepted.json` → commit → `git pull --rebase` → push（不 force，网络错误自动重试）。
+
+`accepted.json` 格式：`{"version":1,"updated":"YYYY-MM-DD","cards":{"w54:p11":{"deck":…,"zh":…,"ko":…,"alts":[{"a":"늘어나다가 줄어들었다","note":"…"}]}}}`
+（`deck/zh/ko` 只是方便人看；页面只读 `alts`）。前端代码在 `assets/accepted.js`（`window.TopikAcc`）。
