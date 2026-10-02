@@ -114,14 +114,14 @@ function pool(sc){
 }
 function newRound(list,redo){R={q:shuffle(list||pool()),i:0,ok:0,bad:0,missed:[],st:"ask",typed:"",redo:!!redo}}
 /* 判分：只比较韩文字母；展开 (으)、(에)、을/를 这类写法；하였/했、되었/됐 视为相同 */
-function canon(t){return t.replace(/[^\uac00-\ud7a3\u3131-\u318e]/g,"").replace(/으ㄹ/g,"을").replace(/으ㄴ/g,"은").replace(/으ㅁ/g,"음").replace(/하였/g,"했").replace(/되었/g,"됐")}
+function canon(t){var n=window.TopikAcc&&TopikAcc.normalize?TopikAcc.normalize(t):String(t||"").normalize("NFC").replace(/[\s\p{P}\p{S}]/gu,"");return n.replace(/[^\uac00-\ud7a3\u3131-\u318e]/g,"").replace(/으ㄹ/g,"을").replace(/으ㄴ/g,"은").replace(/으ㅁ/g,"음").replace(/하였/g,"했").replace(/되었/g,"됐")}
 function expand(s){
-  var out={}, parts=String(s||"").split(/\s+\/\s+/), todo=parts.length>1?parts.concat([parts.join("")]):parts.slice(), n=0;
+  var raw=String(s||"").normalize("NFC"), parts=raw.split(/\s+\/\s+|／/), todo=parts.length===2?parts.concat([parts[0]+parts[1],parts[1]+parts[0]]):[raw], out={}, n=0;
   todo=todo.map(function(x){return x.replace(/\s+/g,"")});
   while(todo.length&&n++<400){var t=todo.pop(),m=t.match(/\(([^()]*)\)/);
     if(m){todo.push(t.replace(m[0],m[1]));todo.push(t.replace(m[0],""));continue}
     m=t.match(/([\uac00-\ud7a3\u3131-\u318e])\/([\uac00-\ud7a3\u3131-\u318e])/);
-    if(m){todo.push(t.replace(m[0],m[1]));todo.push(t.replace(m[0],m[2]));continue}
+    if(m){var whole=canon(t);if(whole)out[whole]=1;todo.push(t.replace(m[0],m[1]));todo.push(t.replace(m[0],m[2]));continue}
     t=canon(t); if(t) out[t]=1}
   return Object.keys(out);
 }

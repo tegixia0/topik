@@ -314,10 +314,10 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="assets/accepted.js?v=20261002b"></script>
+<script src="assets/accepted.js?v=20261002c"></script>
 <script src="reading/reading.js"></script>
-<script src="grammar/grammar.js?v=20261002b"></script>
-<script src="writing/w5354.js?v=20261002b"></script>
+<script src="grammar/grammar.js?v=20261002c"></script>
+<script src="writing/w5354.js?v=20261002c"></script>
 <script>
 (function(){
 "use strict";
@@ -370,16 +370,12 @@ function wrongCards(m){
 }
 
 /* ---------- 匹配（仅 单词中→韩 自动核对） ---------- */
-function norm(s){
-  return String(s||"").normalize("NFC").toLowerCase()
-    .replace(/[\s\u00a0\u3000]+/g,"")
-    .replace(/[.,!?;:'"`~()\[\]{}<>«»…·\-_\/\\\u2018\u2019\u201c\u201d\u3001-\u303f\uff00-\uff0f\uff1a-\uff20\uff3b-\uff40\uff5b-\uff65]/g,"");
-}
+function norm(s){return ACC&&ACC.normalize?ACC.normalize(s):String(s||"").normalize("NFC").toLowerCase().replace(/[\s\u00a0\u3000]+/g,"").replace(/[.,!?;:'"`~()\[\]{}<>«»…·\-_\/\\\u2018\u2019\u201c\u201d\u3001-\u303f\uff00-\uff0f\uff1a-\uff20\uff3b-\uff40\uff5b-\uff65]/g,"")}
 function variants(ans){
   var s=String(ans).replace(/[（(][^）)]*[）)]/g," ");
-  var vs=s.split(/[、,，\/;；|]| 또는 /).map(norm).filter(Boolean);
+  var vs=(ACC&&ACC.answerVariants?ACC.answerVariants(s):[]).concat(s.split(/[、,，\/／;；|]| 或者 /).map(norm).filter(Boolean));
   vs.push(norm(ans)); vs.push(norm(s));
-  return vs;
+  return vs.filter(function(x,i,a){return x&&a.indexOf(x)===i});
 }
 function match(user,ans){var u=norm(user);if(!u)return false;return variants(ans).indexOf(u)>=0}
 
@@ -980,14 +976,14 @@ function wgPool(sc){
   return GC.slice();
 }
 function wgNewRound(list,redo){R={q:shuffle(list||wgPool()),i:0,ok:0,bad:0,missed:[],st:"ask",redo:!!redo}}
-function wgNorm(s){s=String(s||"").replace(/[^\uac00-\ud7a3\u3131-\u318e/()]/g,"");return s}
-function wgExpand(s){ // 把输入里的 (으)、아/어 展开成多个候选
-  var out={}, todo=[String(s||"").replace(/\s+/g,"")], n=0;
-  while(todo.length&&n++<200){var t=todo.pop(),m=t.match(/\(([^()]*)\)/);
+function wgNorm(s){return (WACC&&WACC.normalize?WACC.normalize(s):String(s||"").normalize("NFC").replace(/[\s\p{P}\p{S}]/gu,"")).replace(/[^\uac00-\ud7a3\u3131-\u318e]/g,"")}
+function wgExpand(s){ // 把输入里的 (으)、아/어 及两部分答案展开成多个候选
+  var raw=String(s||"").normalize("NFC"), parts=raw.split(/\s+\/\s+|／/), todo=parts.length===2?parts.concat([parts[0]+parts[1],parts[1]+parts[0]]):[raw], out={}, n=0;
+  while(todo.length&&n++<300){var t=todo.pop(),m=t.match(/\(([^()]*)\)/);
     if(m){todo.push(t.replace(m[0],m[1]));todo.push(t.replace(m[0],""));continue}
     m=t.match(/([\uac00-\ud7a3\u3131-\u318e])\/([\uac00-\ud7a3\u3131-\u318e])/);
-    if(m){todo.push(t.replace(m[0],m[1]));todo.push(t.replace(m[0],m[2]));continue}
-    t=t.replace(/[^\uac00-\ud7a3\u3131-\u318e]/g,"").replace(/으ㄹ/g,"을").replace(/으ㄴ/g,"은").replace(/으ㅁ/g,"음").replace(/으ㅂ/g,"읍");
+    if(m){var whole=wgNorm(t);if(whole)out[whole]=1;todo.push(t.replace(m[0],m[1]));todo.push(t.replace(m[0],m[2]));continue}
+    t=wgNorm(t).replace(/으ㄹ/g,"을").replace(/으ㄴ/g,"은").replace(/으ㅁ/g,"음").replace(/으ㅂ/g,"읍");
     if(t)out[t]=1}
   return Object.keys(out);
 }

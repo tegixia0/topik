@@ -4,6 +4,18 @@
 "use strict";
 var DATA={cards:{}}, P=null;
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+/* One punctuation/space policy for every typing deck. Keep Korean letters intact. */
+function normalize(s){return String(s==null?"":s).normalize("NFC").toLowerCase().replace(/[\s\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g,"").replace(/[\p{P}\p{S}]/gu,"")}
+function answerVariants(s){
+  var raw=String(s==null?"":s).normalize("NFC"), out=[], seen={};
+  function add(x){x=normalize(x);if(x&&!seen[x]){seen[x]=1;out.push(x)}}
+  add(raw);
+  /* A spaced slash means two complete accepted forms; full-width slash is equivalent. */
+  var parts=raw.split(/\s+\/\s+|／/);
+  if(parts.length===2){add(parts[0]);add(parts[1]);add(parts[0]+parts[1]);add(parts[1]+parts[0])}
+  return out;
+}
+function same(input,answer){var u=normalize(input);return !!u&&answerVariants(answer).indexOf(u)>=0}
 function load(force){
   if(P&&!force) return P;
   P=fetch("accepted.json?v="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null})
@@ -12,7 +24,7 @@ function load(force){
 }
 function alts(id){var e=DATA.cards[id];return e&&Array.isArray(e.alts)?e.alts.filter(function(x){return x&&x.a}):[]}
 /* test(input, altText) → 用各卡组自己的判分规则比较；返回命中的 {a,note} 或 null */
-function find(id,input,test){var L=alts(id);for(var i=0;i<L.length;i++){try{if(test(input,L[i].a))return L[i]}catch(e){}}return null}
+function find(id,input,test){var L=alts(id);for(var i=0;i<L.length;i++){try{if(test?test(input,L[i].a):same(input,L[i].a))return L[i]}catch(e){}}return null}
 function okHTML(alt,std){
   return '<div class="acc-ok"><div class="acc-t">✅ 对（老师认可的写法）</div>'+
     (alt.note?'<div class="acc-n">💬 老师说明：'+esc(alt.note)+"</div>":"")+
@@ -35,5 +47,5 @@ function copy(o){
   if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(done,fallback)}else fallback();
 }
 var BTN="📋 复制给老师";
-window.TopikAcc={load:load,alts:alts,find:find,okHTML:okHTML,altsHTML:altsHTML,text:text,copy:copy,BTN:BTN};
+window.TopikAcc={load:load,alts:alts,find:find,normalize:normalize,answerVariants:answerVariants,same:same,okHTML:okHTML,altsHTML:altsHTML,text:text,copy:copy,BTN:BTN};
 })();

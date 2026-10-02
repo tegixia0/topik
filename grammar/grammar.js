@@ -9,7 +9,9 @@ function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeo
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function toast(m){var t=$("toast");if(!t){alert(m);return}t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show")},1800)}
-function norm(s){return String(s||"").normalize("NFC").replace(/[^가-힣ㄱ-ㅎ]/g,"")}
+function norm(s){return window.TopikAcc&&TopikAcc.normalize?TopikAcc.normalize(s):String(s||"").normalize("NFC").replace(/[^가-힣ㄱ-ㅎ]/g,"")}
+function answerNorms(s){return window.TopikAcc&&TopikAcc.answerVariants?TopikAcc.answerVariants(s):[norm(s)]}
+function answerList(xs){var out=[];xs.forEach(function(x){answerNorms(x).forEach(function(k){if(k&&out.indexOf(k)<0)out.push(k)})});return out}
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
 function ensure(){
   if(D) return Promise.resolve();
@@ -93,9 +95,9 @@ function newRound(list){
 function cid(c){return "gc:"+c.id+(opt.mode==="fill"?"#"+c.fi:"")}
 function judge(c,typed){   // "std" / {a,note} 老师认可 / "ok" 宽松判对 / null 错
   var it=byId[c.id], n=norm(typed); if(!n) return null;
-  var std=opt.mode==="zh2ko"?it.keys.concat([norm(it.f)]):(it.fill[c.fi]||it.fill[0]).ans.map(norm);
+  var std=opt.mode==="zh2ko"?answerList(it.keys.concat([it.f])):answerList((it.fill[c.fi]||it.fill[0]).ans);
   if(std.indexOf(n)>=0) return "std";
-  var alt=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u),k=norm(a);return !!k&&(x===k||(k.length>=2&&x.slice(-k.length)===k&&x.length<=k.length+4))});
+  var alt=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u);return answerNorms(a).some(function(k){return !!k&&(x===k||(k.length>=2&&x.slice(-k.length)===k&&x.length<=k.length+4))})});
   if(alt) return alt;
   return checkAns(c,typed)?"ok":null;
 }
@@ -104,7 +106,7 @@ function checkAns(c,typed){
   if(opt.mode==="zh2ko"){
     return it.keys.some(function(k){return n===k||(k.length>=2&&n.length>=2&&(n.slice(-k.length)===k||(k.slice(-n.length)===n&&n.length>=k.length-1)))});
   }
-  var ans=(it.fill[c.fi]||it.fill[0]).ans.map(norm);
+  var ans=answerList((it.fill[c.fi]||it.fill[0]).ans);
   return ans.some(function(a){return n===a||n.slice(-a.length)===a||(a.slice(-n.length)===n&&n.length>=a.length-1)});
 }
 function markW(id,bad){var w=W[id];if(bad){w=W[id]||{n:0};w.n++;w.last=Date.now();W[id]=w}else if(opt.scope==="wrong"&&w){delete W[id]}save(LS_W,W)}
