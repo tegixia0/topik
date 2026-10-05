@@ -13,6 +13,7 @@
   wg:<id>               写作 51·52 语法闪卡（?cat=writing-grammar），如 wg:req-jusigi
   gc:<id>               语法闪卡 中→韩（?cat=grammar-core），如 gc:baram
   gc:<id>#<n>           语法闪卡 句子填空，第 n 句（从 0 起），如 gc:baram#0
+  gd:<id>#<n>           语法整句练习（?grammar=drill），如 gd:baram#0
 
 --commit：git add accepted.json → commit → pull --rebase → push（不 force；网络错误会重试）
 """
@@ -63,6 +64,17 @@ def cards():
         out["gc:" + it["id"]] = {"deck": "grammar-core 中→韩", "ko": it["f"], "zh": it["zh"]}
         for i, f in enumerate(it.get("fill") or []):
             out["gc:%s#%d" % (it["id"], i)] = {"deck": "grammar-core 填空", "ko": " / ".join(f["ans"]), "zh": f["zh"], "extra": f["ko"]}
+        # 整句练习：prac + 干净例句（与 grammar.js drillsOf 一致）
+        seen, drills = set(), []
+        for e in (it.get("prac") or []) + (it.get("ex") or []):
+            ko, zh = e.get("ko") or "", e.get("zh") or ""
+            if not ko or not zh or "…" in ko or "..." in ko or "…" in zh or "..." in zh:
+                continue
+            if ko in seen:
+                continue
+            seen.add(ko); drills.append((ko, zh))
+        for i, (ko, zh) in enumerate(drills):
+            out["gd:%s#%d" % (it["id"], i)] = {"deck": "grammar-drill 整句", "ko": ko, "zh": zh}
     for e in out.values():
         if "decks" in e:
             e["deck"] = "单词（" + ", ".join(e.pop("decks")) + "）"

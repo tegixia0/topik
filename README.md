@@ -176,13 +176,14 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 
 ## 语法（`grammar/`）
 
-- 顶部「🧩 语法」：语法表（按功能分组 + 搜索）、易混组（中文对比表）、闪卡（中→韩写语法 / 句子填空写形式 / 韩→中自评；宽松判分 + “其实我写对了”）、语法错题本（localStorage `topik.grammar.wrong.v1`）。
-- 内容源 `tools/grammar_data.py`（111 个 TOPIK II 高频语法，16 组易混对比），`python3 tools/build_grammar.py` 生成 `grammar/grammar.json`。例句标“真题 第N回 第M题”的均取自上面核对过的官方试卷，其余标“自拟”。
-- 深链接：`?grammar=1`、`?grammar=1&g=baram`（打开某个语法）、`?cat=grammar-core&mode=zh2ko|fill|ko2zh`。
+- 顶部「🧩 语法」：语法表（按功能分组 + 搜索）、易混组（中文对比表）、**分类练**（按功能组做整句针对性练习）、闪卡（中→韩写语法 / 句子填空写形式 / 韩→中自评 / 整句中→韩 / 整句韩→中；宽松判分 + “其实我写对了”）、语法错题本（localStorage `topik.grammar.wrong.v1`）。
+- **针对性练习（分类练）**：每一类（原因·理由、让步、推测…）可单独开练。题干是自拟/例句的**整句**，**不出现语法名称**；中→韩打字自动判分（`accepted.json` + 语尾宽松），答完显示参考韩语、该语法的中文意思、记忆法、易错，并可「📋 复制给老师」。进度存在本机 `topik.grammar.drill.v1`。语法表每组标题旁也有「🎯 练这一类」。
+- 内容源 `tools/grammar_data.py`（111 个 TOPIK II 高频语法，16 组易混对比）+ `grammar/prac.json`（自拟整句练习），`python3 tools/build_grammar.py` 生成 `grammar/grammar.json`（含 `prac`）。例句标“真题 第N回 第M题”的均取自上面核对过的官方试卷，其余标“自拟”。
+- 深链接：`?grammar=1`、`?grammar=1&g=baram`（打开某个语法）、`?cat=grammar-core&mode=zh2ko|fill|ko2zh|sent|sentzh`、`?grammar=drill`（分类目录）、`?grammar=drill&cat=cause`（练某一类）、`?cat=grammar-cause`（同上，id 见 `grammar.json` 的 `cats`）。
 
 ## 问老师 · 老师认可的写法（`accepted.json`）
 
-所有打字闪卡（单词 中→韩、`?cat=writing-5354`、`?cat=writing-grammar`、`?cat=grammar-core` 中→韩/句子填空）
+所有打字闪卡（单词 中→韩、`?cat=writing-5354`、`?cat=writing-grammar`、`?cat=grammar-core` 中→韩/句子填空、语法整句练习 `?grammar=drill`）
 判错时会多一个 **📋 复制给老师** 按钮，复制的内容：
 
 ```
@@ -207,6 +208,7 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 | `wg:<id>` | 写作 51·52 语法闪卡（`writing/grammar.json`） | `wg:req-jusigi` |
 | `gc:<id>` | 语法闪卡 中→韩（`grammar/grammar.json`） | `gc:baram` |
 | `gc:<id>#<n>` | 语法闪卡 句子填空第 n 句（从 0 起） | `gc:baram#0` |
+| `gd:<id>#<n>` | 语法整句练习第 n 句（`prac`+干净例句） | `gd:baram#0` |
 
 **命令行** `tools/add_accepted.py`：
 

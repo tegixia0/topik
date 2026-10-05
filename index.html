@@ -243,7 +243,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261002e">
+<link rel="stylesheet" href="assets/modules.css?v=20261005a">
 </head>
 <body>
 <div class="wrap">
@@ -311,14 +311,14 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
   <div id="bank" hidden></div>
   <div id="grammar" hidden>
-    <div class="mtabs" id="gtabs"><button type="button" data-tab="list">语法表</button><button type="button" data-tab="cmp">易混组</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="wrong">错题本</button></div>
+    <div class="mtabs n5" id="gtabs"><button type="button" data-tab="list">语法表</button><button type="button" data-tab="cmp">易混组</button><button type="button" data-tab="drill">分类练</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="wrong">错题本</button></div>
     <div id="gBody"></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
 <script src="assets/accepted.js?v=20261002c"></script>
 <script src="reading/reading.js"></script>
-<script src="grammar/grammar.js?v=20261002c"></script>
+<script src="grammar/grammar.js?v=20261005a"></script>
 <script src="assets/wsplit.js?v=20261002e"></script>
 <script src="writing/w5354.js?v=20261002e"></script>
 <script src="bank/bank.js?v=20261002d"></script>
@@ -337,7 +337,7 @@ var source="latest";            // "latest" | date | "cat-<slug>" | "all" | "wro
 /* 深链接：?cat=taste  ?deck=2026-09-29  &mode=zh2ko|ko2zh（旧的 gko2zh|gzh2ko → zh2ko） */
 var QS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1).replace(/\+/g," "))});return o})();
 var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"v_zh_ko",gzh2ko:"v_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"v_zh_ko",g_zh_ko:"v_zh_ko"};
-if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.grammar||QS.writing||QS.bank){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
+if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||/^grammar-/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.grammar||QS.writing||QS.bank){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
 else if(QS.deck) source=QS.deck;
@@ -1140,7 +1140,14 @@ var o0={}, catL=String(WQS.cat||"").toLowerCase(), hash=location.hash.replace("#
 var v0;
 if(WQS.bank||hash==="bank"){v0="bank";var bk=String(WQS.bank||"");o0={tab:{hf:"hf",daily:"daily",cat:"cat",progress:"prog",prog:"prog"}[bk]||(bk==="1"||!bk?null:"daily"),c:WQS.c}}   // 📚 词库：?bank=1|hf|daily|cat&c=<id>|progress
 else if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1"}}
-else if(WQS.grammar||catL==="grammar-core"||hash==="grammar"||hash==="grammar-core"){v0="grammar";o0={tab:catL==="grammar-core"||hash==="grammar-core"?"cards":WQS.tab,mode:WQS.mode,g:WQS.g}}
+else if(WQS.grammar||catL==="grammar-core"||/^grammar-/.test(catL)||hash==="grammar"||hash==="grammar-core"||hash==="grammar-drill"){
+  v0="grammar";
+  var gCat=null;
+  if(/^grammar-/.test(catL)&&catL!=="grammar-core") gCat=catL.slice(8);
+  if(String(WQS.grammar)==="drill"){o0={grammar:"drill",cat:WQS.cat||gCat||WQS.scope,mode:WQS.mode,g:WQS.g}}
+  else if(gCat){o0={grammar:"drill",cat:gCat,mode:WQS.mode||"sent",g:WQS.g}}
+  else {o0={tab:catL==="grammar-core"||hash==="grammar-core"?"cards":(WQS.tab||"list"),mode:WQS.mode,g:WQS.g,scope:WQS.scope}}
+}
 else if(hash==="mistakes"||WQS.writing==="mistakes"){opts.tab="mine";save();v0="writing"}   // 我的易错点：#mistakes 或 ?writing=mistakes
 else if(w54Link){v0="writing";o0=w54o}
 else if(wgLink||hash==="writing") v0="writing";

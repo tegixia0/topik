@@ -36,6 +36,8 @@ EXTRA={'dammalida':['단말이다','란말이다','단말이에요'],'ina':['나
  'tase':['탓에','는탓에','은탓에','ㄴ탓에'],'deokbun':['덕분에','은덕분에','ㄴ덕분에'],'lgeol':['을걸','ㄹ걸','을걸요','ㄹ걸요'],'janayo':['잖아요','잖아'],'geodeunyo':['거든요'],'neurago':['느라','느라고'],
  'lsubakke':['을수밖에없다','ㄹ수밖에없다','수밖에없다'],'bwatja':['아봤자','어봤자','봤자','아봐야','어봐야'],'nota':['아놓다','어놓다','놓다'],'duda':['아두다','어두다','두다']}
 cats=dict(gd.CATS)
+prac_path=os.path.join(ROOT,'grammar','prac.json')
+prac=json.load(open(prac_path)) if os.path.exists(prac_path) else {}
 out={'cats':[{'id':k,'label':v} for k,v in gd.CATS],'cmp':gd.CMP,'items':[]}
 for g in gd.G:
     keys=expand(g['f'])+EXTRA.get(g['id'],[])
@@ -45,7 +47,7 @@ for g in gd.G:
     ex=[]
     for e in g['ex']:
         p=e.split('｜'); ex.append({'ko':p[0],'zh':p[1],'src':p[2] if len(p)>2 else ''})
-    out['items'].append({**{k:g[k] for k in ('id','f','cat','zh','mem','join','use','err','cmp')},'ex':ex,'fill':fills,'keys':sorted(set(keys))})
+    out['items'].append({**{k:g[k] for k in ('id','f','cat','zh','mem','join','use','err','cmp')},'ex':ex,'fill':fills,'prac':prac.get(g['id'],[]),'keys':sorted(set(keys))})
 os.makedirs(os.path.join(ROOT,'grammar'),exist_ok=True)
 json.dump(out,open(os.path.join(ROOT,'grammar','grammar.json'),'w'),ensure_ascii=False,separators=(',',':'))
 print('items',len(out['items']),'cmp',len(out['cmp']),'real-ex',sum(1 for i in out['items'] for e in i['ex'] if e['src'].startswith('真题')))

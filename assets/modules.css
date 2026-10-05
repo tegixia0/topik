@@ -1,5 +1,7 @@
 /* 阅读 + 语法 模块样式（沿用 index.html 的 CSS 变量） */
 .mtabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.mtabs.n5{grid-template-columns:repeat(5,1fr);gap:4px}
+.mtabs.n5 button{font-size:13.5px;padding:0 2px}
 .mtabs button{min-height:40px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:15px;font-weight:700}
 .mtabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .fbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
@@ -248,3 +250,12 @@ html.ws-lock,html.ws-lock body{overflow:hidden;overscroll-behavior:none}
 .wszoom.big img{max-width:none;max-height:none;width:200%;cursor:zoom-out}
 .wszoom .wsx{position:absolute;top:calc(10px + env(safe-area-inset-top));right:10px;z-index:1;font-size:20px;width:44px;height:44px;border-radius:50%;border:none;background:#fff3;color:#fff}
 .wszoom .wszh{flex:none;text-align:center;color:#ccc;font-size:13px;padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
+
+.gcat-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 2px 6px;flex-wrap:wrap}
+.gcat-row .gcat{margin:0}
+.gdrill-btn{font-size:13.5px;min-height:34px;white-space:nowrap}
+.gdrill-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
+.gdrill-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 12px 10px}
+.gdrill-title{font-weight:800;font-size:16px;margin-bottom:4px}
+.g-reveal{background:#131b27;border-radius:10px;padding:8px 10px;margin:8px 0;font-size:14.5px;line-height:1.65}
+.g-reveal .row{margin:4px 0}
