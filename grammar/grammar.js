@@ -3,13 +3,30 @@
 (function(){
 "use strict";
 var $=function(id){return document.getElementById(id)};
-var LS_OPT="topik.grammar.opt.v1", LS_W="topik.grammar.wrong.v1", LS_DRILL="topik.grammar.drill.v1";
+var LS_OPT="topik.grammar.opt.v1", LS_W="topik.grammar.wrong.v1", LS_DRILL="topik.grammar.drill.v1", LS_HINT="topik.grammar.hintsOn.v1";
 var D=null, byId={}, CAT={}, opt=load(LS_OPT,{tab:"list",mode:"fill",scope:"all"}), W=load(LS_W,{}), PROG=load(LS_DRILL,{}), R=null, search="";
+var hintsOn=(function(){try{var v=localStorage.getItem(LS_HINT); if(v===null||v===undefined) return true; return v==="1"||v==="true"}catch(e){return true}})();
 var MODES={zh2ko:"中→韩（写语法）",fill:"句子填空（写形式）",ko2zh:"韩→中（自评）",sent:"整句 中→韩",sentzh:"整句 韩→中"};
 var SENT_MODES={sent:1,sentzh:1};
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==="object"?v:d}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function setHintsOn(v){hintsOn=!!v; try{localStorage.setItem(LS_HINT,hintsOn?"1":"0")}catch(e){}}
+/** Vocab hints for 中→韩 sentence / fill — Korean lemma + Chinese gloss (no grammar pattern spoiler). */
+function hintHTML(list, softTip){
+  if((!list||!list.length)&&!softTip) return "";
+  var body="";
+  if(list&&list.length){
+    body+='<ul class="ghint-list">'+list.map(function(h){return '<li><b lang="ko">'+esc(h.ko)+"</b> "+esc(h.zh)+"</li>"}).join("")+"</ul>";
+  }
+  if(softTip) body+='<div class="ghint-soft">'+esc(softTip)+"</div>";
+  if(hintsOn){
+    return '<details class="ghints" open><summary>💡 单词提示</summary>'+body+"</details>";
+  }
+  return '<div class="ghints-off"><button type="button" class="gbtn ghint-btn" data-a="showhints">看单词提示</button></div>';
+}
+function hintsOfSent(s){return (s&&s.hints)||[]}
+function hintsOfFill(f){return (f&&f.hints)||[]}
 function toast(m){var t=$("toast");if(!t){alert(m);return}t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show")},1800)}
 function norm(s){return window.TopikAcc&&TopikAcc.normalize?TopikAcc.normalize(s):String(s||"").normalize("NFC").replace(/[^가-힣ㄱ-ㅎ]/g,"")}
 function answerNorms(s){return window.TopikAcc&&TopikAcc.answerVariants?TopikAcc.answerVariants(s):[norm(s)]}
@@ -23,7 +40,7 @@ function drillsOf(it){
     if(!e||!e.ko||!e.zh) return;
     if(/…|\.\.\./.test(e.ko)||/…|\.\.\./.test(e.zh)) return;
     var k=e.ko; if(seen[k]) return; seen[k]=1;
-    out.push({ko:e.ko,zh:e.zh});
+    var row={ko:e.ko,zh:e.zh}; if(e.hints&&e.hints.length) row.hints=e.hints; out.push(row);
   }
   (it.prac||[]).forEach(push);
   (it.ex||[]).forEach(push);
@@ -230,6 +247,7 @@ function renderCard(){
   h+='<div class="card">';
   if(opt.mode==="sent"){
     h+='<div class="minfo">把下面的中文翻成韩语整句（打字）</div><div class="gq">'+esc(s.zh)+'</div>';
+    if(R.st==="ask") h+=hintHTML(hintsOfSent(s));
   }else if(opt.mode==="sentzh"){
     h+='<div class="minfo">先在心里翻译成中文，再看答案自评（不显示语法名）</div><div class="gq ko">'+esc(s.ko)+'</div>';
   }else if(opt.mode==="zh2ko"){
@@ -237,6 +255,7 @@ function renderCard(){
     if(it.ex[0]) h+='<div class="gsub">例：'+esc(it.ex[0].zh)+'</div>';
   }else if(opt.mode==="fill"){
     h+='<div class="minfo">填空：写出＿＿处的语法形式（只写空格部分即可）</div><div class="gq ko">'+esc(f.ko)+'</div><div class="gsub">'+esc(f.zh)+'</div>';
+    if(R.st==="ask") h+=hintHTML(hintsOfFill(f));
   }else{
     h+='<div class="minfo">'+esc(CAT[it.cat])+' · 先在心里说出中文意思和用法，再看答案自评</div><div class="gq ko">'+esc(it.f)+'</div>';
   }
@@ -279,6 +298,8 @@ function renderCard(){
   }
   h+='</div>';
   $("gBody").innerHTML=h; bindCard();
+  var gh=$("gBody").querySelector("details.ghints");
+  if(gh){gh.addEventListener("toggle",function(){setHintsOn(gh.open)})}
   var inp=$("gIn"); if(inp){inp.focus();inp.onkeydown=function(e){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();submit()}}}
 }
 function summaryHTML(){
@@ -324,6 +345,7 @@ function bind(){
     var drill=b.getAttribute("data-drill"); if(drill){startCatDrill(drill,b.getAttribute("data-drill-mode")||"sent");return}
     var m=b.getAttribute("data-mode"); if(m){opt.mode=m;save(LS_OPT,opt);newRound();renderCard();return}
     var a=b.getAttribute("data-a"); if(!a) return; var c=R&&R.q[R.i];
+    if(a==="showhints"){setHintsOn(true);renderCard();return}
     if(a==="check") submit();
     else if(a==="giveup"){R.typed="";R.st="bad";R.bad++;R.missed.push(c.id);markW(c.id,true);renderCard()}
     else if(a==="actually"){R.bad--;R.ok++;R.missed.pop();var w=W[c.id];if(w){w.n--;if(w.n<=0)delete W[c.id];save(LS_W,W)}R.st="ok";toast("好的，算你对 👍");renderCard()}

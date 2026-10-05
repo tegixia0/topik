@@ -49,6 +49,12 @@ for g in gd.G:
         p=e.split('｜'); ex.append({'ko':p[0],'zh':p[1],'src':p[2] if len(p)>2 else ''})
     out['items'].append({**{k:g[k] for k in ('id','f','cat','zh','mem','join','use','err','cmp')},'ex':ex,'fill':fills,'prac':prac.get(g['id'],[]),'keys':sorted(set(keys))})
 os.makedirs(os.path.join(ROOT,'grammar'),exist_ok=True)
+try:
+  import gen_drill_hints as _hints
+  _c,_e,_t=_hints.attach_hints_to_grammar(out)
+  print('hints',_c,'/',_t,'(empty',str(_e)+')')
+except Exception as _ex:
+  print('hint attach skipped:',_ex)
 json.dump(out,open(os.path.join(ROOT,'grammar','grammar.json'),'w'),ensure_ascii=False,separators=(',',':'))
 print('items',len(out['items']),'cmp',len(out['cmp']),'real-ex',sum(1 for i in out['items'] for e in i['ex'] if e['src'].startswith('真题')))
 for i in out['items'][:6]+out['items'][40:44]: print(i['f'],i['keys'])

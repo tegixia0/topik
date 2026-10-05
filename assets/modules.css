@@ -259,3 +259,14 @@ html.ws-lock,html.ws-lock body{overflow:hidden;overscroll-behavior:none}
 .gdrill-title{font-weight:800;font-size:16px;margin-bottom:4px}
 .g-reveal{background:#131b27;border-radius:10px;padding:8px 10px;margin:8px 0;font-size:14.5px;line-height:1.65}
 .g-reveal .row{margin:4px 0}
+
+/* ---------- 语法整句：单词提示 ---------- */
+details.ghints{margin:8px 0 10px;background:#16233a;border:1px solid #35527e;border-radius:12px;padding:6px 10px 8px}
+details.ghints>summary{cursor:pointer;font-weight:700;font-size:14.5px;color:#9fc0ff;list-style:none;min-height:32px;line-height:32px}
+details.ghints>summary::-webkit-details-marker{display:none}
+.ghint-list{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.ghint-list li{background:#0f1722;border:1px solid var(--border);border-radius:999px;padding:4px 10px;font-size:14px;line-height:1.4}
+.ghint-list li b{color:#ffd98a;margin-right:4px;font-weight:800}
+.ghint-soft{margin-top:6px;font-size:13.5px;color:var(--muted)}
+.ghints-off{margin:8px 0}
+.ghint-btn{font-size:13.5px;min-height:34px;border-style:dashed;color:#9fc0ff;border-color:#35527e;background:#132033}
