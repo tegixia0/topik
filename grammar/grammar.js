@@ -50,9 +50,11 @@ function aiHTML(good){
   if(ok&&!good) return "";
   var h='<div class="gai '+(ok?"ok":"bad")+'"><div class="gai-t">🤖 AI 判定：'+(ok?"正确"+(r.minor?"（只有空格问题）":""):"错误")+'</div>';
   if(r.errors&&r.errors.length) h+='<ul class="gai-err">'+r.errors.map(function(e){return '<li>'+(e.wrong?'<span class="w" lang="ko">'+esc(e.wrong)+'</span> → ':"")+(e.right?'<span class="r" lang="ko">'+esc(e.right)+'</span>':"")+(e.why?'<div class="why">'+esc(e.why)+'</div>':"")+'</li>'}).join("")+'</ul>';
-  if(r.corrected&&norm(r.corrected)!==norm(R.typed)) h+='<div class="gai-fix">'+(ok?"更好的写法":"改正")+'：<b lang="ko">'+esc(r.corrected)+'</b></div>';
+  if(r.flipped){}   /* 改判正确：AI 的“改正”和提示针对的是并不存在的错误，不显示 */
+  else if(r.corrected&&norm(r.corrected)!==norm(R.typed)) h+='<div class="gai-fix">'+(ok?"更好的写法":"改正")+'：<b lang="ko">'+esc(r.corrected)+'</b></div>';
   else if(r.corrected&&!ok) h+='<div class="gai-fix">改正：<b lang="ko">'+esc(r.corrected)+'</b></div>';
-  if(r.tip) h+='<div class="gai-tip">'+esc(/^📌/.test(r.tip)?r.tip:"📌 "+r.tip)+'</div>';
+  if(r.tip&&!r.flipped) h+='<div class="gai-tip">'+esc(/^📌/.test(r.tip)?r.tip:"📌 "+r.tip)+'</div>';
+  if(ok&&r.flipped) h+='<div class="minfo">'+(r.flipped==="same"?"（AI 的“改正”和你的答案一样 → 按正确处理）":"（AI 指出的问题在你的答案里找不到 → 按正确处理）")+'</div>';
   if(ok) h+='<div class="minfo">已记住这个写法，下次直接判对（只在本机）</div>';
   return h+'</div>';
 }
@@ -68,6 +70,11 @@ function aiPayload(c,typed){
   else{p.zh=it.zh;p.std=it.f}
   return p;
 }
+/* AI 复核用：两个答案在现有归一（空格/标点、N을 하다、句末语体）下是否相同 */
+function sameAns(a,b){
+  var x=norm(a), y=norm(b); if(!x||!y) return false; if(x===y) return true;
+  var fx=hadaFold(x), fy=hadaFold(y); return fx===fy||!!regMatch(fx,[fy]);
+}
 /* 与「其实我写对了」相同的计分：第一次写 → 撤销这次的错；重写 → 第一次仍记为错，只记“重写后答对” */
 function overrideOk(c){
   if(R.tries>1){R.st="ok";R.fixed=(R.fixed||0)+1;return}
@@ -76,7 +83,7 @@ function overrideOk(c){
 function startAI(c){
   var A=AI(), RR=R, tok={i:R.i,tries:R.tries}; R.ai={st:"wait",tok:tok};
   var typed=R.typed, id=cid(c);
-  A.judge(aiPayload(c,typed)).then(function(res){done(res,null)},function(e){done(null,e)});
+  A.judge(aiPayload(c,typed),sameAns).then(function(res){done(res,null)},function(e){done(null,e)});
   function done(res,e){
     /* 用户已经离开这道题 / 点了再写一次 / 其实我写对了 → 丢弃结果 */
     if(R!==RR||R.i!==tok.i||R.tries!==tok.tries||R.st!=="bad"||!R.ai||R.ai.tok!==tok) return;
@@ -152,6 +159,16 @@ function regStems(n){
     case 10: add(pre+syl(j.l,11)); break;                    /* ㅙ：돼→되 */
   }
   return out;
+}
+/* ---------- N을/를 하다 ＝ N하다（예약을 해야 = 예약해야，운동을 해요 = 운동해요）----------
+   只在 을/를 与前一音节的받침一致、且后面确实是 하다 的活用时才合并；
+   排除 한 개 / 하나 / 하루 / 함께 / 해결 / 할머니 这类不是 하다 的情况，避免“省略助词”被误判为对。 */
+var HADA_NEXT={"하":/^[고는다면지기러려여였게도니자세시겠던더며므느라곤]/,"해":/^(?:$|[요서야도라주버보놓두봐졌지])/,"했":/^/,"합":/^[니시]/,"한":/^(?:$|다)/,"할":/^(?:$|[수때것거지게까래만줄경리])/};
+function hadaFold(n){
+  return String(n||"").replace(/([가-힣])(을|를)(하|해|했|합|한|할)/g,function(m,pre,pt,h,off,str){
+    var j=jamo(pre); if(!j||(pt==="을")!==(j.t!==0)) return m;   /* 을 接받침、를 接元音，否则不是宾格助词 */
+    return HADA_NEXT[h].test(str.slice(off+m.length))?pre+h:m;
+  });
 }
 function regStyle(n){return /니다$/.test(n)?"-ㅂ니다体":/요$/.test(n)?"-요体":/다$/.test(n)?"-다体":"반말"}
 /* u：用户答案（已 norm）；targets：已 norm 的标准/认可答案 → 命中返回 {reg:"标准答案语体", std} */
@@ -334,10 +351,12 @@ function judge(c,typed){   // "std" / {a,note} 老师认可 / "ok" 宽松判对 
     std=answerList((it.fill[c.fi]||it.fill[0]).ans);
   }
   if(std.indexOf(n)>=0) return "std";
-  var alt=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u);return answerNorms(a).some(function(k){return !!k&&(x===k||(k.length>=2&&x.slice(-k.length)===k&&x.length<=k.length+4))})});
+  var fn=hadaFold(n);
+  if(std.some(function(k){return hadaFold(k)===fn})) return "ok";   /* N을 하다 ＝ N하다 */
+  var alt=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u),fx=hadaFold(x);return answerNorms(a).some(function(k){return !!k&&(x===k||fx===hadaFold(k)||(k.length>=2&&x.slice(-k.length)===k&&x.length<=k.length+4))})});
   if(alt) return alt;
-  if(AI()&&AI().accList(cid(c)).some(function(x){return norm(x.a)===n})) return {aimem:true};   /* AI 判对过（本机） */
-  var rg=regMatch(n,regTargets(c)); if(rg) return rg;   /* 只差句末语体 */
+  if(AI()&&AI().accList(cid(c)).some(function(x){return hadaFold(norm(x.a))===fn})) return {aimem:true};   /* AI 判对过（本机） */
+  var tg=regTargets(c), rg=regMatch(n,tg)||regMatch(fn,tg.map(hadaFold)); if(rg) return rg;   /* 只差句末语体（也合并 N을 하다） */
   return checkAns(c,typed)?"ok":null;
 }
 /* 哪些答案参与句末语体归一：整句全部；填空只在空格位于句末时；中→韩只对 -다 结尾的语法形式（如 -는 모양이다） */
@@ -537,7 +556,7 @@ function bind(){
 }
 window.TopikGrammar={open:open,init:bind,
   /* 供 node 单元测试用 */
-  _t:{ensure:ensure,regStems:regStems,regMatch:regMatch,norm:norm,state:function(){return R},cid:function(c){return cid(c)},
+  _t:{ensure:ensure,hadaFold:hadaFold,sameAns:sameAns,regStems:regStems,regMatch:regMatch,norm:norm,state:function(){return R},cid:function(c){return cid(c)},
     judgeAs:function(mode,c,typed){var m=opt.mode;opt.mode=mode;try{return judge(c,typed)}finally{opt.mode=m}},
     regTargetsAs:function(mode,c){var m=opt.mode;opt.mode=mode;try{return regTargets(c)}finally{opt.mode=m}}}};
 })();

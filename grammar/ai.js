@@ -45,11 +45,14 @@ function str(x){return typeof x==="string"?x.trim():(x==null?"":String(x))}
 
 var SYS=[
 "你是一位严格但公正的韩语老师，正在批改一位备考 TOPIK 5 级的中国学习者的韩语练习。只输出一个 JSON 对象，不要输出任何其他文字。",
+"【这不是比对任务】不要比较学生答案和标准答案是否一样。请判断学生的句子本身是不是正确、自然的韩语，是否表达了中文的意思，是否使用了目标语法。标准答案只是其中一种参考写法；和标准答案用词、结构不同，本身绝不是错误。",
 "【权威依据】",
 "- 「标准答案」和「其他认可答案」是正确的，它们使用的语法形式是权威的。「目标语法说明」（形式、接法、限制、常见错误）是这个语法固定的规则。",
 "- 绝对不要把学生答案往与标准答案语法形式不同的方向“改正”。例如标准答案用 -는 바람에，就绝不能建议 -은 바람에 / -ㄴ 바람에；凡是学生答案中与标准答案（或认可答案）相同的形式，都不是错误。",
 "【判为正确】",
 "- 学生答案与标准答案只有同义或等价的差别时，correct=true。例如：안 V 与 V-지 않다（안 울리는 = 울리지 않는）；同义词（下雨用 오다 / 내리다）；口语中可以接受的助词省略；句末语体不同（-다体 / -요体 / 반말 / -ㅂ니다体）；标点符号不同。",
+"- 主动/被动互换只要自然就可以：자리를 보장받다 / 자리가 보장되다；수수료가 부과되다 / 수수료를 부과하다。N을 하다 / N하다（예약을 하다 / 예약하다）也等价。",
+"- 符合中文意思的近义动词可以：打车 = 택시를 타다 / 택시를 부르다。",
 "- 使用了目标语法或功能等价、符合「目标语法说明」规则的语法，也算使用了目标语法。",
 "【判为错误】只有出现真正的错误时才 correct=false：",
 "- 语法错误（包括违反目标语法的接法/限制）、助词错误（特别是宾语用了 이/가 而不是 을/를）、拼写错误、时态错误、意思与中文不符、用词错误、缺少目标语法、句子不完整。",
@@ -67,7 +70,24 @@ var TYPE={
   zh2ko:"写语法形式：根据中文意思写出对应的韩语语法形式（如 -는 바람에）。判断是否为同一语法或功能等价、适合这个中文意思的语法"
 };
 /* p: {type, zh, sentence?, std, accepted[], grammar?, grammarInfo?, user} → {correct, minor, errors[], corrected, tip} */
-function judge(p){
+/* 去掉空格和标点后比较（与 accepted.js 的 normalize 一致） */
+function squash(s){return String(s==null?"":s).normalize("NFC").toLowerCase().replace(/[\s\u00a0\u3000]+/g,"").replace(/[\p{P}\p{S}]/gu,"")}
+/* 复核 AI 的“错误”判定：
+   1) 丢掉 wrong 片段在学生答案里（忽略空格/标点）找不到的错误；一条都不剩 → 改判正确（flipped:"nofrag"）
+   2) corrected 在现有归一下和学生答案相同 → 改判正确（flipped:"same"）
+   same(a,b)：由 grammar.js 提供的归一比较（空格/标点、N을 하다、句末语体）；没有就只比 squash */
+function verify(res,p,same){
+  if(res.correct) return res;
+  var user=p.user, ctx=user;
+  if(p.type==="fill"&&p.sentence&&p.sentence.indexOf("＿＿")>=0) ctx=p.sentence.replace("＿＿",user);   /* 填空：AI 可能引用整句 */
+  var U=squash(ctx);
+  res.errors=res.errors.filter(function(e){var w=squash(e.wrong);return !!w&&U.indexOf(w)>=0});
+  if(!res.errors.length){res.correct=true;res.flipped="nofrag";return res}
+  var eq=res.corrected&&(typeof same==="function"?same(res.corrected,user):squash(res.corrected)===squash(user));
+  if(eq){res.correct=true;res.flipped="same";res.errors=[]}
+  return res;
+}
+function judge(p,same){
   var u={"题型":TYPE[p.type]||p.type,"中文":p.zh,"题目句子（含空格）":p.sentence||undefined,"标准答案":p.std,
     "其他认可答案":(p.accepted&&p.accepted.length)?p.accepted:undefined,"目标语法":p.grammar||undefined,"目标语法说明":p.grammarInfo||undefined,"学生答案":p.user};
   return call({model:CFG.model,temperature:0,max_tokens:800,stream:false,response_format:{type:"json_object"},
@@ -75,7 +95,7 @@ function judge(p){
     var o=contentOf(d);
     if(!o||typeof o!=="object"||typeof o.correct!=="boolean") throw err("json","AI 返回格式错误");
     var errors=Array.isArray(o.errors)?o.errors.filter(function(x){return x&&typeof x==="object"}).slice(0,8).map(function(x){return {wrong:str(x.wrong),right:str(x.right),why:str(x.why)}}):[];
-    return {correct:o.correct,minor:o.minor===true,errors:errors,corrected:str(o.corrected),tip:str(o.tip)};
+    return verify({correct:o.correct,minor:o.minor===true,errors:errors,corrected:str(o.corrected),tip:str(o.tip)},p,same);
   });
 }
 function test(key){
@@ -141,6 +161,6 @@ function closeSettings(){
 }
 
 window.TopikAI={CFG:CFG,getKey:getKey,setKey:setKey,hasKey:hasKey,isOn:isOn,setOn:setOn,active:active,
-  judge:judge,test:test,accList:accList,accAdd:accAdd,accCount:accCount,accClear:accClear,
+  judge:judge,verify:verify,test:test,accList:accList,accAdd:accAdd,accCount:accCount,accClear:accClear,
   openSettings:openSettings,closeSettings:closeSettings};
 })();

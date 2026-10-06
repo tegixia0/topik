@@ -71,5 +71,48 @@ function t(name,cond,info){console.log((cond?"PASS ":"FAIL ")+name+(info?"  → 
   for(const [cid,e] of Object.entries(acc)){ if(!cid.startsWith("gd:"))continue; const [id,si]=cid.slice(3).split("#");
     for(const x of e.alts){an++; const r=T2.judgeAs("sent",{id,si:+si,fi:0},x.a); if(!(r&&typeof r==="object"&&!r.reg)) {ab++;console.log("  alt not teacher-matched:",cid,x.a,JSON.stringify(r))}}}
   t(`regression: all ${an} gd: teacher alts still show as teacher-accepted`, ab===0);
+  // ---- N을/를 하다 = N하다 ----
+  console.log("\n=== N을 하다 ＝ N하다 ===");
+  const T3=makeCtx(false).TopikGrammar._t; await T3.ensure();
+  const heq=(a,b)=>{const x=T3.hadaFold(T3.norm(a)),y=T3.hadaFold(T3.norm(b));return x===y||!!T3.regMatch(x,[y])};
+  for(const [a,b] of [["예약을 해야","예약해야"],["운동을 해요","운동해요"],["매일 운동을 한다","매일 운동한다"],["숙제를 할 때","숙제할 때"],["일을 했다","일했다"],
+    ["공부를 하고 잤다","공부하고 잤다"],["전화를 했더니","전화했더니"],["산책을 하곤 해요","산책하곤 해요"],["유학을 할 수 있었어요","유학할 수 있었어요"],["질문을 합니다","질문합니다"],["실수를 하다니","실수하다니"]])
+    t(`same: ${a} ≈ ${b}`,heq(a,b));
+  for(const [a,b] of [["사과를 한 개 샀다","사과 한 개 샀다"],["사과를 하나 샀다","사과 하나 샀다"],["고통을 함께 나눴다","고통 함께 나눴다"],["이를 해결하고자","이 해결하고자"],
+    ["하루를 하루같이","하루 하루같이"],["할머니를 할머니라","할머니 할머니라"],["책을 해외로","책 해외로"],["예약을 해야 자리를 보장받을 수 있어요","예약해야 자리가 보장돼요"],["예약을 해야","예약이 해야"],["친구를 하루 종일 기다렸다","친구 하루 종일 기다렸다"],["사과를 할머니께 드렸다","사과 할머니께 드렸다"],["돈을 합쳐서","돈 합쳐서"]])
+    t(`different: ${a} ≠ ${b}`,!heq(a,b));
+  const Jh=(id,si,u)=>T3.judgeAs("sent",{id,si,fi:0},u);
+  let rr=Jh("aya",1,"예약해야 자리를 보장받을 수 있어요."); t("MUST PASS gd:aya#1 「예약해야 자리를 보장받을 수 있어요.」",!!rr,JSON.stringify(rr));
+  rr=Jh("aya",1,"예약해야 자리를 보장받을 수 있다."); t("MUST PASS gd:aya#1 「예약해야 자리를 보장받을 수 있다.」 (hada + register)",!!rr,JSON.stringify(rr));
+  rr=Jh("aya",1,"예약해야 자리가 보장돼요."); t("gd:aya#1 「예약해야 자리가 보장돼요.」 stays wrong locally (AI's job)",!rr,JSON.stringify(rr));
+  rr=Jh("kkabwa",0,"늦을까 봐 택시를 불렀어요."); t("gd:kkabwa#0 「택시를 불렀어요」 stays wrong locally (AI's job)",!rr,JSON.stringify(rr));
+  // cross-match with fold + register across all drill sentences
+  const Ds=JSON.parse(fs.readFileSync(SITE+"/grammar/grammar.json","utf8"));
+  const S=[...new Set(Ds.items.flatMap(it=>(it.prac||[]).concat(it.ex||[]).map(e=>e.ko).filter(k=>k&&!/…|\.\.\./.test(k))))].map(T3.norm);
+  let col=[];for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++)if(T3.sameAns(S[i],S[j]))col.push(S[i]+" ⇔ "+S[j]);
+  col.forEach(x=>console.log("  collide:",x));
+  t(`cross-match ${S.length} drill sentences (fold+register): only the 2 known register twins`,col.length===2,col.length+" collisions");
+  // ---- AI verdict post-check (ai.js verify) ----
+  console.log("\n=== AI verdict post-check ===");
+  const C=makeCtx(false); vm.runInContext(fs.readFileSync(SITE+"/grammar/ai.js","utf8"),C); await C.TopikGrammar._t.ensure();
+  const V=(res,p)=>C.TopikAI.verify(JSON.parse(JSON.stringify(res)),p,C.TopikGrammar._t.sameAns);
+  let v=V({correct:false,errors:[{wrong:"자리를",right:"자리를",why:"x"}],corrected:"예약해야 자리를 보장받을 수 있어요",tip:""},{type:"sent",user:"예약해야 자리가 보장돼요."});
+  t("aya#1: quoted fragment 「자리를」 not in answer → flipped correct",v.correct&&v.flipped==="nofrag",JSON.stringify(v));
+  v=V({correct:false,errors:[{wrong:"택시를 불렀어요",right:"택시를 탔어요",why:"x"}],corrected:"늦을까 봐 택시를 탔어요.",tip:""},{type:"sent",user:"늦을까 봐 택시를 불렀어요."});
+  t("kkabwa#0: real fragment but different corrected → stays wrong (prompt handles synonyms)",!v.correct,JSON.stringify(v));
+  v=V({correct:false,errors:[{wrong:"택시를불렀어요",right:"x",why:"x"}],corrected:"늦을까 봐 택시를 불렀다",tip:""},{type:"sent",user:"늦을까 봐 택시를 불렀어요."});
+  t("corrected equals answer up to speech level → flipped correct",v.correct&&v.flipped==="same",JSON.stringify(v));
+  v=V({correct:false,errors:[{wrong:"예약을 해야",right:"x",why:"x"}],corrected:"예약을 해야 자리를 보장받을 수 있어요",tip:""},{type:"sent",user:"예약을 해야 자리를 보장받을 수 있어요"});
+  t("corrected identical → flipped correct",v.correct&&v.flipped==="same");
+  v=V({correct:false,errors:[{wrong:"예약 을해야",right:"x",why:"x"}],corrected:"예약해야 자리를 보장받을 수 있어요",tip:""},{type:"sent",user:"예약을 해야 자리를 보장받을 수 있어요."});
+  t("corrected equal via N을 하다 fold → flipped correct (fragment matched ignoring spaces)",v.correct&&v.flipped==="same",JSON.stringify(v));
+  v=V({correct:false,errors:[{wrong:"책이",right:"책을",why:"x"}],corrected:"나는 책을 읽었다",tip:""},{type:"sent",user:"나는 책이 읽었다"});
+  t("real particle error → stays wrong",!v.correct&&v.errors.length===1);
+  v=V({correct:false,errors:[{wrong:"",right:"x",why:"x"}],corrected:"",tip:""},{type:"sent",user:"아무거나"});
+  t("empty fragment → flipped correct",v.correct&&v.flipped==="nofrag");
+  v=V({correct:false,errors:[{wrong:"갔을걸요",right:"갔을 거예요",why:"x"}],corrected:"을 거예요",tip:""},{type:"fill",sentence:"민수 씨는 아마 벌써 집에 갔＿＿.",user:"을걸요"});
+  t("fill: fragment quoted from the filled-in sentence counts → stays wrong",!v.correct);
+  v=V({correct:true,errors:[{wrong:"없는말",right:"x",why:"x"}],corrected:"",tip:""},{type:"sent",user:"아무거나"});
+  t("correct=true untouched",v.correct&&!v.flipped&&v.errors.length===1);
   console.log(`\n${fails?fails+" FAILED":"ALL PASSED"}`); process.exit(fails?1:0);
 })().catch(e=>{console.error(e);process.exit(2)});
