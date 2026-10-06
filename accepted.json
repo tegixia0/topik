@@ -2,6 +2,17 @@
  "version": 1,
  "updated": "2026-10-06",
  "cards": {
+  "gd:aya#1": {
+   "deck": "grammar-drill 整句",
+   "zh": "只有预约才能保证有座位。",
+   "ko": "예약을 해야 자리를 보장받을 수 있어요.",
+   "alts": [
+    {
+     "a": "예약을 해야 자리가 보장돼요.",
+     "note": "被动 보장되다 也对"
+    }
+   ]
+  },
   "gd:baram#1": {
    "deck": "grammar-drill 整句",
    "zh": "闹钟没响，结果迟到了。",
