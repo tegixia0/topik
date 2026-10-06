@@ -181,6 +181,12 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 - 内容源 `tools/grammar_data.py`（111 个 TOPIK II 高频语法，16 组易混对比）+ `grammar/prac.json`（自拟整句练习），`python3 tools/build_grammar.py` 生成 `grammar/grammar.json`（含 `prac`）。例句标“真题 第N回 第M题”的均取自上面核对过的官方试卷，其余标“自拟”。
 - 深链接：`?grammar=1`、`?grammar=1&g=baram`（打开某个语法）、`?cat=grammar-core&mode=zh2ko|fill|ko2zh|sent|sentzh`、`?grammar=drill`（分类目录）、`?grammar=drill&cat=cause`（练某一类）、`?cat=grammar-cause`（同上，id 见 `grammar.json` 的 `cats`）。
 
+### 🤖 AI 判题（DeepSeek，可选）
+
+- 语法整句 `gd:` 和语法闪卡 `gc:`（中→韩 / 句子填空）本地判错（标准答案、`accepted.json`、句末语体归一都不匹配）时，自动请 DeepSeek（`deepseek-chat`，`response_format: json_object`，`temperature: 0`）再判一次。代码在 `grammar/ai.js`。
+- 入口：语法闪卡工具栏 / 分类练页面的「⚙️ AI 判题」。填 DeepSeek API Key → 保存 → 测试；可开关、清除 Key。**Key 只保存在用户浏览器的 localStorage（`topik.ai.deepseek.key`），浏览器直连 `api.deepseek.com`（已确认允许 CORS）；仓库里绝不放 Key。** 没有 Key 时和以前完全一样，只在判错时多一行提示。
+- AI 判对：显示「🤖 AI 判定：正确」，按「其实我写对了」计分（重写时第一次仍记为错），并把这个写法记在本机 `topik.grammar.aiAccepted.v1`，下次直接判对。AI 判错：在错误反馈下显示错误点、改正和 📌 提示。超时（20 秒）/ 网络错误 / 401 / 格式错误时显示简短错误，按本地判分。「📋 复制给老师」照常可用，复制内容附带 AI 判定。
+
 ## 问老师 · 老师认可的写法（`accepted.json`）
 
 所有打字闪卡（单词 中→韩、`?cat=writing-5354`、`?cat=writing-grammar`、`?cat=grammar-core` 中→韩/句子填空、语法整句练习 `?grammar=drill`）

@@ -32,6 +32,57 @@ function toast(m){var t=$("toast");if(!t){alert(m);return}t.textContent=m;t.clas
 function retryBtnHTML(){return '<div class="racts gretry-row"><button type="button" class="gbtn gretry" data-a="retry">✏️ 再写一次</button></div>'}
 function retryNoteHTML(){return R&&R.tries?'<div class="gretry-note">✏️ 第 '+(R.tries+1)+' 次写 · 答案已隐藏'+(R.counted?'，第一次仍记为错':'')+'</div>':""}
 function regNoteHTML(good){return good&&R&&R.reg?'<div class="greg-note">✓ 语体不同也算对（标准答案用 '+esc(R.reg)+'）</div>':""}
+/* ---------- 🤖 AI 判题（grammar/ai.js；Key 只在本机 localStorage） ---------- */
+function AI(){return window.TopikAI||null}
+function aiMode(){return opt.mode==="sent"||opt.mode==="fill"||opt.mode==="zh2ko"}
+function aiOn(){var A=AI();return !!(A&&A.active()&&aiMode())}
+function aiChip(){var A=AI();if(!A)return "";return '<button type="button" class="chip" data-a="aiset">⚙️ AI 判题'+(A.active()?" · 开":A.hasKey()?" · 关":"")+'</button>'}
+function aiHTML(good){
+  var A=AI(), x=R&&R.ai; if(!A||!aiMode()) return "";
+  if(good&&R.aimem) return '<div class="gai ok"><div class="gai-t">🤖 AI 判定过：正确（本机记住的写法）</div></div>';
+  if(!x){
+    if(!good&&R.typed&&!A.hasKey()) return '<div class="gai-hint"><span>设置 DeepSeek Key 可开启 AI 判题</span><button type="button" class="gbtn" data-a="aiset">⚙️ 设置</button></div>';
+    return "";
+  }
+  if(x.st==="wait") return good?"":'<div class="gai wait">🤖 AI 判题中…</div>';
+  if(x.st==="err") return good?"":'<div class="gai err">🤖 '+esc(x.msg)+' · 按本地判分</div>';
+  var r=x.res||{}, ok=x.st==="ok";
+  if(ok&&!good) return "";
+  var h='<div class="gai '+(ok?"ok":"bad")+'"><div class="gai-t">🤖 AI 判定：'+(ok?"正确"+(r.minor?"（只有空格问题）":""):"错误")+'</div>';
+  if(r.errors&&r.errors.length) h+='<ul class="gai-err">'+r.errors.map(function(e){return '<li>'+(e.wrong?'<span class="w" lang="ko">'+esc(e.wrong)+'</span> → ':"")+(e.right?'<span class="r" lang="ko">'+esc(e.right)+'</span>':"")+(e.why?'<div class="why">'+esc(e.why)+'</div>':"")+'</li>'}).join("")+'</ul>';
+  if(r.corrected&&norm(r.corrected)!==norm(R.typed)) h+='<div class="gai-fix">'+(ok?"更好的写法":"改正")+'：<b lang="ko">'+esc(r.corrected)+'</b></div>';
+  else if(r.corrected&&!ok) h+='<div class="gai-fix">改正：<b lang="ko">'+esc(r.corrected)+'</b></div>';
+  if(r.tip) h+='<div class="gai-tip">'+esc(/^📌/.test(r.tip)?r.tip:"📌 "+r.tip)+'</div>';
+  if(ok) h+='<div class="minfo">已记住这个写法，下次直接判对（只在本机）</div>';
+  return h+'</div>';
+}
+function aiCopyExtra(){var x=R&&R.ai;if(!x||!x.res)return "";var r=x.res;return "AI 判定："+(r.correct?"正确":"错误")+(r.corrected?"；AI 改正："+r.corrected:"")}
+function aiPayload(c,typed){
+  var it=byId[c.id], TA=window.TopikAcc, alts=TA&&TA.alts?TA.alts(cid(c)).map(function(x){return x.a}):[];
+  var p={type:opt.mode,grammar:it.f+"（"+it.zh+"）",user:typed,accepted:alts};
+  if(opt.mode==="sent"){var s=sentOf(c);p.zh=s.zh;p.std=s.ko}
+  else if(opt.mode==="fill"){var f=it.fill[c.fi]||it.fill[0];p.zh=f.zh;p.sentence=f.ko;p.std=f.ans.join(" / ")}
+  else{p.zh=it.zh;p.std=it.f}
+  return p;
+}
+/* 与「其实我写对了」相同的计分：第一次写 → 撤销这次的错；重写 → 第一次仍记为错，只记“重写后答对” */
+function overrideOk(c){
+  if(R.tries>1){R.st="ok";R.fixed=(R.fixed||0)+1;return}
+  R.bad--;R.ok++;R.missed.pop();R.counted=false;var w=W[c.id];if(w){w.n--;if(w.n<=0)delete W[c.id];save(LS_W,W)}R.st="ok";
+}
+function startAI(c){
+  var A=AI(), RR=R, tok={i:R.i,tries:R.tries}; R.ai={st:"wait",tok:tok};
+  var typed=R.typed, id=cid(c);
+  A.judge(aiPayload(c,typed)).then(function(res){done(res,null)},function(e){done(null,e)});
+  function done(res,e){
+    /* 用户已经离开这道题 / 点了再写一次 / 其实我写对了 → 丢弃结果 */
+    if(R!==RR||R.i!==tok.i||R.tries!==tok.tries||R.st!=="bad"||!R.ai||R.ai.tok!==tok) return;
+    if(e) R.ai={st:"err",msg:(e&&e.message)||"AI 判题失败",tok:tok};
+    else if(res.correct){overrideOk(c);R.ai={st:"ok",res:res,tok:tok};A.accAdd(id,typed,res.minor?"minor":"");toast("🤖 AI 判定正确")}
+    else R.ai={st:"bad",res:res,tok:tok};
+    if(opt.tab==="cards") renderCard();
+  }
+}
 function fixedNoteHTML(good){return good&&R&&R.counted?'<div class="gretry-ok">✏️ 重写后答对'+(R.tries>1?'（第 '+R.tries+' 次）':'')+' · 第一次仍记为错</div>':""}
 function norm(s){return window.TopikAcc&&TopikAcc.normalize?TopikAcc.normalize(s):String(s||"").normalize("NFC").replace(/[^가-힣ㄱ-ㅎ]/g,"")}
 function answerNorms(s){return window.TopikAcc&&TopikAcc.answerVariants?TopikAcc.answerVariants(s):[norm(s)]}
@@ -214,7 +265,7 @@ function renderCmp(){
 function renderDrillIndex(){
   var h='<div class="card"><h3 style="margin:0 0 6px">🎯 按分类挑 · 针对性练习</h3>'+
     '<p class="minfo" style="margin:0 0 10px">每一类单独出整句题：中文→打韩语（自动判分），或韩→中自评。题干<strong>不出现语法名称</strong>，答完再看中文意思、记忆法、易错。进度存在本机。</p>'+
-    '<div class="racts" style="margin-bottom:8px"><button type="button" class="gbtn" data-a="drillall">全部语法整句练一遍</button></div></div>';
+    '<div class="racts" style="margin-bottom:8px"><button type="button" class="gbtn" data-a="drillall">全部语法整句练一遍</button>'+aiChip().replace('class="chip"','class="gbtn"')+'</div></div>';
   h+='<div class="gdrill-grid">';
   D.cats.forEach(function(c){
     var n=catCount(c.id), dn=catDrillCount(c.id), pg=PROG[c.id]||{};
@@ -282,6 +333,7 @@ function judge(c,typed){   // "std" / {a,note} 老师认可 / "ok" 宽松判对 
   if(std.indexOf(n)>=0) return "std";
   var alt=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u);return answerNorms(a).some(function(k){return !!k&&(x===k||(k.length>=2&&x.slice(-k.length)===k&&x.length<=k.length+4))})});
   if(alt) return alt;
+  if(AI()&&AI().accList(cid(c)).some(function(x){return norm(x.a)===n})) return {aimem:true};   /* AI 判对过（本机） */
   var rg=regMatch(n,regTargets(c)); if(rg) return rg;   /* 只差句末语体 */
   return checkAns(c,typed)?"ok":null;
 }
@@ -293,6 +345,7 @@ function regTargets(c){
   else if(opt.mode==="zh2ko") xs=it.keys.concat([it.f]);
   else return [];
   if(window.TopikAcc&&TopikAcc.alts) TopikAcc.alts(cid(c)).forEach(function(x){xs.push(x.a)});
+  if(AI()) AI().accList(cid(c)).forEach(function(x){xs.push(x.a)});
   var out=answerList(xs);
   return opt.mode==="zh2ko"?out.filter(function(k){return /다$/.test(k)}):out;
 }
@@ -329,7 +382,7 @@ function renderCard(){
   /* 闪卡栏优先显示当前相关模式；整句模式排前面当 scope 是分类时 */
   if(opt.scope!=="all"&&opt.scope!=="wrong") modeKeys=["sent","sentzh","zh2ko","fill","ko2zh"];
   var h='<div class="fbar">'+modeKeys.map(function(m){return '<button type="button" class="chip'+(opt.mode===m?" on":"")+'" data-mode="'+m+'" style="'+(opt.mode===m?"background:var(--accent);border-color:var(--accent);color:#fff":"")+'">'+MODES[m]+'</button>'}).join("")+'</div>';
-  h+='<div class="fbar"><select id="gScope" aria-label="范围">'+scopes+'</select><button type="button" class="chip" id="gLink">🔗 链接</button>'+(isSent()&&opt.scope!=="all"&&opt.scope!=="wrong"?'<button type="button" class="chip" data-a="todrill">📋 分类目录</button>':"")+'</div>';
+  h+='<div class="fbar"><select id="gScope" aria-label="范围">'+scopes+'</select><button type="button" class="chip" id="gLink">🔗 链接</button>'+aiChip()+(isSent()&&opt.scope!=="all"&&opt.scope!=="wrong"?'<button type="button" class="chip" data-a="todrill">📋 分类目录</button>':"")+'</div>';
   if(isSent()&&CAT[opt.scope]) h+='<div class="minfo">🎯 针对性练习：'+esc(CAT[opt.scope])+' · 题干不显示语法名 · 答完看记法</div>';
   if(!R||!R.q.length){$("gBody").innerHTML=h+'<div class="card empty">'+(opt.scope==="wrong"?"语法错题本是空的 🎉":"这个范围没有题")+'</div>';bindCard();return}
   if(R.i>=R.q.length){if(R._progSaved!==1){markDrillProg();R._progSaved=1}$("gBody").innerHTML=h+summaryHTML();bindCard();return}
@@ -356,12 +409,13 @@ function renderCard(){
       var good=R.st==="ok", ansTxt=s.ko, TA=window.TopikAcc;
       if(good&&R.acc&&TA) h+='<div class="gfb ok">'+TA.okHTML(R.acc,ansTxt)+fixedNoteHTML(good)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
       else h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 正确":"✘ 再看看")+'</div>'+regNoteHTML(good)+fixedNoteHTML(good)+'<div class="gans" lang="ko">'+esc(ansTxt)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      h+=aiHTML(good);
       if(!good) h+=retryBtnHTML();
       if(TA) h+=TA.altsHTML(cid(c)).replace('class="row acc-alts"','class="row acc-alts" style="margin-top:8px"');
       h+='<div class="g-reveal"><div class="row"><span class="k">语法</span><b lang="ko">'+esc(it.f)+'</b> · '+esc(it.zh)+'</div>'+
         '<div class="row"><span class="k mem">记法</span>'+esc(it.mem)+'</div>'+
         '<div class="row"><span class="k err">易错</span>'+esc(it.err)+'</div></div>';
-      h+='<div class="racts">'+(good?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button>'+(!good&&R.typed&&TA?'<button type="button" class="gbtn acc-copy" data-a="askt">'+TA.BTN+'</button>':"")+'</div>';
+      h+='<div class="racts">'+(good?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button>'+((!good||(R.ai&&R.ai.st==="ok"))&&R.typed&&TA?'<button type="button" class="gbtn acc-copy" data-a="askt">'+TA.BTN+'</button>':"")+'</div>';
       h+='<details class="gi" style="margin-top:10px"><summary><span class="f">'+esc(it.f)+'</span><span class="z">完整卡片</span></summary>'+bodyHTML(it)+'</details>';
     }
   }else if(opt.mode==="sentzh"){
@@ -380,9 +434,10 @@ function renderCard(){
       var good2=R.st==="ok", ansTxt2=opt.mode==="fill"?f.ans.join(" / "):it.f, TA2=window.TopikAcc;
       if(good2&&R.acc&&TA2) h+='<div class="gfb ok">'+TA2.okHTML(R.acc,ansTxt2)+fixedNoteHTML(good2)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
       else h+='<div class="gfb '+(good2?"ok":"bad")+'"><div class="t">'+(good2?"✔ 正确":"✘ 再看看")+'</div>'+regNoteHTML(good2)+fixedNoteHTML(good2)+'<div class="gans">'+esc(ansTxt2)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      h+=aiHTML(good2);
       if(!good2) h+=retryBtnHTML();
       if(TA2) h+=TA2.altsHTML(cid(c)).replace('class="row acc-alts"','class="row acc-alts" style="margin-top:8px"');
-      h+='<div class="racts">'+(good2?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button>'+(!good2&&R.typed&&TA2?'<button type="button" class="gbtn acc-copy" data-a="askt">'+TA2.BTN+'</button>':"")+'</div>';
+      h+='<div class="racts">'+(good2?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button>'+((!good2||(R.ai&&R.ai.st==="ok"))&&R.typed&&TA2?'<button type="button" class="gbtn acc-copy" data-a="askt">'+TA2.BTN+'</button>':"")+'</div>';
       h+='<details class="gi"'+(good2?"":" open")+' style="margin-top:10px"><summary><span class="f">'+esc(it.f)+'</span><span class="z">完整卡片</span></summary>'+bodyHTML(it)+'</details>';
     }
   }else{
@@ -409,15 +464,16 @@ function summaryHTML(){
 function submit(){
   var inp=$("gIn"); if(!inp) return; var c=R.q[R.i]; R.typed=inp.value.trim();
   if(!R.typed){toast("先写一下，或者点“不会”");return}
-  var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object"&&!j.reg)?j:null; R.reg=(j&&j.reg)||null; R.st=ok?"ok":"bad"; R.tries=(R.tries||0)+1;
+  var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object"&&!j.reg&&!j.aimem)?j:null; R.reg=(j&&j.reg)||null; R.aimem=!!(j&&j.aimem); R.ai=null; R.st=ok?"ok":"bad"; R.tries=(R.tries||0)+1;
   if(R.counted){if(ok)R.fixed=(R.fixed||0)+1}   /* 重写：成绩/错题本只按第一次算，答对也不移出错题本 */
   else if(ok){R.ok++;markW(c.id,false)}else{R.bad++;R.missed.push(c.id);markW(c.id,true);R.counted=true}
+  if(!ok&&aiOn()) startAI(c);   /* 本地判错 → 请 AI 再判（结果回来前先按错显示） */
   renderCard();
 }
-function next(){R.i++;R.st="ask";R.typed="";R.acc=null;R.reg=null;R.tries=0;R.counted=false;renderCard();window.scrollTo(0,0)}
+function next(){R.i++;R.st="ask";R.typed="";R.acc=null;R.reg=null;R.aimem=false;R.ai=null;R.tries=0;R.counted=false;renderCard();window.scrollTo(0,0)}
 function retry(){
   if(!R||R.st!=="bad") return;
-  R.st="ask";R.typed="";R.acc=null;R.reg=null;renderCard();
+  R.st="ask";R.typed="";R.acc=null;R.reg=null;R.aimem=false;R.ai=null;renderCard();
   var inp=$("gIn"); if(inp){inp.value="";inp.focus();try{inp.scrollIntoView({block:"center"})}catch(e){}}
 }
 function bindCard(){
@@ -447,16 +503,15 @@ function bind(){
     var a=b.getAttribute("data-a"); if(!a) return; var c=R&&R.q[R.i];
     if(a==="showhints"){setHintsOn(true);renderCard();return}
     if(a==="check") submit();
-    else if(a==="giveup"){R.typed="";R.st="bad";R.tries=(R.tries||0)+1;if(!R.counted){R.bad++;R.missed.push(c.id);markW(c.id,true);R.counted=true}renderCard()}
-    else if(a==="actually"){
-      if(R.tries>1){R.st="ok";R.fixed=(R.fixed||0)+1;toast("好的，这次算对 👍（第一次仍记为错）");renderCard();return}
-      R.bad--;R.ok++;R.missed.pop();R.counted=false;var w=W[c.id];if(w){w.n--;if(w.n<=0)delete W[c.id];save(LS_W,W)}R.st="ok";toast("好的，算你对 👍");renderCard()}
+    else if(a==="aiset"){var A0=AI();if(A0)A0.openSettings(function(){if(opt.tab==="cards")renderCard();else if(opt.tab==="drill")renderDrillIndex()});return}
+    else if(a==="giveup"){R.typed="";R.ai=null;R.st="bad";R.tries=(R.tries||0)+1;if(!R.counted){R.bad++;R.missed.push(c.id);markW(c.id,true);R.counted=true}renderCard()}
+    else if(a==="actually"){var re=R.tries>1;R.ai=null;overrideOk(c);toast(re?"好的，这次算对 👍（第一次仍记为错）":"好的，算你对 👍");renderCard()}
     else if(a==="retry") retry();
     else if(a==="next") next();
     else if(a==="askt"){
       var TA=window.TopikAcc; if(!TA) return;
-      if(opt.mode==="sent"){var s2=sentOf(c);TA.copy({deck:"语法整句练习（grammar-drill）",id:cid(c),extra:"题目："+s2.zh,zh:s2.zh,ans:s2.ko,mine:R.typed})}
-      else{var it2=byId[c.id],f2=it2.fill[c.fi]||it2.fill[0];TA.copy(opt.mode==="fill"?{deck:"语法闪卡·句子填空（grammar-core）",id:cid(c),extra:"题目："+f2.ko,zh:f2.zh,ans:f2.ans.join(" / "),mine:R.typed}:{deck:"语法闪卡·中→韩（grammar-core）",id:cid(c),zh:it2.zh,ans:it2.f,mine:R.typed})}
+      if(opt.mode==="sent"){var s2=sentOf(c);TA.copy({deck:"语法整句练习（grammar-drill）",id:cid(c),extra:"题目："+s2.zh+(aiCopyExtra()?"\n"+aiCopyExtra():""),zh:s2.zh,ans:s2.ko,mine:R.typed})}
+      else{var it2=byId[c.id],f2=it2.fill[c.fi]||it2.fill[0];TA.copy(opt.mode==="fill"?{deck:"语法闪卡·句子填空（grammar-core）",id:cid(c),extra:"题目："+f2.ko+(aiCopyExtra()?"\n"+aiCopyExtra():""),zh:f2.zh,ans:f2.ans.join(" / "),mine:R.typed}:{deck:"语法闪卡·中→韩（grammar-core）",id:cid(c),extra:aiCopyExtra(),zh:it2.zh,ans:it2.f,mine:R.typed})}
     }
     else if(a==="show"){R.st="shown";renderCard()}
     else if(a==="know"){R.ok++;markW(c.id,false);next()}
@@ -479,7 +534,7 @@ function bind(){
 }
 window.TopikGrammar={open:open,init:bind,
   /* 供 node 单元测试用 */
-  _t:{ensure:ensure,regStems:regStems,regMatch:regMatch,norm:norm,
+  _t:{ensure:ensure,regStems:regStems,regMatch:regMatch,norm:norm,state:function(){return R},cid:function(c){return cid(c)},
     judgeAs:function(mode,c,typed){var m=opt.mode;opt.mode=mode;try{return judge(c,typed)}finally{opt.mode=m}},
     regTargetsAs:function(mode,c){var m=opt.mode;opt.mode=mode;try{return regTargets(c)}finally{opt.mode=m}}}};
 })();

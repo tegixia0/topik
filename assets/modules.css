@@ -278,3 +278,33 @@ details.ghints>summary::-webkit-details-marker{display:none}
 .gretry-note{margin:8px 0 6px;padding:6px 10px;border-radius:10px;background:#16233a;border:1px dashed #35527e;color:#9fc0ff;font-size:14px;font-weight:600}
 .gretry-ok{margin:4px 0 2px;color:var(--warn);font-size:14px;font-weight:700}
 .greg-note{margin:4px 0 2px;color:#9fe3b8;font-size:14px;font-weight:600}
+
+/* ---------- 🤖 AI 判题（DeepSeek） ---------- */
+.gai{margin-top:10px;border-radius:12px;padding:9px 11px;font-size:14.5px;line-height:1.6;background:#141d2b;border:1px solid var(--border)}
+.gai.wait{color:#9fc0ff;border-style:dashed;animation:gaiPulse 1.4s ease-in-out infinite}
+@keyframes gaiPulse{50%{opacity:.55}}
+.gai.err{color:var(--muted);font-size:13.5px}
+.gai.ok{border-color:#2f6b47;background:#132219}
+.gai.bad{border-color:#6b2f35;background:#24161a}
+.gai-t{font-weight:800}
+.gai.ok .gai-t{color:var(--ok)}.gai.bad .gai-t{color:var(--bad)}
+.gai-err{margin:6px 0 2px;padding-left:18px}
+.gai-err li{margin:3px 0}
+.gai-err .w{color:#ff9b9b;text-decoration:line-through}
+.gai-err .r{color:#ffd98a;font-weight:700}
+.gai-err .why{color:var(--ink);font-size:14px}
+.gai-fix{margin-top:4px}.gai-fix b{color:#ffd98a}
+.gai-tip{margin-top:4px;color:var(--warn)}
+.gai-hint{margin-top:8px;font-size:13.5px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gai-hint .gbtn{min-height:32px;font-size:13px}
+.ai-back{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60}
+.ai-sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;max-width:640px;margin:0 auto;box-sizing:border-box;background:var(--card);border:1px solid var(--border);border-bottom:0;border-radius:16px 16px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto;color:var(--ink)}
+.ai-sheet h3{margin:0 0 6px;font-size:17px}
+.ai-sheet .lb{display:block;font-weight:700;margin:10px 0 4px;font-size:14px}
+.ai-sheet input[type=password]{width:100%;box-sizing:border-box;font-size:16px;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:#0f1722;color:var(--ink)}
+.ai-tog{display:flex;align-items:center;gap:8px;margin:10px 0 2px;font-weight:700;font-size:15px}
+.ai-tog input{width:22px;height:22px;accent-color:var(--accent)}
+.ai-msg{min-height:20px;margin-top:8px;font-size:14px;font-weight:600}
+.ai-msg.ok{color:var(--ok)}.ai-msg.bad{color:var(--bad)}
+.ai-sheet .ai-mini{min-height:30px;font-size:13px;padding:0 10px;margin-left:4px}
+.ai-acc{margin-top:10px}
