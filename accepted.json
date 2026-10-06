@@ -2,6 +2,17 @@
  "version": 1,
  "updated": "2026-10-06",
  "cards": {
+  "gd:gekkeum#2": {
+   "deck": "grammar-drill 整句",
+   "zh": "请讲简单点，好让孩子们能懂。",
+   "ko": "아이들이 이해하게끔 쉽게 설명해 주세요.",
+   "alts": [
+    {
+     "a": "아이들이 잘 알아듣도록 쉽게 말해 주세요.",
+     "note": "-도록 可替换 -게끔"
+    }
+   ]
+  },
   "gd:gekkeum#3": {
    "deck": "grammar-drill 整句",
    "zh": "我会小心，不让那种事再发生。",
