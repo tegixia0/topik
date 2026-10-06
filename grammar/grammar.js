@@ -60,6 +60,9 @@ function aiCopyExtra(){var x=R&&R.ai;if(!x||!x.res)return "";var r=x.res;return 
 function aiPayload(c,typed){
   var it=byId[c.id], TA=window.TopikAcc, alts=TA&&TA.alts?TA.alts(cid(c)).map(function(x){return x.a}):[];
   var p={type:opt.mode,grammar:it.f+"（"+it.zh+"）",user:typed,accepted:alts};
+  /* 卡片上的语法说明：让 AI 知道这个语法固定的接法（如 -는 바람에 只接 -는） */
+  var gi={"形式":it.f,"意思":it.zh}; if(it.join)gi["接法"]=it.join; if(it.use)gi["用法与限制"]=it.use; if(it.err)gi["常见错误"]=it.err;
+  p.grammarInfo=gi;
   if(opt.mode==="sent"){var s=sentOf(c);p.zh=s.zh;p.std=s.ko}
   else if(opt.mode==="fill"){var f=it.fill[c.fi]||it.fill[0];p.zh=f.zh;p.sentence=f.ko;p.std=f.ans.join(" / ")}
   else{p.zh=it.zh;p.std=it.f}

@@ -44,16 +44,21 @@ function contentOf(d){
 function str(x){return typeof x==="string"?x.trim():(x==null?"":String(x))}
 
 var SYS=[
-"你是一位严格的韩语老师，正在批改一位备考 TOPIK 5 级的中国学习者的韩语练习。只输出一个 JSON 对象，不要输出任何其他文字。",
-"判定标准：",
-"- correct=true 仅当学生答案同时满足：语法正确；表达自然；意思与中文一致；使用了目标语法或功能等价的语法。",
-"- 句末语体不同（-다体 / -요体 / 반말 / -ㅂ니다体）不算错；标点符号不算错。",
-"- 以下任何一种都必须 correct=false：助词错误（特别是宾语用了 이/가 而不是 을/를）、拼写错误、时态错误、意思与中文不符、用词错误、句子不完整或不自然。",
+"你是一位严格但公正的韩语老师，正在批改一位备考 TOPIK 5 级的中国学习者的韩语练习。只输出一个 JSON 对象，不要输出任何其他文字。",
+"【权威依据】",
+"- 「标准答案」和「其他认可答案」是正确的，它们使用的语法形式是权威的。「目标语法说明」（形式、接法、限制、常见错误）是这个语法固定的规则。",
+"- 绝对不要把学生答案往与标准答案语法形式不同的方向“改正”。例如标准答案用 -는 바람에，就绝不能建议 -은 바람에 / -ㄴ 바람에；凡是学生答案中与标准答案（或认可答案）相同的形式，都不是错误。",
+"【判为正确】",
+"- 学生答案与标准答案只有同义或等价的差别时，correct=true。例如：안 V 与 V-지 않다（안 울리는 = 울리지 않는）；同义词（下雨用 오다 / 내리다）；口语中可以接受的助词省略；句末语体不同（-다体 / -요体 / 반말 / -ㅂ니다体）；标点符号不同。",
+"- 使用了目标语法或功能等价、符合「目标语法说明」规则的语法，也算使用了目标语法。",
+"【判为错误】只有出现真正的错误时才 correct=false：",
+"- 语法错误（包括违反目标语法的接法/限制）、助词错误（特别是宾语用了 이/가 而不是 을/를）、拼写错误、时态错误、意思与中文不符、用词错误、缺少目标语法、句子不完整。",
+"- errors 里每一条的 wrong 必须是从学生答案中原样摘出的具体片段（逐字照抄）。如果你指不出学生答案里的具体错误片段，就必须 correct=true、errors=[]。",
 "- minor=true 表示答案正确、只有띄어쓰기（空格）问题；其他情况 minor=false。",
 "输出 JSON 格式：",
-'{"correct": true 或 false, "minor": true 或 false, "errors": [{"wrong": "学生写错的部分", "right": "正确写法", "why": "简体中文解释"}], "corrected": "在学生答案基础上做最小修改后的正确韩语", "tip": "📌 一条简短的中文规则提示"}',
+'{"correct": true 或 false, "minor": true 或 false, "errors": [{"wrong": "从学生答案原样摘出的错误片段", "right": "正确写法", "why": "简体中文解释"}], "corrected": "在学生答案基础上做最小修改后的正确韩语", "tip": "📌 一条简短的中文规则提示"}',
 "- errors 只列真正的问题；完全正确时为 []（minor 时列出空格问题）。",
-"- corrected 尽量保留学生原来的用词和结构；已经正确就原样给出。",
+"- corrected 尽量保留学生原来的用词和结构，只改真正的错误，改法要和标准答案的语法形式一致；已经正确就原样给出。",
 "- why 和 tip 一律用简体中文。"
 ].join("\n");
 var TYPE={
@@ -61,10 +66,10 @@ var TYPE={
   fill:"句子填空：学生只写了＿＿处的部分。请把学生答案填回句子后整体判断；corrected 只给＿＿处应填的内容",
   zh2ko:"写语法形式：根据中文意思写出对应的韩语语法形式（如 -는 바람에）。判断是否为同一语法或功能等价、适合这个中文意思的语法"
 };
-/* p: {type, zh, sentence?, std, accepted[], grammar?, user} → {correct, minor, errors[], corrected, tip} */
+/* p: {type, zh, sentence?, std, accepted[], grammar?, grammarInfo?, user} → {correct, minor, errors[], corrected, tip} */
 function judge(p){
   var u={"题型":TYPE[p.type]||p.type,"中文":p.zh,"题目句子（含空格）":p.sentence||undefined,"标准答案":p.std,
-    "其他认可答案":(p.accepted&&p.accepted.length)?p.accepted:undefined,"目标语法":p.grammar||undefined,"学生答案":p.user};
+    "其他认可答案":(p.accepted&&p.accepted.length)?p.accepted:undefined,"目标语法":p.grammar||undefined,"目标语法说明":p.grammarInfo||undefined,"学生答案":p.user};
   return call({model:CFG.model,temperature:0,max_tokens:800,stream:false,response_format:{type:"json_object"},
     messages:[{role:"system",content:SYS},{role:"user",content:JSON.stringify(u)}]}).then(function(d){
     var o=contentOf(d);
