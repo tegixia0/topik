@@ -2,6 +2,17 @@
  "version": 1,
  "updated": "2026-10-06",
  "cards": {
+  "gd:dorok#1": {
+   "deck": "grammar-drill 整句",
+   "zh": "请小心别感冒。",
+   "ko": "감기에 걸리지 않도록 조심하세요.",
+   "alts": [
+    {
+     "a": "감기 걸리지 않도록 조심하세요.",
+     "note": "口语可省略 에"
+    }
+   ]
+  },
   "gd:gekkeum#2": {
    "deck": "grammar-drill 整句",
    "zh": "请讲简单点，好让孩子们能懂。",
