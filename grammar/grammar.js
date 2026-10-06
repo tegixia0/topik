@@ -28,6 +28,10 @@ function hintHTML(list, softTip){
 function hintsOfSent(s){return (s&&s.hints)||[]}
 function hintsOfFill(f){return (f&&f.hints)||[]}
 function toast(m){var t=$("toast");if(!t){alert(m);return}t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show")},1800)}
+/* ✏️ 再写一次：答错/放弃后清空重写；第一次的错仍计入成绩和错题本（R.counted），重写答对只记 R.fixed */
+function retryBtnHTML(){return '<div class="racts gretry-row"><button type="button" class="gbtn gretry" data-a="retry">✏️ 再写一次</button></div>'}
+function retryNoteHTML(){return R&&R.tries?'<div class="gretry-note">✏️ 第 '+(R.tries+1)+' 次写 · 答案已隐藏'+(R.counted?'，第一次仍记为错':'')+'</div>':""}
+function fixedNoteHTML(good){return good&&R&&R.counted?'<div class="gretry-ok">✏️ 重写后答对'+(R.tries>1?'（第 '+R.tries+' 次）':'')+' · 第一次仍记为错</div>':""}
 function norm(s){return window.TopikAcc&&TopikAcc.normalize?TopikAcc.normalize(s):String(s||"").normalize("NFC").replace(/[^가-힣ㄱ-ㅎ]/g,"")}
 function answerNorms(s){return window.TopikAcc&&TopikAcc.answerVariants?TopikAcc.answerVariants(s):[norm(s)]}
 function answerList(xs){var out=[];xs.forEach(function(x){answerNorms(x).forEach(function(k){if(k&&out.indexOf(k)<0)out.push(k)})});return out}
@@ -182,7 +186,7 @@ function newRound(list){
     its=list||shuffle(pool()).slice(0,15);
     q=its.map(function(it){return {id:it.id,fi:Math.floor(Math.random()*(it.fill.length||1)),si:0}});
   }
-  R={q:q,i:0,ok:0,bad:0,missed:[],st:"ask",typed:"",sent:isSent()};
+  R={q:q,i:0,ok:0,bad:0,missed:[],st:"ask",typed:"",sent:isSent(),tries:0,counted:false,fixed:0};
 }
 /* 卡片ID：中→韩 "gc:<id>"；填空 "gc:<id>#<fi>"；整句 "gd:<id>#<si>" */
 function cid(c){
@@ -260,11 +264,12 @@ function renderCard(){
     h+='<div class="minfo">'+esc(CAT[it.cat])+' · 先在心里说出中文意思和用法，再看答案自评</div><div class="gq ko">'+esc(it.f)+'</div>';
   }
   if(opt.mode==="sent"){
-    if(R.st==="ask") h+='<input class="ginput" id="gIn" lang="ko" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="输入韩语整句…"><div class="racts"><button type="button" class="gbtn pri" data-a="check">检查</button><button type="button" class="gbtn" data-a="giveup">不会，看答案</button></div>';
+    if(R.st==="ask") h+=retryNoteHTML()+'<input class="ginput" id="gIn" lang="ko" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="输入韩语整句…"><div class="racts"><button type="button" class="gbtn pri" data-a="check">检查</button><button type="button" class="gbtn" data-a="giveup">不会，看答案</button></div>';
     else{
       var good=R.st==="ok", ansTxt=s.ko, TA=window.TopikAcc;
-      if(good&&R.acc&&TA) h+='<div class="gfb ok">'+TA.okHTML(R.acc,ansTxt)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
-      else h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 正确":"✘ 再看看")+'</div><div class="gans" lang="ko">'+esc(ansTxt)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      if(good&&R.acc&&TA) h+='<div class="gfb ok">'+TA.okHTML(R.acc,ansTxt)+fixedNoteHTML(good)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
+      else h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 正确":"✘ 再看看")+'</div>'+fixedNoteHTML(good)+'<div class="gans" lang="ko">'+esc(ansTxt)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      if(!good) h+=retryBtnHTML();
       if(TA) h+=TA.altsHTML(cid(c)).replace('class="row acc-alts"','class="row acc-alts" style="margin-top:8px"');
       h+='<div class="g-reveal"><div class="row"><span class="k">语法</span><b lang="ko">'+esc(it.f)+'</b> · '+esc(it.zh)+'</div>'+
         '<div class="row"><span class="k mem">记法</span>'+esc(it.mem)+'</div>'+
@@ -283,11 +288,12 @@ function renderCard(){
       h+='<details class="gi" style="margin-top:10px"><summary><span class="f">'+esc(it.f)+'</span><span class="z">完整卡片</span></summary>'+bodyHTML(it)+'</details>';
     }
   }else if(opt.mode!=="ko2zh"){
-    if(R.st==="ask") h+='<input class="ginput" id="gIn" lang="ko" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="输入韩语…"><div class="racts"><button type="button" class="gbtn pri" data-a="check">检查</button><button type="button" class="gbtn" data-a="giveup">不会，看答案</button></div>';
+    if(R.st==="ask") h+=retryNoteHTML()+'<input class="ginput" id="gIn" lang="ko" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="输入韩语…"><div class="racts"><button type="button" class="gbtn pri" data-a="check">检查</button><button type="button" class="gbtn" data-a="giveup">不会，看答案</button></div>';
     else{
       var good2=R.st==="ok", ansTxt2=opt.mode==="fill"?f.ans.join(" / "):it.f, TA2=window.TopikAcc;
-      if(good2&&R.acc&&TA2) h+='<div class="gfb ok">'+TA2.okHTML(R.acc,ansTxt2)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
-      else h+='<div class="gfb '+(good2?"ok":"bad")+'"><div class="t">'+(good2?"✔ 正确":"✘ 再看看")+'</div><div class="gans">'+esc(ansTxt2)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      if(good2&&R.acc&&TA2) h+='<div class="gfb ok">'+TA2.okHTML(R.acc,ansTxt2)+fixedNoteHTML(good2)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
+      else h+='<div class="gfb '+(good2?"ok":"bad")+'"><div class="t">'+(good2?"✔ 正确":"✘ 再看看")+'</div>'+fixedNoteHTML(good2)+'<div class="gans">'+esc(ansTxt2)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      if(!good2) h+=retryBtnHTML();
       if(TA2) h+=TA2.altsHTML(cid(c)).replace('class="row acc-alts"','class="row acc-alts" style="margin-top:8px"');
       h+='<div class="racts">'+(good2?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button>'+(!good2&&R.typed&&TA2?'<button type="button" class="gbtn acc-copy" data-a="askt">'+TA2.BTN+'</button>':"")+'</div>';
       h+='<details class="gi"'+(good2?"":" open")+' style="margin-top:10px"><summary><span class="f">'+esc(it.f)+'</span><span class="z">完整卡片</span></summary>'+bodyHTML(it)+'</details>';
@@ -305,6 +311,7 @@ function renderCard(){
 function summaryHTML(){
   var h='<div class="card"><div class="score">'+R.ok+' <small>/ '+R.q.length+'</small></div>';
   if(isSent()&&CAT[opt.scope]) h+='<div class="minfo">「'+esc(CAT[opt.scope])+'」本轮完成</div>';
+  if(R.fixed) h+='<div class="minfo">✏️ 重写后答对 '+R.fixed+' 题（第一次仍记为错，已在错题本）</div>';
   if(R.missed.length){
     var uniq=[]; R.missed.forEach(function(id){if(uniq.indexOf(id)<0)uniq.push(id)});
     h+='<div class="minfo">这轮错的：</div>'+uniq.map(function(id){return itemHTML(byId[id],false)}).join("");
@@ -315,11 +322,17 @@ function summaryHTML(){
 function submit(){
   var inp=$("gIn"); if(!inp) return; var c=R.q[R.i]; R.typed=inp.value.trim();
   if(!R.typed){toast("先写一下，或者点“不会”");return}
-  var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object")?j:null; R.st=ok?"ok":"bad";
-  if(ok){R.ok++;markW(c.id,false)}else{R.bad++;R.missed.push(c.id);markW(c.id,true)}
+  var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object")?j:null; R.st=ok?"ok":"bad"; R.tries=(R.tries||0)+1;
+  if(R.counted){if(ok)R.fixed=(R.fixed||0)+1}   /* 重写：成绩/错题本只按第一次算，答对也不移出错题本 */
+  else if(ok){R.ok++;markW(c.id,false)}else{R.bad++;R.missed.push(c.id);markW(c.id,true);R.counted=true}
   renderCard();
 }
-function next(){R.i++;R.st="ask";R.typed="";R.acc=null;renderCard();window.scrollTo(0,0)}
+function next(){R.i++;R.st="ask";R.typed="";R.acc=null;R.tries=0;R.counted=false;renderCard();window.scrollTo(0,0)}
+function retry(){
+  if(!R||R.st!=="bad") return;
+  R.st="ask";R.typed="";R.acc=null;renderCard();
+  var inp=$("gIn"); if(inp){inp.value="";inp.focus();try{inp.scrollIntoView({block:"center"})}catch(e){}}
+}
 function bindCard(){
   var s=$("gScope"); if(s) s.onchange=function(){opt.scope=s.value;save(LS_OPT,opt);newRound();renderCard()};
   var l=$("gLink"); if(l) l.onclick=function(){
@@ -347,8 +360,11 @@ function bind(){
     var a=b.getAttribute("data-a"); if(!a) return; var c=R&&R.q[R.i];
     if(a==="showhints"){setHintsOn(true);renderCard();return}
     if(a==="check") submit();
-    else if(a==="giveup"){R.typed="";R.st="bad";R.bad++;R.missed.push(c.id);markW(c.id,true);renderCard()}
-    else if(a==="actually"){R.bad--;R.ok++;R.missed.pop();var w=W[c.id];if(w){w.n--;if(w.n<=0)delete W[c.id];save(LS_W,W)}R.st="ok";toast("好的，算你对 👍");renderCard()}
+    else if(a==="giveup"){R.typed="";R.st="bad";R.tries=(R.tries||0)+1;if(!R.counted){R.bad++;R.missed.push(c.id);markW(c.id,true);R.counted=true}renderCard()}
+    else if(a==="actually"){
+      if(R.tries>1){R.st="ok";R.fixed=(R.fixed||0)+1;toast("好的，这次算对 👍（第一次仍记为错）");renderCard();return}
+      R.bad--;R.ok++;R.missed.pop();R.counted=false;var w=W[c.id];if(w){w.n--;if(w.n<=0)delete W[c.id];save(LS_W,W)}R.st="ok";toast("好的，算你对 👍");renderCard()}
+    else if(a==="retry") retry();
     else if(a==="next") next();
     else if(a==="askt"){
       var TA=window.TopikAcc; if(!TA) return;
@@ -362,7 +378,7 @@ function bind(){
       if(isSent()){
         var miss=R.missed.slice(), cards=[];
         miss.forEach(function(id){var it=byId[id],ds=drillsOf(it);ds.forEach(function(d,si){cards.push({id:id,si:si,fi:0})})});
-        shuffle(cards); R={q:cards.slice(0,Math.min(40,cards.length)),i:0,ok:0,bad:0,missed:[],st:"ask",typed:"",sent:true};
+        shuffle(cards); R={q:cards.slice(0,Math.min(40,cards.length)),i:0,ok:0,bad:0,missed:[],st:"ask",typed:"",sent:true,tries:0,counted:false,fixed:0};
       }else newRound(R.missed.map(function(id){return byId[id]}));
       renderCard();
     }

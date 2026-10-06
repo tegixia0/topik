@@ -270,3 +270,10 @@ details.ghints>summary::-webkit-details-marker{display:none}
 .ghint-soft{margin-top:6px;font-size:13.5px;color:var(--muted)}
 .ghints-off{margin:8px 0}
 .ghint-btn{font-size:13.5px;min-height:34px;border-style:dashed;color:#9fc0ff;border-color:#35527e;background:#132033}
+
+/* ---------- 语法打字卡：✏️ 再写一次 ---------- */
+.gretry-row{margin-top:10px}
+.racts .gbtn.gretry,.gbtn.gretry{flex:1 1 100%;width:100%;min-height:48px;font-size:16.5px;font-weight:800;border:2px solid var(--accent);background:#16233a;color:#cfe0ff;border-radius:12px;touch-action:manipulation}
+.gbtn.gretry:active{background:#1d3150}
+.gretry-note{margin:8px 0 6px;padding:6px 10px;border-radius:10px;background:#16233a;border:1px dashed #35527e;color:#9fc0ff;font-size:14px;font-weight:600}
+.gretry-ok{margin:4px 0 2px;color:var(--warn);font-size:14px;font-weight:700}
