@@ -277,3 +277,4 @@ details.ghints>summary::-webkit-details-marker{display:none}
 .gbtn.gretry:active{background:#1d3150}
 .gretry-note{margin:8px 0 6px;padding:6px 10px;border-radius:10px;background:#16233a;border:1px dashed #35527e;color:#9fc0ff;font-size:14px;font-weight:600}
 .gretry-ok{margin:4px 0 2px;color:var(--warn);font-size:14px;font-weight:700}
+.greg-note{margin:4px 0 2px;color:#9fe3b8;font-size:14px;font-weight:600}

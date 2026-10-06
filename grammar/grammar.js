@@ -31,10 +31,85 @@ function toast(m){var t=$("toast");if(!t){alert(m);return}t.textContent=m;t.clas
 /* ✏️ 再写一次：答错/放弃后清空重写；第一次的错仍计入成绩和错题本（R.counted），重写答对只记 R.fixed */
 function retryBtnHTML(){return '<div class="racts gretry-row"><button type="button" class="gbtn gretry" data-a="retry">✏️ 再写一次</button></div>'}
 function retryNoteHTML(){return R&&R.tries?'<div class="gretry-note">✏️ 第 '+(R.tries+1)+' 次写 · 答案已隐藏'+(R.counted?'，第一次仍记为错':'')+'</div>':""}
+function regNoteHTML(good){return good&&R&&R.reg?'<div class="greg-note">✓ 语体不同也算对（标准答案用 '+esc(R.reg)+'）</div>':""}
 function fixedNoteHTML(good){return good&&R&&R.counted?'<div class="gretry-ok">✏️ 重写后答对'+(R.tries>1?'（第 '+R.tries+' 次）':'')+' · 第一次仍记为错</div>':""}
 function norm(s){return window.TopikAcc&&TopikAcc.normalize?TopikAcc.normalize(s):String(s||"").normalize("NFC").replace(/[^가-힣ㄱ-ㅎ]/g,"")}
 function answerNorms(s){return window.TopikAcc&&TopikAcc.answerVariants?TopikAcc.answerVariants(s):[norm(s)]}
 function answerList(xs){var out=[];xs.forEach(function(x){answerNorms(x).forEach(function(k){if(k&&out.indexOf(k)<0)out.push(k)})});return out}
+/* ---------- 句末语体归一（只看句子最后一个谓语语尾）----------
+   해라体 -다/-ㄴ다/-는다/-았다/-겠다/이다 · 해요体 -아요/-어요/-여요/-해요/이에요/예요 · 반말 -아/-어/-해/이야/야 · 합니다体 -ㅂ니다/-습니다
+   → 都还原成“词干”（含时制：잤/겠/했…），双方有相同词干就算语体不同而已。
+   不处理命令/请求/共动：-세요/-주세요/-십시오/-아라/-어라/-자/-ㅂ시다（这些不会生成词干，维持原判分）。
+   句中连接语尾（-아서/-고…）不动：前面部分必须逐字一致。 */
+var HB=0xAC00;
+function jamo(ch){var c=(ch||"").charCodeAt(0)-HB; if(!(c>=0&&c<=11171)) return null; return {l:Math.floor(c/588),v:Math.floor(c%588/28),t:c%28}}
+function syl(l,v,t){return String.fromCharCode(HB+l*588+v*28+(t||0))}
+function regStems(n){
+  var out=[], s=String(n||"");
+  function add(x){if(!x)return; x=x.replace(/되었$/,"됐").replace(/하였$/,"했"); if(out.indexOf(x)<0)out.push(x)}
+  if(!s) return out;
+  var p, j, b, q;
+  /* 합니다体 */
+  if(/습니다$/.test(s)){add(s.slice(0,-3)); return out}
+  if(/니다$/.test(s)){
+    p=s.slice(0,-2); j=jamo(p.slice(-1));
+    if(j&&j.t===17){   /* 갑니다→가，만듭니다→만들，겁니다(=거+입니다)→거이 */
+      b=p.slice(0,-1); add(b+syl(j.l,j.v,0)); add(b+syl(j.l,j.v,8)); if(j.v!==20) add(b+syl(j.l,j.v,0)+"이");
+      return out;
+    }
+    /* 否则是普通 -다（如 아니다），往下走 */
+  }
+  /* 해라体 */
+  if(/다$/.test(s)){
+    p=s.slice(0,-1); j=jamo(p.slice(-1)); if(!j) return out;
+    if(j.l===9&&j.v===20&&j.t===0){q=jamo(p.slice(-2,-1)); if(q&&q.t===17) return out}   /* -ㅂ시다/-읍시다：共动，不处理 */
+    if(/는$/.test(p)&&p.length>=2) add(p.slice(0,-1));                                   /* 먹는다→먹 */
+    if(j.t===4){b=p.slice(0,-1); add(b+syl(j.l,j.v,0)); add(b+syl(j.l,j.v,8))}           /* 간다→가，만든다→만들 */
+    add(p);                                                                              /* 좋다/잤다/겠다/이다 */
+    if(j.t===0&&!(j.l===11&&j.v===20)) add(p+"이");                                      /* 의사다→의사이（=의사예요） */
+    return out;
+  }
+  var pol=/요$/.test(s), core=pol?s.slice(0,-1):s;
+  if(!core) return out;
+  /* 이에요/예요/이야/야（含 아니에요/아니야） */
+  if(pol&&/예$/.test(core)){add(core.slice(0,-1)+"이"); return out}
+  if(pol&&/에$/.test(core)){p=core.slice(0,-1); j=jamo(p.slice(-1)); if(j&&j.v===20&&j.t===0) add(p); return out}
+  if(!pol&&/야$/.test(core)){p=core.slice(0,-1); j=jamo(p.slice(-1)); if(j&&j.t===0) add(j.v===20?p:p+"이"); return out}
+  /* 반말里的命令/共动：-아라/-어라/-여라/-거라/-너라、-자 */
+  if(!pol&&(/(아|어|여|거|너)라$/.test(core)||/자$/.test(core))) return out;
+  var c=core.slice(-1), pre=core.slice(0,-1); j=jamo(c); if(!j||j.t!==0) return out;
+  /* 不缩约：먹어(요)/좋아(요)/잤어(요)/겠어(요)/하여(요) */
+  if(c==="아"||c==="어"){
+    if(pre){add(pre); q=jamo(pre.slice(-1)); if(c==="어"&&q&&q.t===8) add(pre.slice(0,-1)+syl(q.l,q.v,7))}   /* 들어요→듣 */
+    return out;
+  }
+  if(c==="여"){if(/하$/.test(pre)) add(pre); return out}
+  /* 缩约：가(요)/서(요)/해(요)/봐(요)/줘(요)/돼(요)/마셔(요)/바빠(요)/몰라(요)/더워(요) */
+  q=jamo(pre.slice(-1));
+  switch(j.v){
+    case 0: case 4:                                     /* ㅏ ㅓ */
+      add(core); add(pre+syl(j.l,18));                  /* 바빠→바쁘，커→크 */
+      if(j.l===5&&q&&q.t===8) add(pre.slice(0,-1)+syl(q.l,q.v,0)+"르");   /* 몰라→모르 */
+      break;
+    case 1: add(core); if(j.l===18) add(pre+"하"); break;   /* ㅐ：해→하 */
+    case 6: add(core); add(pre+syl(j.l,20)); break;          /* ㅕ：마셔→마시 */
+    case 9: add(pre+syl(j.l,8)); break;                      /* ㅘ：봐→보 */
+    case 14: add(pre+syl(j.l,13)); if(j.l===11&&q&&q.t===0) add(pre.slice(0,-1)+syl(q.l,q.v,17)); break;   /* ㅝ：줘→주，더워→덥 */
+    case 10: add(pre+syl(j.l,11)); break;                    /* ㅙ：돼→되 */
+  }
+  return out;
+}
+function regStyle(n){return /니다$/.test(n)?"-ㅂ니다体":/요$/.test(n)?"-요体":/다$/.test(n)?"-다体":"반말"}
+/* u：用户答案（已 norm）；targets：已 norm 的标准/认可答案 → 命中返回 {reg:"标准答案语体", std} */
+function regMatch(u,targets){
+  var us=regStems(u); if(!us.length) return null;
+  for(var i=0;i<targets.length;i++){
+    var t=targets[i]; if(!t||t===u) continue;
+    var ts=regStems(t);
+    for(var k=0;k<ts.length;k++) if(us.indexOf(ts[k])>=0) return {reg:regStyle(t),std:t};
+  }
+  return null;
+}
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
 function isSent(){return !!SENT_MODES[opt.mode]}
 /* 每条语法的练习整句：优先自拟 prac，再补干净例句（去掉省略号） */
@@ -207,7 +282,19 @@ function judge(c,typed){   // "std" / {a,note} 老师认可 / "ok" 宽松判对 
   if(std.indexOf(n)>=0) return "std";
   var alt=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u);return answerNorms(a).some(function(k){return !!k&&(x===k||(k.length>=2&&x.slice(-k.length)===k&&x.length<=k.length+4))})});
   if(alt) return alt;
+  var rg=regMatch(n,regTargets(c)); if(rg) return rg;   /* 只差句末语体 */
   return checkAns(c,typed)?"ok":null;
+}
+/* 哪些答案参与句末语体归一：整句全部；填空只在空格位于句末时；中→韩只对 -다 结尾的语法形式（如 -는 모양이다） */
+function regTargets(c){
+  var it=byId[c.id], xs;
+  if(opt.mode==="sent") xs=[sentOf(c).ko];
+  else if(opt.mode==="fill"){var f=it.fill[c.fi]||it.fill[0]; if(!/＿＿[\s.?!。．…]*$/.test(f.ko)) return []; xs=f.ans.slice()}
+  else if(opt.mode==="zh2ko") xs=it.keys.concat([it.f]);
+  else return [];
+  if(window.TopikAcc&&TopikAcc.alts) TopikAcc.alts(cid(c)).forEach(function(x){xs.push(x.a)});
+  var out=answerList(xs);
+  return opt.mode==="zh2ko"?out.filter(function(k){return /다$/.test(k)}):out;
 }
 function checkAns(c,typed){
   var it=byId[c.id], n=norm(typed); if(!n) return false;
@@ -268,7 +355,7 @@ function renderCard(){
     else{
       var good=R.st==="ok", ansTxt=s.ko, TA=window.TopikAcc;
       if(good&&R.acc&&TA) h+='<div class="gfb ok">'+TA.okHTML(R.acc,ansTxt)+fixedNoteHTML(good)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
-      else h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 正确":"✘ 再看看")+'</div>'+fixedNoteHTML(good)+'<div class="gans" lang="ko">'+esc(ansTxt)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      else h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 正确":"✘ 再看看")+'</div>'+regNoteHTML(good)+fixedNoteHTML(good)+'<div class="gans" lang="ko">'+esc(ansTxt)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
       if(!good) h+=retryBtnHTML();
       if(TA) h+=TA.altsHTML(cid(c)).replace('class="row acc-alts"','class="row acc-alts" style="margin-top:8px"');
       h+='<div class="g-reveal"><div class="row"><span class="k">语法</span><b lang="ko">'+esc(it.f)+'</b> · '+esc(it.zh)+'</div>'+
@@ -292,7 +379,7 @@ function renderCard(){
     else{
       var good2=R.st==="ok", ansTxt2=opt.mode==="fill"?f.ans.join(" / "):it.f, TA2=window.TopikAcc;
       if(good2&&R.acc&&TA2) h+='<div class="gfb ok">'+TA2.okHTML(R.acc,ansTxt2)+fixedNoteHTML(good2)+'<div class="minfo">你的答案：'+esc(R.typed)+'</div></div>';
-      else h+='<div class="gfb '+(good2?"ok":"bad")+'"><div class="t">'+(good2?"✔ 正确":"✘ 再看看")+'</div>'+fixedNoteHTML(good2)+'<div class="gans">'+esc(ansTxt2)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
+      else h+='<div class="gfb '+(good2?"ok":"bad")+'"><div class="t">'+(good2?"✔ 正确":"✘ 再看看")+'</div>'+regNoteHTML(good2)+fixedNoteHTML(good2)+'<div class="gans">'+esc(ansTxt2)+'</div>'+(R.typed?'<div class="minfo">你的答案：'+esc(R.typed)+'</div>':"")+'</div>';
       if(!good2) h+=retryBtnHTML();
       if(TA2) h+=TA2.altsHTML(cid(c)).replace('class="row acc-alts"','class="row acc-alts" style="margin-top:8px"');
       h+='<div class="racts">'+(good2?"":(R.typed?'<button type="button" class="gbtn" data-a="actually">其实我写对了</button>':""))+'<button type="button" class="gbtn pri" data-a="next">下一题 ▶</button>'+(!good2&&R.typed&&TA2?'<button type="button" class="gbtn acc-copy" data-a="askt">'+TA2.BTN+'</button>':"")+'</div>';
@@ -322,15 +409,15 @@ function summaryHTML(){
 function submit(){
   var inp=$("gIn"); if(!inp) return; var c=R.q[R.i]; R.typed=inp.value.trim();
   if(!R.typed){toast("先写一下，或者点“不会”");return}
-  var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object")?j:null; R.st=ok?"ok":"bad"; R.tries=(R.tries||0)+1;
+  var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object"&&!j.reg)?j:null; R.reg=(j&&j.reg)||null; R.st=ok?"ok":"bad"; R.tries=(R.tries||0)+1;
   if(R.counted){if(ok)R.fixed=(R.fixed||0)+1}   /* 重写：成绩/错题本只按第一次算，答对也不移出错题本 */
   else if(ok){R.ok++;markW(c.id,false)}else{R.bad++;R.missed.push(c.id);markW(c.id,true);R.counted=true}
   renderCard();
 }
-function next(){R.i++;R.st="ask";R.typed="";R.acc=null;R.tries=0;R.counted=false;renderCard();window.scrollTo(0,0)}
+function next(){R.i++;R.st="ask";R.typed="";R.acc=null;R.reg=null;R.tries=0;R.counted=false;renderCard();window.scrollTo(0,0)}
 function retry(){
   if(!R||R.st!=="bad") return;
-  R.st="ask";R.typed="";R.acc=null;renderCard();
+  R.st="ask";R.typed="";R.acc=null;R.reg=null;renderCard();
   var inp=$("gIn"); if(inp){inp.value="";inp.focus();try{inp.scrollIntoView({block:"center"})}catch(e){}}
 }
 function bindCard(){
@@ -390,5 +477,9 @@ function bind(){
     else if(a==="clearw"){if(confirm("清空语法错题本？")){W={};save(LS_W,W);renderWrong()}}
   });
 }
-window.TopikGrammar={open:open,init:bind};
+window.TopikGrammar={open:open,init:bind,
+  /* 供 node 单元测试用 */
+  _t:{ensure:ensure,regStems:regStems,regMatch:regMatch,norm:norm,
+    judgeAs:function(mode,c,typed){var m=opt.mode;opt.mode=mode;try{return judge(c,typed)}finally{opt.mode=m}},
+    regTargetsAs:function(mode,c){var m=opt.mode;opt.mode=mode;try{return regTargets(c)}finally{opt.mode=m}}}};
 })();
