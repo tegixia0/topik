@@ -114,5 +114,37 @@ function t(name,cond,info){console.log((cond?"PASS ":"FAIL ")+name+(info?"  → 
   t("fill: fragment quoted from the filled-in sentence counts → stays wrong",!v.correct);
   v=V({correct:true,errors:[{wrong:"없는말",right:"x",why:"x"}],corrected:"",tip:""},{type:"sent",user:"아무거나"});
   t("correct=true untouched",v.correct&&!v.flipped&&v.errors.length===1);
+  // ---- teacher-accepted answers always match (regression: gd:geodeun#0) ----
+  console.log("\n=== teacher-accepted answers ===");
+  const TA4=makeCtx(true), T4=TA4.TopikGrammar._t; await T4.ensure();
+  const isAlt=r=>!!(r&&typeof r==="object"&&r.a&&!r.reg&&!r.aimem);
+  for(const u of ["준비를 끝내거든 알려 주세요.","준비를 끝내거든 알려 주세요","준비를 끝내거든 알려주세요"]){
+    const r=T4.judgeAs("sent",{id:"geodeun",si:0,fi:0},u); t(`gd:geodeun#0 「${u}」 → teacher-accepted`,isAlt(r),JSON.stringify(r));
+  }
+  const ACCJ=JSON.parse(fs.readFileSync(SITE+"/accepted.json","utf8")).cards; let scan=0, scanBad=[];
+  for(const [id,e] of Object.entries(ACCJ)){
+    let mode,card;
+    if(id.startsWith("gd:")){const [g,si]=id.slice(3).split("#");mode="sent";card={id:g,si:+si,fi:0}}
+    else if(id.startsWith("gc:")){const [g,fi]=id.slice(3).split("#");mode=fi===undefined?"zh2ko":"fill";card={id:g,si:0,fi:fi===undefined?0:+fi}}
+    else continue;
+    for(const x of e.alts) for(const u of [x.a, x.a.replace(/[.!?。．！？]+\s*$/,"")]){scan++; const r=T4.judgeAs(mode,card,u); if(!isAlt(r)) scanBad.push(id+" 「"+u+"」 → "+JSON.stringify(r))}
+  }
+  scanBad.forEach(x=>console.log("  ✘",x));
+  t(`scan: all accepted gd:/gc: texts pass as teacher-accepted, with and without final punctuation (${scan} checks)`,scanBad.length===0,scanBad.length+" failed");
+  // ---- stale page: accepted.json changes while the page stays open ----
+  console.log("\n=== accepted.json refresh while page stays open ===");
+  let accBody={version:1,cards:{}}, failNext=false, nFetch=0;
+  const ls2={}, C2={console,Promise,setTimeout,clearTimeout,Date,localStorage:{getItem:k=>ls2[k]??null,setItem:(k,v)=>{ls2[k]=String(v)}},document:{getElementById:()=>null},
+    fetch:u=>{const f=u.split("?")[0]; if(f==="accepted.json"){nFetch++; if(failNext){failNext=false;return Promise.reject(new TypeError("offline"))} return Promise.resolve({ok:true,json:()=>Promise.resolve(JSON.parse(JSON.stringify(accBody)))})}
+      return Promise.resolve({ok:true,json:()=>Promise.resolve(JSON.parse(fs.readFileSync(path.join(SITE,f),"utf8")))})}};
+  C2.window=C2; vm.createContext(C2);
+  vm.runInContext(fs.readFileSync(SITE+"/assets/accepted.js","utf8"),C2); vm.runInContext(fs.readFileSync(SITE+"/grammar/grammar.js","utf8"),C2);
+  const T5=C2.TopikGrammar._t; await T5.ensure();
+  const J5=u=>T5.judgeAs("sent",{id:"geodeun",si:0,fi:0},u);
+  t("page opened before the alt existed → not accepted yet",!J5("준비를 끝내거든 알려 주세요"));
+  accBody={version:1,cards:{"gd:geodeun#0":ACCJ["gd:geodeun#0"]}};
+  await C2.TopikAcc.refresh(60000); t("refresh within 60 s does not refetch",!J5("준비를 끝내거든 알려 주세요"));
+  await C2.TopikAcc.refresh(0); t("refresh when stale picks up the new alt",isAlt(J5("준비를 끝내거든 알려 주세요")));
+  failNext=true; await C2.TopikAcc.refresh(0); t("a failed refresh keeps the existing accepted answers",isAlt(J5("준비를 끝내거든 알려 주세요")));
   console.log(`\n${fails?fails+" FAILED":"ALL PASSED"}`); process.exit(fails?1:0);
 })().catch(e=>{console.error(e);process.exit(2)});

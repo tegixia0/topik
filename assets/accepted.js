@@ -16,12 +16,33 @@ function answerVariants(s){
   return out;
 }
 function same(input,answer){var u=normalize(input);return !!u&&answerVariants(answer).indexOf(u)>=0}
+/* 页面（尤其是手机主屏幕 PWA）可能开好几天：不能只在打开时读一次。
+   load()：首次读取（失败会在下次调用时重试）；refresh(maxAge)：数据比 maxAge 旧就重新读；ready(ms)：等正在进行的读取（最多 ms）。
+   读取失败时保留旧数据，不会把已认可的写法清空。 */
+var loadedAt=0, pending=null;
+function fetchNow(){
+  if(pending) return pending;
+  pending=fetch("accepted.json?v="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
+    .then(function(d){if(d&&d.cards){DATA=d;loadedAt=Date.now()}}).catch(function(){})
+    .then(function(){pending=null});
+  return pending;
+}
 function load(force){
-  if(P&&!force) return P;
-  P=fetch("accepted.json?v="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null})
-    .then(function(d){DATA=d&&d.cards?d:{cards:{}}}).catch(function(){DATA={cards:{}}});
+  if(force||!P||(!loadedAt&&!pending)) P=fetchNow();
   return P;
 }
+function refresh(maxAge){
+  maxAge=maxAge==null?60000:maxAge;
+  if(pending) return pending;
+  if(loadedAt&&Date.now()-loadedAt<maxAge) return Promise.resolve();
+  return (P=fetchNow());
+}
+function ready(ms){
+  if(!pending) return Promise.resolve();
+  return Promise.race([pending,new Promise(function(r){setTimeout(r,ms||3000)})]);
+}
+function age(){return loadedAt?Date.now()-loadedAt:Infinity}
+try{document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")refresh(30000)})}catch(e){}
 function alts(id){var e=DATA.cards[id];return e&&Array.isArray(e.alts)?e.alts.filter(function(x){return x&&x.a}):[]}
 /* test(input, altText) → 用各卡组自己的判分规则比较；返回命中的 {a,note} 或 null */
 function find(id,input,test){var L=alts(id);for(var i=0;i<L.length;i++){try{if(test?test(input,L[i].a):same(input,L[i].a))return L[i]}catch(e){}}return null}
@@ -47,5 +68,5 @@ function copy(o){
   if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(done,fallback)}else fallback();
 }
 var BTN="📋 复制给老师";
-window.TopikAcc={load:load,alts:alts,find:find,normalize:normalize,answerVariants:answerVariants,same:same,okHTML:okHTML,altsHTML:altsHTML,text:text,copy:copy,BTN:BTN};
+window.TopikAcc={load:load,refresh:refresh,ready:ready,age:age,alts:alts,find:find,normalize:normalize,answerVariants:answerVariants,same:same,okHTML:okHTML,altsHTML:altsHTML,text:text,copy:copy,BTN:BTN};
 })();

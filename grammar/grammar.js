@@ -351,6 +351,9 @@ function judge(c,typed){   // "std" / {a,note} 老师认可 / "ok" 宽松判对 
     std=answerList((it.fill[c.fi]||it.fill[0]).ans);
   }
   if(std.indexOf(n)>=0) return "std";
+  /* 老师认可的写法：先只按“去空格/标点”原样比较，不经过任何其他变换 */
+  var alt0=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u);return answerNorms(a).indexOf(x)>=0});
+  if(alt0) return alt0;
   var fn=hadaFold(n);
   if(std.some(function(k){return hadaFold(k)===fn})) return "ok";   /* N을 하다 ＝ N하다 */
   var alt=window.TopikAcc&&TopikAcc.find(cid(c),typed,function(u,a){var x=norm(u),fx=hadaFold(x);return answerNorms(a).some(function(k){return !!k&&(x===k||fx===hadaFold(k)||(k.length>=2&&x.slice(-k.length)===k&&x.length<=k.length+4))})});
@@ -470,6 +473,7 @@ function renderCard(){
   $("gBody").innerHTML=h; bindCard();
   var gh=$("gBody").querySelector("details.ghints");
   if(gh){gh.addEventListener("toggle",function(){setHintsOn(gh.open)})}
+  if(R&&R.st==="ask"&&window.TopikAcc&&TopikAcc.refresh) TopikAcc.refresh(60000);   /* 后台刷新老师认可的写法 */
   var inp=$("gIn"); if(inp){inp.focus();inp.onkeydown=function(e){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();submit()}}}
 }
 function summaryHTML(){
@@ -483,9 +487,16 @@ function summaryHTML(){
   h+='<div class="racts">'+(R.missed.length?'<button type="button" class="gbtn pri" data-a="redo">重练错的（'+R.missed.length+'）</button>':"")+'<button type="button" class="gbtn'+(R.missed.length?"":" pri")+'" data-a="again">再来一轮</button><button type="button" class="gbtn" data-a="todrill">分类目录</button><button type="button" class="gbtn" data-a="wrongbook">练语法错题本</button></div></div>';
   return h;
 }
+/* 判分前先确保 accepted.json 是新的（超过 60 秒就重新读，最多等 3 秒；读不到就用已有数据） */
 function submit(){
-  var inp=$("gIn"); if(!inp) return; var c=R.q[R.i]; R.typed=inp.value.trim();
-  if(!R.typed){toast("先写一下，或者点“不会”");return}
+  var inp=$("gIn"); if(!inp||!R||R.busy) return; var typed=inp.value.trim();
+  if(!typed){toast("先写一下，或者点“不会”");return}
+  var TA=window.TopikAcc, RR=R, i=R.i;
+  function go(){if(R!==RR||R.i!==i||R.st!=="ask"){RR.busy=false;return} R.busy=false; judgeNow(typed)}
+  if(TA&&TA.refresh&&TA.ready){R.busy=true; TA.refresh(60000); TA.ready(3000).then(go,go)} else judgeNow(typed);
+}
+function judgeNow(typed){
+  var c=R.q[R.i]; R.typed=typed;
   var j=judge(c,R.typed), ok=!!j; R.acc=(j&&typeof j==="object"&&!j.reg&&!j.aimem)?j:null; R.reg=(j&&j.reg)||null; R.aimem=!!(j&&j.aimem); R.ai=null; R.st=ok?"ok":"bad"; R.tries=(R.tries||0)+1;
   if(R.counted){if(ok)R.fixed=(R.fixed||0)+1}   /* 重写：成绩/错题本只按第一次算，答对也不移出错题本 */
   else if(ok){R.ok++;markW(c.id,false)}else{R.bad++;R.missed.push(c.id);markW(c.id,true);R.counted=true}
