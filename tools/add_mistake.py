@@ -100,9 +100,9 @@ def main(a):
     print("OK %s %s 第%d次 %s  (this blank wrong %d×)" % (e["q"], "㉠㉡"[e["k"] == "b"], e["try"], "✓" if e["ok"] else "✗ " + ",".join(e["tags"]), wrong))
     if "--commit" in flags:
         g = lambda *c: subprocess.check_call(["git", "-C", SITE] + list(c))
-        g("pull", "--rebase", "-q")
         g("add", "writing/mylog.json")
         g("commit", "-qm", "写作易错记录 %s %s" % (e["q"], e["date"]))
+        g("pull", "--rebase", "-q")
         g("push", "-q", "origin", "HEAD:main")
         print("pushed")
 
