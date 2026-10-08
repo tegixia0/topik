@@ -243,7 +243,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261006c">
+<link rel="stylesheet" href="assets/modules.css?v=20261008a">
 </head>
 <body>
 <div class="wrap">
@@ -284,6 +284,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
   <div id="writing" hidden>
     <div class="wpart" id="wpart"><button type="button" data-part="5152">51·52 句子填空</button><button type="button" data-part="5354">53·54 图表·议论文</button></div>
+    <div class="wai-set"><span id="wAIStat"></span><button type="button" id="wAISet">⚙️ AI 判题</button></div>
     <div id="w5152">
     <div class="wtabs" id="wtabs">
       <button type="button" data-tab="cheat">速查</button>
@@ -318,10 +319,11 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <div class="toast" id="toast"></div>
 <script src="assets/accepted.js?v=20261007a"></script>
 <script src="reading/reading.js"></script>
-<script src="grammar/ai.js?v=20261007a"></script>
-<script src="grammar/grammar.js?v=20261007a"></script>
+<script src="assets/ai.js?v=20261008a"></script>
+<script src="writing/wai.js?v=20261008a"></script>
+<script src="grammar/grammar.js?v=20261008a"></script>
 <script src="assets/wsplit.js?v=20261002e"></script>
-<script src="writing/w5354.js?v=20261002e"></script>
+<script src="writing/w5354.js?v=20261008a"></script>
 <script src="bank/bank.js?v=20261002d"></script>
 <script>
 (function(){
@@ -666,7 +668,10 @@ var opts=load(LS_WO,{no:"all",src:"all",rnd:false,tab:"cheat",cur:null});
 if(opts.part!=="5354")opts.part="5152";   // 写作分两部分：51·52（本模块）/ 53·54（writing/w5354.js）
 var st=load(LS_W,{marks:{}}); st.marks=st.marks||{};
 if(st.drafts){delete st.drafts;try{localStorage.setItem(LS_W,JSON.stringify(st))}catch(e){}}   // 不再保存草稿：每次打开题目都是空白
-var drafts={}, LOG={types:{},entries:[]};   // drafts 只在当前这道题的会话内存里；LOG = writing/mylog.json（老师整理的个人易错记录）
+var drafts={}, LOG={types:{},entries:[]}, aiRes={}, AIL=[];   // aiRes：本次打开这道题的 🤖 AI 评分（换题清空）；AIL：本机保存的 AI 评分记录（writing/wai.js）
+function WAI(){return window.TopikWAI||null}
+function loadAIL(){AIL=WAI()?WAI().list51():[]}
+loadAIL();   // drafts 只在当前这道题的会话内存里；LOG = writing/mylog.json（老师整理的个人易错记录）
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==="object"?v:d}catch(e){return d}}
 function save(){try{localStorage.setItem(LS_W,JSON.stringify(st));localStorage.setItem(LS_WO,JSON.stringify(opts))}catch(e){}}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -784,10 +789,40 @@ function renderPrac(){
       '<textarea class="answer" id="wIn_'+k+'" lang="ko" rows="2" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="写 '+(k==="a"?"㉠":"㉡")+' 的答案（一句话）…">'+esc(d[k]||"")+"</textarea></div>";
   });
   h+="</div>";
-  h+='<div class="actions wsk"><button type="button" class="b-primary full" id="wShow">'+(revealed?"收起参考答案":"看参考答案")+'</button><button type="button" class="b-ghost full small wskeep" id="wCopy">📋 复制我的答案发给老师批改</button></div>';
+  var aiOn=WAI()&&WAI().active();
+  h+='<div class="actions wsk"><button type="button" class="b-primary full" id="wShow">'+(revealed?"收起参考答案":(aiOn?"交卷 · 看参考答案 + 🤖 AI 评分":"看参考答案"))+'</button>'+(aiOn?'<button type="button" class="b-ghost full small wskeep" id="wAI">🤖 只要 AI 评分</button>':"")+'<button type="button" class="b-ghost full small wskeep" id="wCopy">📋 复制我的答案发给老师批改</button></div>';
+  h+='<div id="wAIBox"></div>';
   h+='<div id="wReveal"></div>';
   h+='<div class="wnav"><button type="button" class="btn small" id="wPrev"'+(idx===0?" disabled":"")+'>← 上一题</button><button type="button" class="btn b-primary small" id="wNext">'+(idx>=order.length-1?"回到第 1 题":"下一题 →")+"</button></div></div>";
-  box.innerHTML=h; bindPrac(); if(window.WSplit) WSplit.attach($("wCard"),{label:srcLabel(q)+" · "+q.no+"번"}); if(revealed) renderReveal();
+  box.innerHTML=h; bindPrac(); if(window.WSplit) WSplit.attach($("wCard"),{label:srcLabel(q)+" · "+q.no+"번"}); renderAI(); if(revealed) renderReveal();
+}
+/* 🤖 AI 评分（writing/wai.js → assets/ai.js；Key 只在本机） */
+function aiKeyOf(d){return (d.a||"").trim()+"\u0001"+(d.b||"").trim()}
+function renderAI(){
+  var q=order[idx], el=$("wAIBox"); if(!q||!el) return; var W=WAI(); if(!W){el.innerHTML="";return}
+  var s=aiRes[q.id];
+  if(!s){el.innerHTML=W.hintHTML();return}
+  if(s.st==="wait") el.innerHTML=W.waitHTML("AI 评分中…（最长 "+Math.round(W.CFG.to51/1000)+" 秒）");
+  else if(s.st==="err") el.innerHTML=W.errHTML(s.err);
+  else el.innerHTML=W.html5152(s.res,LOG.types);
+}
+function startAI(force){
+  var q=order[idx], W=WAI(); if(!q||!W) return;
+  var d=drafts[q.id]||{}, key=aiKeyOf(d), s=aiRes[q.id];
+  if(!(d.a||"").trim()&&!(d.b||"").trim()){if(force)toast("先写 ㉠ 或 ㉡ 再评分");return}
+  if(!W.active()){if(force)W.openSettings();return}
+  if(s&&s.key===key&&(s.st==="wait"||(s.st==="done"&&!force))){renderAI();return}
+  var tok={};
+  aiRes[q.id]={key:key,st:"wait",tok:tok}; renderAI();
+  W.grade5152(q,{a:d.a,b:d.b},LOG.types).then(function(res){
+    W.save51(q,res); loadAIL();   // 已交卷：即使中途换了题也记入本机 🤖 AI 记录
+    var cur=aiRes[q.id]; if(!cur||cur.tok!==tok) return;   // 换题/重评后不再显示旧结果
+    cur.st="done"; cur.res=res;
+    if(order[idx]&&order[idx].id===q.id){renderAI(); if(revealed) renderReveal()}
+  },function(e){
+    var cur=aiRes[q.id]; if(!cur||cur.tok!==tok) return;
+    cur.st="err"; cur.err=e; if(order[idx]&&order[idx].id===q.id) renderAI();
+  });
 }
 function renderReveal(){
   var q=order[idx], r=$("wReveal"); if(!q||!r)return;
@@ -815,7 +850,7 @@ function saveDraft(){
   var a=$("wIn_a"), b=$("wIn_b"); if(!a||!b)return;
   drafts[q.id]={a:a.value,b:b.value}; if(!a.value&&!b.value) delete drafts[q.id]; save();
 }
-function go(i){drafts={}; idx=(i+order.length)%order.length; revealed=false; renderPrac(); try{$("wPrac").scrollIntoView({block:"start"})}catch(e){}}
+function go(i){drafts={}; aiRes={}; idx=(i+order.length)%order.length; revealed=false; renderPrac(); try{$("wPrac").scrollIntoView({block:"start"})}catch(e){}}
 function bindPrac(){
   var box=$("wPrac");
   box.onclick=function(e){
@@ -823,7 +858,11 @@ function bindPrac(){
     var seg=b.closest(".seg[data-seg]");
     if(seg){opts[seg.getAttribute("data-seg")]=b.getAttribute("data-v");opts.cur=null;buildOrder(false);save();renderPrac();return}
     if(b.id==="wExitWrong"){wrongOnly=false;buildOrder(false);renderPrac();return}
-    if(b.id==="wShow"){saveDraft();revealed=!revealed;b.textContent=revealed?"收起参考答案":"看参考答案";renderReveal();if(revealed){var r=$("wReveal");try{r.scrollIntoView({block:"start",behavior:"smooth"})}catch(x){}}return}
+    if(b.id==="wShow"){saveDraft();revealed=!revealed;b.textContent=revealed?"收起参考答案":(WAI()&&WAI().active()?"交卷 · 看参考答案 + 🤖 AI 评分":"看参考答案");if(revealed)startAI(false);renderReveal();if(revealed){var r=$("wAIBox")&&aiRes[order[idx].id]?$("wAIBox"):$("wReveal");try{r.scrollIntoView({block:"start",behavior:"smooth"})}catch(x){}}return}
+    if(b.id==="wAI"){saveDraft();var c=$("wCard");if(window.WSplit&&WSplit.active()){if(c)c._wsOff=true;WSplit.exit()}startAI(true);try{$("wAIBox").scrollIntoView({block:"start",behavior:"smooth"})}catch(x){}return}
+    var wa=b.getAttribute("data-wai");
+    if(wa==="retry"){saveDraft();startAI(true);return}
+    if(wa==="set"){if(WAI())WAI().openSettings();return}
     if(b.id==="wCopy"){saveDraft();copyMine();return}
     if(b.id==="wPrev"){go(idx-1);return}
     if(b.id==="wNext"){go(idx+1);return}
@@ -846,58 +885,65 @@ function copyMine(){
   var q=order[idx]; if(!q)return; var d=drafts[q.id]||{};
   var txt="【TOPIK II 写作】"+srcLabel(q)+" · 第"+q.no+"题（"+(q.no===51?"实用文":"说明文")+"）\n"+
     (q.title?"标题："+q.title+"\n":"")+"原文：\n"+q.text+"\n\n"+
-    "㉠ 我的答案："+(d.a||"（未填写）")+"\n㉡ 我的答案："+(d.b||"（未填写）")+"\n\n请帮我批改语法、语体和是否符合上下文，谢谢！";
-  copy(txt);
+    "㉠ 我的答案："+(d.a||"（未填写）")+"\n㉡ 我的答案："+(d.b||"（未填写）");
+  var s=aiRes[q.id]; if(s&&s.st==="done"&&s.key===aiKeyOf(d)&&WAI()) txt+="\n"+WAI().copy5152(s.res,LOG.types);
+  copy(txt+"\n\n请帮我批改语法、语体和是否符合上下文，谢谢！");
 }
 
 /* 个人易错记录（writing/mylog.json，老师批改后用 tools/add_mistake.py 追加） */
-function mlOf(id,k){return LOG.entries.filter(function(e){return e.q===id&&(!k||e.k===k)}).sort(function(a,b){return a.try-b.try})}
+function mlAll(){return LOG.entries.concat(AIL)}   // 老师批改（mylog.json）+ 🤖 AI 评分（本机），按日期排；同一天老师的在前
+function mlOrd(a,b){return a.date<b.date?-1:a.date>b.date?1:(a.ai?1:0)-(b.ai?1:0)||(a.ai?(a.at||0)-(b.at||0):a.try-b.try)}
+function mlOf(id,k){return mlAll().filter(function(e){return e.q===id&&(!k||e.k===k)}).sort(mlOrd)}
+function mlTags(e){return e.tags&&e.tags.length?e.tags:(e.ai?["_ai"]:[])}
 function mlWrong(id,k){return mlOf(id,k).filter(function(e){return !e.ok})}
 function mlSum(id){   // 批改记录摘要：做过 N 次 · 每空最近一次 ✓/✗
   var E=mlOf(id); if(!E.length) return "";
-  var n=Math.max.apply(null,E.map(function(e){return e.try})), last={};
+  var T=E.filter(function(e){return !e.ai}), A=E.filter(function(e){return e.ai}), last={};
+  var n=T.length?Math.max.apply(null,T.map(function(e){return e.try})):0, m=Math.ceil(A.length/2);
   E.forEach(function(e){last[e.k]=e});
-  return "批改"+n+"次 "+["a","b"].filter(function(k){return last[k]}).map(function(k){return (k==="a"?"㉠":"㉡")+(last[k].ok?"✓":"✗")}).join("");
+  return (n?"批改"+n+"次 ":"")+(m?"🤖AI"+m+"次 ":"")+["a","b"].filter(function(k){return last[k]}).map(function(k){return (k==="a"?"㉠":"㉡")+(last[k].ok?"✓":"✗")}).join("");
 }
-function tName(t){return (LOG.types[t]||{}).name||t}
+function tName(t){return t==="_ai"?"其他（AI 未分类）":(LOG.types[t]||{}).name||t}
 function mlHint(id,k){
   var w=mlWrong(id,k); if(!w.length) return "";
-  var ts=[]; w.forEach(function(e){e.tags.forEach(function(t){if(ts.indexOf(t)<0)ts.push(t)})});
+  var ts=[]; w.forEach(function(e){mlTags(e).filter(function(t){return t!=="_ai"}).forEach(function(t){if(ts.indexOf(t)<0)ts.push(t)})});
   return '<div class="mlhint">⚠️ 你这题'+(k==="a"?"㉠":"㉡")+'错过 '+w.length+' 次 · 注意：'+esc(ts.map(tName).join("、"))+"</div>";
 }
 function mlBox(id,k){
-  var all=mlOf(id,k), w=all.filter(function(e){return !e.ok}); if(!all.length) return "";
+  var cur=aiRes[id]&&aiRes[id].res&&aiRes[id].res.at;   // 这次刚评的 AI 结果在上面的 🤖 卡片里，这里只列以前的
+  var all=mlOf(id,k).filter(function(e){return !(e.ai&&cur&&e.at===cur)}), w=all.filter(function(e){return !e.ok}); if(!all.length) return "";
   var h='<div class="mlbox"><div class="mh">📌 我上次的错误'+(w.length?"（错了 "+w.length+" 次）":"（之前写对了 ✓）")+"</div>";
   all.forEach(function(e){
-    h+='<div class="mlit"><div class="mt">第'+e.try+'次 · '+esc(e.date)+(e.ok?' · <span class="mf">✓ 写对了</span>':"")+(e.minor?" · 小问题":"")+"</div>";
+    h+='<div class="mlit'+(e.ai?" ai":"")+'"><div class="mt">'+(e.ai?'<span class="aitag">🤖 AI</span> 第'+e.try+"次 · "+esc(e.date)+" "+esc(WAI()?WAI().hm(e.at):"")+" · "+esc(e.score)+"/5":"👩‍🏫 老师 第"+e.try+"次 · "+esc(e.date))+(e.ok?' · <span class="mf">✓ 写对了</span>':"")+(e.minor?" · 小问题":"")+"</div>";
     if(!e.ok){
       h+='<div>我写的：<span class="ma" lang="ko">'+esc(e.ans||"（空）")+"</span></div>";
       if(e.cause) h+='<div class="mc">错因：'+esc(e.cause)+"</div>";
       if(e.fix) h+='<div>✅ 正确：<span class="mf" lang="ko">'+esc(e.fix)+"</span></div>";
-      h+='<div>'+e.tags.map(function(t){return '<span class="mlchip">'+esc(tName(t))+"</span>"}).join("")+"</div>";
+      h+='<div>'+mlTags(e).map(function(t){return '<span class="mlchip">'+esc(tName(t))+"</span>"}).join("")+"</div>";
     }
     h+="</div>";
   });
-  var ts=[]; w.forEach(function(e){e.tags.forEach(function(t){if(ts.indexOf(t)<0)ts.push(t)})});
+  var ts=[]; w.forEach(function(e){mlTags(e).forEach(function(t){if(ts.indexOf(t)<0)ts.push(t)})});
   if(ts.length) h+='<div class="mlit"><div class="mh" style="margin:0">✅ 下次怎么做</div>'+ts.map(function(t){var r=(LOG.types[t]||{}).rule;return r?'<div style="margin-top:3px"><span class="mlchip">'+esc(tName(t))+"</span>"+esc(r)+"</div>":""}).join("")+"</div>";
   return h+"</div>";
 }
 function qLabel(id){var q=byId[id];return q?srcLabel(q)+" "+q.no+"번":id}
 function renderMine(){
   var box=$("wMine"); if(!loaded){box.innerHTML='<div class="card empty">加载中…</div>';return}
-  var W=LOG.entries.filter(function(e){return !e.ok}), okN=LOG.entries.length-W.length, by={};
-  W.forEach(function(e){e.tags.forEach(function(t){(by[t]=by[t]||[]).push(e)})});
+  var ALL=mlAll(), W=ALL.filter(function(e){return !e.ok}), okN=ALL.length-W.length, by={}, aiW=W.filter(function(e){return e.ai}).length;
+  W.forEach(function(e){mlTags(e).forEach(function(t){(by[t]=by[t]||[]).push(e)})});
   var ts=Object.keys(by).sort(function(a,b){return by[b].length-by[a].length||tName(a).localeCompare(tName(b))});
   var qs={}; W.forEach(function(e){qs[e.q+e.k]=1});
-  var h='<div class="card"><h2 style="margin:0 0 4px;font-size:20px">我的易错点</h2><div style="color:var(--muted);font-size:14.5px">老师批改记录（更新 '+esc(LOG.updated||"")+'）：错 '+W.length+' 次 · 涉及 '+Object.keys(qs).length+' 个空 · 写对 '+okN+' 次。按错误类型从多到少排，点开看规则和我的例子，点例子直接去练那道题。</div></div>';
+  var h='<div class="card"><h2 style="margin:0 0 4px;font-size:20px">我的易错点</h2><div style="color:var(--muted);font-size:14.5px">老师批改记录（更新 '+esc(LOG.updated||"")+'）+ 🤖 AI 评分记录（本机）：错 '+W.length+' 次'+(aiW?'（其中 🤖 AI '+aiW+' 次）':'')+' · 涉及 '+Object.keys(qs).length+' 个空 · 写对 '+okN+' 次。按错误类型从多到少排，点开看规则和我的例子，点例子直接去练那道题。</div></div>';
   if(!ts.length) h+='<div class="card empty">还没有批改记录。</div>';
   ts.forEach(function(t,i){
     var L=by[t], ty=LOG.types[t]||{};
-    h+='<details class="mtype"'+(i<3?" open":"")+'><summary><span>'+esc(ty.name||t)+'</span><span class="cnt">'+L.length+' 次</span></summary>';
+    var nA=L.filter(function(e){return e.ai}).length;
+    h+='<details class="mtype"'+(i<3?" open":"")+'><summary><span>'+esc(tName(t))+'</span>'+(nA?'<span class="aicnt">🤖 '+nA+"</span>":"")+'<span class="cnt">'+L.length+' 次</span></summary>';
     if(ty.rule) h+='<div class="rule">✅ 下次怎么做：'+esc(ty.rule)+"</div>";
-    L.slice().sort(function(a,b){return a.q<b.q?-1:a.q>b.q?1:a.k<b.k?-1:a.k>b.k?1:a.try-b.try}).forEach(function(e){
-      h+='<div class="ex" data-q="'+esc(e.q)+'"><div class="src">'+esc(qLabel(e.q))+" "+(e.k==="a"?"㉠":"㉡")+" · 第"+e.try+"次 · "+esc(e.date)+(e.minor?" · 小问题":"")+' ›</div>'+
-        '<div><span style="color:var(--bad)" lang="ko">'+esc(e.ans||"（空）")+'</span> → <span style="color:var(--ok)" lang="ko">'+esc(e.fix)+"</span></div>"+
+    L.slice().sort(function(a,b){return a.q<b.q?-1:a.q>b.q?1:a.k<b.k?-1:a.k>b.k?1:mlOrd(a,b)}).forEach(function(e){
+      h+='<div class="ex" data-q="'+esc(e.q)+'"><div class="src">'+(e.ai?'<span class="aitag">🤖 AI</span> ':"")+esc(qLabel(e.q))+" "+(e.k==="a"?"㉠":"㉡")+" · 第"+e.try+"次 · "+esc(e.date)+(e.ai?" · "+esc(e.score)+"/5":"")+(e.minor?" · 小问题":"")+' ›</div>'+
+        '<div><span style="color:var(--bad)" lang="ko">'+esc(e.ans||"（空）")+"</span>"+(e.fix?' → <span style="color:var(--ok)" lang="ko">'+esc(e.fix)+"</span>":"")+"</div>"+
         '<div style="color:var(--muted);font-size:13px">'+esc(e.cause)+"</div></div>";
     });
     h+="</details>";
@@ -1125,6 +1171,17 @@ function copyLink(){
 $("topnav").addEventListener("click",function(e){var b=e.target.closest("button[data-view]");if(b)setView(b.getAttribute("data-view"))});
 $("wtabs").addEventListener("click",function(e){var b=e.target.closest("button[data-tab]");if(b)setTab(b.getAttribute("data-tab"))});
 $("wpart").addEventListener("click",function(e){var b=e.target.closest("button[data-part]");if(!b)return;var p=b.getAttribute("data-part");if(p===opts.part)return;if(opts.part==="5354"&&window.TopikW54&&!TopikW54.leaveOK())return;setPart(p)});
+function aiStat(){var W=WAI(),el=$("wAIStat");if(el)el.textContent=W?"🤖 AI 评分："+W.status():""}
+$("wAISet").onclick=function(){if(WAI())WAI().openSettings()};
+window.addEventListener("topik-ai-change",function(){aiStat();if(opts.part==="5152"&&opts.tab==="prac"&&!$("wPrac").hidden&&order[idx]){
+  var b=$("wShow"),c=$("wCard");if(!c)return;   // 只更新按钮和 AI 区，不重画作答框
+  var on=WAI()&&WAI().active(), a=$("wAI");
+  if(b&&!revealed)b.textContent=on?"交卷 · 看参考答案 + 🤖 AI 评分":"看参考答案";
+  if(on&&!a&&b){a=document.createElement("button");a.type="button";a.className="b-ghost full small wskeep";a.id="wAI";a.textContent="🤖 只要 AI 评分";b.parentNode.insertBefore(a,b.nextSibling)}
+  if(!on&&a)a.remove();
+  var s=aiRes[order[idx].id]; if(s&&s.st==="err") delete aiRes[order[idx].id];   // 设置改了：旧的错误提示作废
+  renderAI()}});
+aiStat();
 $("wClear").onclick=function(){if(confirm("确定清空写作的自评记录？（老师整理的易错记录不受影响）")){st={marks:{}};drafts={};save();revealed=false;setTab(opts.tab);toast("已清空")}};
 $("wReload").onclick=function(){loaded=false;cheatLoaded=false;ensure().then(function(){setTab(opts.tab)})};
 var WQS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1))});return o})();

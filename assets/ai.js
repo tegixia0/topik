@@ -1,4 +1,5 @@
-/* 🤖 AI 判题（DeepSeek）—— 语法整句 gd: / 语法闪卡 gc: 本地判错时再请 AI 判一次。
+/* 🤖 AI 判题（DeepSeek）共用模块 —— Key/开关/设置面板/请求/超时/错误处理。
+   使用者：语法整句 gd: / 语法闪卡 gc:（本文件里的 judge），写作 51·52 / 53·54（writing/wai.js，经由 chatJSON）。
    安全：API Key 只保存在用户自己浏览器的 localStorage（topik.ai.deepseek.key），浏览器直连 api.deepseek.com；
    仓库、代码、日志里都没有、也不能放任何 Key。 */
 (function(){
@@ -18,12 +19,12 @@ function mask(k){return k?"••••"+k.slice(-4):""}
 function err(code,msg){var e=new Error(msg);e.code=code;return e}
 
 /* ---- 请求（带 20 秒超时；错误统一成简短中文） ---- */
-function call(body,key){
-  key=String(key||getKey()).trim();
+function call(body,key,timeout){
+  key=String(key||getKey()).trim(); var TO=timeout||CFG.timeout;
   if(!key) return Promise.reject(err("nokey","还没有设置 DeepSeek Key"));
   var ctl=typeof AbortController!=="undefined"?new AbortController():null, timer=null, timedOut=false;
   return new Promise(function(resolve,reject){
-    timer=setTimeout(function(){timedOut=true;if(ctl)try{ctl.abort()}catch(e){}reject(err("timeout","AI 超时（"+Math.round(CFG.timeout/1000)+" 秒）"))},CFG.timeout);
+    timer=setTimeout(function(){timedOut=true;if(ctl)try{ctl.abort()}catch(e){}reject(err("timeout","AI 超时（"+Math.round(TO/1000)+" 秒）"))},TO);
     fetch(CFG.api,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body),signal:ctl?ctl.signal:undefined})
       .then(function(r){
         if(r.status===401) throw err("auth","Key 无效（401）");
@@ -33,7 +34,7 @@ function call(body,key){
         return r.json().catch(function(){throw err("json","AI 返回格式错误")});
       })
       .then(resolve,function(e){reject(e&&e.code?e:err("net","网络错误，连不上 DeepSeek"))});
-  }).then(function(d){clearTimeout(timer);return d},function(e){clearTimeout(timer);throw timedOut?err("timeout","AI 超时（"+Math.round(CFG.timeout/1000)+" 秒）"):e});
+  }).then(function(d){clearTimeout(timer);return d},function(e){clearTimeout(timer);throw timedOut?err("timeout","AI 超时（"+Math.round(TO/1000)+" 秒）"):e});
 }
 function contentOf(d){
   var t=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content;
@@ -70,6 +71,14 @@ var TYPE={
   zh2ko:"写语法形式：根据中文意思写出对应的韩语语法形式（如 -는 바람에）。判断是否为同一语法或功能等价、适合这个中文意思的语法"
 };
 /* p: {type, zh, sentence?, std, accepted[], grammar?, grammarInfo?, user} → {correct, minor, errors[], corrected, tip} */
+/* 通用：system + user(JSON) → 解析好的 JSON 对象。o: {maxTokens, timeout} */
+function chatJSON(sys,user,o){
+  o=o||{};
+  return call({model:CFG.model,temperature:0,max_tokens:o.maxTokens||800,stream:false,response_format:{type:"json_object"},
+    messages:[{role:"system",content:sys},{role:"user",content:typeof user==="string"?user:JSON.stringify(user)}]},null,o.timeout).then(function(d){
+    var x=contentOf(d); if(!x||typeof x!=="object") throw err("json","AI 返回格式错误"); return x;
+  });
+}
 /* 去掉空格和标点后比较（与 accepted.js 的 normalize 一致） */
 function squash(s){return String(s==null?"":s).normalize("NFC").toLowerCase().replace(/[\s\u00a0\u3000]+/g,"").replace(/[\p{P}\p{S}]/gu,"")}
 /* 复核 AI 的“错误”判定：
@@ -124,20 +133,20 @@ function openSettings(onClose){
   var el=document.createElement("div"); el.className="ai-sheet"; el.id="aiSheet"; el.setAttribute("role","dialog"); el.setAttribute("aria-label","AI 判题设置");
   function state(){var k=getKey();return k?"已保存 Key："+mask(k)+(isOn()?" · AI 判题已开启":" · AI 判题已关闭"):"还没有保存 Key（不设置也能正常练习）"}
   el.innerHTML='<h3>⚙️ AI 判题设置（DeepSeek）</h3>'+
-    '<p class="minfo">本地判错时，自动请 DeepSeek 再判一次（语法整句 / 语法闪卡）。<b>Key 只保存在这台设备的浏览器里</b>（localStorage），不会上传到网站或仓库；请求直接从浏览器发到 api.deepseek.com，费用记在你的 DeepSeek 账户。</p>'+
+    '<p class="minfo">语法练习本地判错时自动请 DeepSeek 再判一次；写作 51·52 / 53·54 交卷后请 DeepSeek 按 TOPIK 标准评分。一个 Key 全站通用。<b>Key 只保存在这台设备的浏览器里</b>（localStorage），不会上传到网站或仓库；请求直接从浏览器发到 api.deepseek.com，费用记在你的 DeepSeek 账户。</p>'+
     '<label class="lb" for="aiKey">DeepSeek API Key</label>'+
     '<input id="aiKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="'+(hasKey()?"已保存（留空 = 不修改）":"粘贴 DeepSeek API Key")+'">'+
     '<div class="minfo" id="aiState">'+esc(state())+'</div>'+
     '<label class="ai-tog"><input type="checkbox" id="aiOn"'+(isOn()?" checked":"")+'> 开启 AI 判题</label>'+
     '<div class="racts"><button type="button" class="gbtn pri" data-ai="save">保存</button><button type="button" class="gbtn" data-ai="test">测试</button><button type="button" class="gbtn" data-ai="clear">清除 Key</button><button type="button" class="gbtn" data-ai="close">关闭</button></div>'+
     '<div class="ai-msg" id="aiMsg" aria-live="polite"></div>'+
-    '<div class="minfo ai-acc">AI 判对后本机记住的写法：<b id="aiAccN">'+accCount()+'</b> 条 <button type="button" class="gbtn ai-mini" data-ai="clearacc">清空</button></div>'+
+    '<div class="minfo ai-acc">语法练习里 AI 判对后本机记住的写法：<b id="aiAccN">'+accCount()+'</b> 条 <button type="button" class="gbtn ai-mini" data-ai="clearacc">清空</button></div>'+
     '<div class="minfo">没有 Key：在 platform.deepseek.com 创建一个，粘贴到上面，保存后点「测试」。</div>';
   document.body.appendChild(back); document.body.appendChild(el);
   var inp=el.querySelector("#aiKey"), msg=el.querySelector("#aiMsg");
   function say(t,cls){msg.textContent=t;msg.className="ai-msg"+(cls?" "+cls:"")}
   function refresh(){el.querySelector("#aiState").textContent=state();inp.placeholder=hasKey()?"已保存（留空 = 不修改）":"粘贴 DeepSeek API Key"}
-  function close(){closeSettings(); if(onClose) onClose()}
+  function close(){closeSettings(); if(onClose) onClose(); try{window.dispatchEvent(new Event("topik-ai-change"))}catch(x){}}
   back.onclick=close;
   el.querySelector("#aiOn").onchange=function(){setOn(this.checked);refresh();say(this.checked?"已开启 AI 判题":"已关闭 AI 判题","ok")};
   el.onclick=function(e){
@@ -161,6 +170,6 @@ function closeSettings(){
 }
 
 window.TopikAI={CFG:CFG,getKey:getKey,setKey:setKey,hasKey:hasKey,isOn:isOn,setOn:setOn,active:active,
-  judge:judge,verify:verify,test:test,accList:accList,accAdd:accAdd,accCount:accCount,accClear:accClear,
+  judge:judge,verify:verify,test:test,chatJSON:chatJSON,squash:squash,err:err,accList:accList,accAdd:accAdd,accCount:accCount,accClear:accClear,
   openSettings:openSettings,closeSettings:closeSettings};
 })();

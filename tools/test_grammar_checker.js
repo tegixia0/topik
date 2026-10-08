@@ -94,7 +94,7 @@ function t(name,cond,info){console.log((cond?"PASS ":"FAIL ")+name+(info?"  → 
   t(`cross-match ${S.length} drill sentences (fold+register): only the 2 known register twins`,col.length===2,col.length+" collisions");
   // ---- AI verdict post-check (ai.js verify) ----
   console.log("\n=== AI verdict post-check ===");
-  const C=makeCtx(false); vm.runInContext(fs.readFileSync(SITE+"/grammar/ai.js","utf8"),C); await C.TopikGrammar._t.ensure();
+  const C=makeCtx(false); vm.runInContext(fs.readFileSync(SITE+"/assets/ai.js","utf8"),C); await C.TopikGrammar._t.ensure();
   const V=(res,p)=>C.TopikAI.verify(JSON.parse(JSON.stringify(res)),p,C.TopikGrammar._t.sameAns);
   let v=V({correct:false,errors:[{wrong:"자리를",right:"자리를",why:"x"}],corrected:"예약해야 자리를 보장받을 수 있어요",tip:""},{type:"sent",user:"예약해야 자리가 보장돼요."});
   t("aya#1: quoted fragment 「자리를」 not in answer → flipped correct",v.correct&&v.flipped==="nofrag",JSON.stringify(v));

@@ -32,7 +32,7 @@ function toast(m){var t=$("toast");if(!t){alert(m);return}t.textContent=m;t.clas
 function retryBtnHTML(){return '<div class="racts gretry-row"><button type="button" class="gbtn gretry" data-a="retry">✏️ 再写一次</button></div>'}
 function retryNoteHTML(){return R&&R.tries?'<div class="gretry-note">✏️ 第 '+(R.tries+1)+' 次写 · 答案已隐藏'+(R.counted?'，第一次仍记为错':'')+'</div>':""}
 function regNoteHTML(good){return good&&R&&R.reg?'<div class="greg-note">✓ 语体不同也算对（标准答案用 '+esc(R.reg)+'）</div>':""}
-/* ---------- 🤖 AI 判题（grammar/ai.js；Key 只在本机 localStorage） ---------- */
+/* ---------- 🤖 AI 判题（assets/ai.js；Key 只在本机 localStorage） ---------- */
 function AI(){return window.TopikAI||null}
 function aiMode(){return opt.mode==="sent"||opt.mode==="fill"||opt.mode==="zh2ko"}
 function aiOn(){var A=AI();return !!(A&&A.active()&&aiMode())}

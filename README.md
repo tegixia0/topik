@@ -183,9 +183,14 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 
 ### 🤖 AI 判题（DeepSeek，可选）
 
-- 语法整句 `gd:` 和语法闪卡 `gc:`（中→韩 / 句子填空）本地判错（标准答案、`accepted.json`、句末语体归一都不匹配）时，自动请 DeepSeek（`deepseek-chat`，`response_format: json_object`，`temperature: 0`）再判一次。代码在 `grammar/ai.js`。
-- 入口：语法闪卡工具栏 / 分类练页面的「⚙️ AI 判题」。填 DeepSeek API Key → 保存 → 测试；可开关、清除 Key。**Key 只保存在用户浏览器的 localStorage（`topik.ai.deepseek.key`），浏览器直连 `api.deepseek.com`（已确认允许 CORS）；仓库里绝不放 Key。** 没有 Key 时和以前完全一样，只在判错时多一行提示。
+- 语法整句 `gd:` 和语法闪卡 `gc:`（中→韩 / 句子填空）本地判错（标准答案、`accepted.json`、句末语体归一都不匹配）时，自动请 DeepSeek（`deepseek-chat`，`response_format: json_object`，`temperature: 0`）再判一次。共用代码（Key、开关、设置面板、请求/超时/错误处理）在 `assets/ai.js`（`window.TopikAI`）。
+- 入口：语法闪卡工具栏 / 分类练页面 / 写作页顶部的「⚙️ AI 判题」（同一个设置面板、同一个 Key）。填 DeepSeek API Key → 保存 → 测试；可开关、清除 Key。**Key 只保存在用户浏览器的 localStorage（`topik.ai.deepseek.key`），浏览器直连 `api.deepseek.com`（已确认允许 CORS）；仓库里绝不放 Key。** 没有 Key 时和以前完全一样，只在判错时多一行提示。
 - AI 判对：显示「🤖 AI 判定：正确」，按「其实我写对了」计分（重写时第一次仍记为错），并把这个写法记在本机 `topik.grammar.aiAccepted.v1`，下次直接判对。AI 判错：在错误反馈下显示错误点、改正和 📌 提示。超时（20 秒）/ 网络错误 / 401 / 格式错误时显示简短错误，按本地判分。「📋 复制给老师」照常可用，复制内容附带 AI 判定。
+- **写作 AI 评分**（`writing/wai.js`，经 `TopikAI.chatJSON`）：
+  - 51·52：「交卷 · 看参考答案 + 🤖 AI 评分」或「🤖 只要 AI 评分」→ 每空 5 分、共 10 分（意思对但有语法/拼写错 ≈3 分，部分符合 1–2 分）；检查语法、拼写、띄어쓰기、上下文衔接；51 用 -습니다 体和敬语（드리다 / -시-），52 用 -다 体不用 저/제；不是比对任务。返回每空 `score/correct/errors[{wrong,right,why}]/corrected/tags`（`mylog.json` 的类型 id）+ `total/tip`。超时 45 秒。
+  - 53·54：「🤖 交卷 · AI 批改」→ 按官方配分：**53 = 内容及任务完成 7 + 文章结构 7 + 语言使用 16 = 30；54 = 12 + 12 + 26 = 50**。传本地算好的字数（含空格、不含换行），53 要对照图表数据，54 要回答每个小问题。返回 `score/breakdown/level_estimate/errors[{wrong,right,错因,tag}]`（`essaylog.json` 的标签）`/rewrite/rules/summary`。超时 90 秒，`max_tokens` 6000。
+  - AI 的 `errors` 只保留能在学生答案里原样找到的片段；分数按配分截断，53·54 总分 = 三项之和。AI 输出一律按纯文本显示。
+  - 记录只存在本机：51·52 → `topik.writing.ai.v1`（格式同 `mylog.json` 的 entries，加 `ai:true`），53·54 → `topik.w54.ai.v1`（格式同 `essaylog.json` 的 attempts）。和老师批改一起显示在每题的批改记录 /「📚 我之前的作文」/ 易错点里，标「🤖 AI」；「已做 N 次 · 最近 X分」两种都算。作答框每次打开仍是空白。「📋 复制给老师」附带 AI 分数和评语。
 
 ## 问老师 · 老师认可的写法（`accepted.json`）
 
