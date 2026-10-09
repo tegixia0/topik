@@ -192,6 +192,16 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
   - AI 的 `errors` 只保留能在学生答案里原样找到的片段；分数按配分截断，53·54 总分 = 三项之和。AI 输出一律按纯文本显示。
   - 记录只存在本机：51·52 → `topik.writing.ai.v1`（格式同 `mylog.json` 的 entries，加 `ai:true`），53·54 → `topik.w54.ai.v1`（格式同 `essaylog.json` 的 attempts）。和老师批改一起显示在每题的批改记录 /「📚 我之前的作文」/ 易错点里，标「🤖 AI」；「已做 N 次 · 最近 X分」两种都算。作答框每次打开仍是空白。「📋 复制给老师」附带 AI 分数和评语。
 
+## ☁️ 多设备进度同步（GitHub 私密 Gist，可选）
+
+- 入口：顶部导航下面的同步状态行「☁️ … ⚙️ 设置」（每个页面都有）；AI 判题设置面板里也有「进度同步设置」按钮。代码在 `assets/sync.js`（必须在其它模块之前加载）。
+- 设置：创建 classic token（<https://github.com/settings/tokens/new?scopes=gist&description=topik-sync>，**只勾 gist**，不过期）→ 在每台设备粘贴同一个 Token。第一次同步自动建私密 Gist `topik-progress.json`；另一台设备没有 Gist ID 时会在你的 gist 里按文件名找到它（也可以手动填 Gist ID）。
+- **Token 只存在本机 localStorage（`topik.sync.token`），不同步、不进仓库；DeepSeek Key 也不同步。** 仓库里绝不放 Token。
+- 同步的 key：`topik.wrong.v1`、`topik.bank.v1`、`topik.writing.v1`、`topik.wg.wrong.v1`、`topik.w54.wrong.v1`、`topik.writing.ai.v1`、`topik.w54.ai.v1`、`topik.grammar.wrong.v1`、`topik.grammar.drill.v1`、`topik.grammar.aiAccepted.v1`、`topik.reading.v1`、`topik.reading.last`。不同步：Key/Token、界面偏好（`topik.view`、`topik.mode`、各种 `*.opt*`、`topik.ai.on`、`topik.grammar.hintsOn.v1`、`topik.wsplit.v1`）、进行中的整套模拟 `topik.reading.mock.v1`。
+- 合并：三方合并（本机上次同步时的共同版本 `topik.sync.base` + 本机 + 云端）。只有一边改了 → 用改了的一边（删除也会同步，比如错题答对移出、清空错题本）；两边都改了 → 按数据形状合并：对象逐键合并、计数取大、数组按 id 并集去重、带时间戳的记录（词库每词 `l`/`n`，自评 `t`，阅读作答 `t`，分类练 `lastAt`）取较新的一条；其它标量按该 key 最后修改时间。没有共同版本（第一次同步、云端被别的设备覆盖过）时做并集，任何一边的数据都不丢。
+- 时机：打开网站时拉取合并（合并到新进度且还没操作时自动刷新一次页面），进度变化 5 秒后、切到后台/关闭页面时上传，回到前台（>30 秒）再拉取；另有「立即同步」按钮。各模块监听 `topik-sync` 事件重新读取 localStorage，避免内存里的旧数据覆盖合并结果。
+- 测试：`node tools/test_sync_merge.js`。
+
 ## 问老师 · 老师认可的写法（`accepted.json`）
 
 所有打字闪卡（单词 中→韩、`?cat=writing-5354`、`?cat=writing-grammar`、`?cat=grammar-core` 中→韩/句子填空、语法整句练习 `?grammar=drill`）

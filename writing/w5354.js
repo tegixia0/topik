@@ -12,6 +12,8 @@ if(opt.mode!=="ko2zh")opt.mode="zh2ko";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==="object"?v:d}catch(e){return d}}
 function save(){try{localStorage.setItem(LS_OPT,JSON.stringify(opt))}catch(e){}}
 function saveW(){try{localStorage.setItem(LS_W,JSON.stringify(W))}catch(e){}}
+/* ☁️ 同步合并了其他设备的进度（assets/sync.js）：重新读取，避免内存里的旧数据覆盖 */
+window.addEventListener("topik-sync",function(){W=load(LS_W,{})});
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function toast(m){var t=$("toast");if(!t)return;t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show")},1800)}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}

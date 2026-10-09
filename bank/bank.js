@@ -12,6 +12,8 @@ var S=null;                           // 当前练习
 var view={tab:st.opt.tab||"daily", cat:null, grp:0, pos:"", lvl:"", hfOnly:false};
 function load(){var d;try{d=JSON.parse(localStorage.getItem(LS))}catch(e){}d=d&&typeof d==="object"?d:{};d.opt=d.opt||{};d.w=d.w||{};d.days=d.days||{};if(!d.opt.n)d.opt.n=50;if(!d.opt.src)d.opt.src="hf";if(!d.opt.mode)d.opt.mode="zh2ko";return d}
 function save(){try{var ks=Object.keys(st.days).sort();while(ks.length>120){delete st.days[ks.shift()]}localStorage.setItem(LS,JSON.stringify(st))}catch(e){}}
+/* ☁️ 同步合并了其他设备的进度（assets/sync.js）：重新读取，避免内存里的旧数据覆盖 */
+window.addEventListener("topik-sync",function(){var t=st.opt&&st.opt.tab;st=load();if(t)st.opt.tab=t});
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function toast(m){var t=$("toast");if(!t)return;t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show")},1700)}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}

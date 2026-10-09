@@ -10,6 +10,8 @@ var MODES={zh2ko:"中→韩（写语法）",fill:"句子填空（写形式）",k
 var SENT_MODES={sent:1,sentzh:1};
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==="object"?v:d}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+/* ☁️ 同步合并了其他设备的进度（assets/sync.js）：重新读取，避免内存里的旧数据覆盖 */
+window.addEventListener("topik-sync",function(){W=load(LS_W,{});PROG=load(LS_DRILL,{})});
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function setHintsOn(v){hintsOn=!!v; try{localStorage.setItem(LS_HINT,hintsOn?"1":"0")}catch(e){}}
 /** Vocab hints for 中→韩 sentence / fill — Korean lemma + Chinese gloss (no grammar pattern spoiler). */

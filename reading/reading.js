@@ -7,6 +7,8 @@ var D=null, Q=[], byId={}, groups={}, T={}, st=load(LS,{a:{},w:{}}), opt=load(LS
 var timerId=null, root=null, NUM=["①","②","③","④"];
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==="object"?v:d}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+/* ☁️ 同步合并了其他设备的进度（assets/sync.js）：重新读取，避免内存里的旧数据覆盖 */
+window.addEventListener("topik-sync",function(){st=load(LS,{a:{},w:{}});st.a=st.a||{};st.w=st.w||{}});
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function rich(s){return esc(s).replace(/&lt;(\/?)u&gt;/g,"<$1u>").replace(/\(\s*(㉠|㉡|㉢|㉣)\s*\)/g,"<b class=\"slot\">( $1 )</b>").replace(/\(\s{2,}\)/g,"<span class=\"blank\">(　　　　　)</span>").replace(/\n/g,"<br>")}
 function plain(s){return String(s||"").replace(/<\/?u>/g,"")}

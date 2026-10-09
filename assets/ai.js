@@ -141,7 +141,8 @@ function openSettings(onClose){
     '<div class="racts"><button type="button" class="gbtn pri" data-ai="save">保存</button><button type="button" class="gbtn" data-ai="test">测试</button><button type="button" class="gbtn" data-ai="clear">清除 Key</button><button type="button" class="gbtn" data-ai="close">关闭</button></div>'+
     '<div class="ai-msg" id="aiMsg" aria-live="polite"></div>'+
     '<div class="minfo ai-acc">语法练习里 AI 判对后本机记住的写法：<b id="aiAccN">'+accCount()+'</b> 条 <button type="button" class="gbtn ai-mini" data-ai="clearacc">清空</button></div>'+
-    '<div class="minfo">没有 Key：在 platform.deepseek.com 创建一个，粘贴到上面，保存后点「测试」。</div>';
+    '<div class="minfo">没有 Key：在 platform.deepseek.com 创建一个，粘贴到上面，保存后点「测试」。</div>'+
+    (window.TopikSync?'<div class="minfo sy-link">☁️ 手机 ⇄ 电脑同步学习进度：<button type="button" class="gbtn ai-mini" data-ai="sync">进度同步设置</button></div>':'');
   document.body.appendChild(back); document.body.appendChild(el);
   var inp=el.querySelector("#aiKey"), msg=el.querySelector("#aiMsg");
   function say(t,cls){msg.textContent=t;msg.className="ai-msg"+(cls?" "+cls:"")}
@@ -152,6 +153,7 @@ function openSettings(onClose){
   el.onclick=function(e){
     var b=e.target.closest("button[data-ai]"); if(!b) return; var a=b.getAttribute("data-ai");
     if(a==="close") close();
+    else if(a==="sync"){closeSettings();if(window.TopikSync)TopikSync.open()}
     else if(a==="save"){var v=inp.value.trim(); if(v) setKey(v); setOn(el.querySelector("#aiOn").checked); inp.value=""; refresh(); say(hasKey()?"已保存（只存在本机）":"还没有输入 Key",hasKey()?"ok":"bad")}
     else if(a==="clear"){setKey(""); inp.value=""; refresh(); say("已清除本机保存的 Key","ok")}
     else if(a==="clearacc"){if(confirm("清空 AI 判对后记住的写法？")){accClear();el.querySelector("#aiAccN").textContent="0";say("已清空","ok")}}

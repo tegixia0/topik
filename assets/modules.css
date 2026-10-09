@@ -337,3 +337,16 @@ details.ghints>summary::-webkit-details-marker{display:none}
 .aicnt+.cnt{margin-left:6px!important}
 .mlit.ai{border-left:3px solid #35527e;padding-left:6px}
 .w54att.ai>summary{color:#cfe0ff}
+
+/* ---------- ☁️ 进度同步 ---------- */
+.syncbar{display:flex;align-items:center;gap:6px;margin:-4px 2px 8px;font-size:12.5px;color:var(--muted);min-height:26px}
+.syncbar .sy-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sy-t.ok{color:var(--muted)}.sy-t.bad{color:var(--bad)}.sy-t.warn{color:var(--warn)}.sy-t.off{opacity:.8}
+.sy-btn{flex:0 0 auto;border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:999px;font-size:12.5px;min-height:26px;padding:0 10px}
+.ai-sheet input[type=text]{width:100%;box-sizing:border-box;font-size:16px;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:#0f1722;color:var(--ink)}
+.ai-sheet .sy-t{white-space:normal;margin-top:8px}
+.sy-how{margin:8px 0;border:1px solid var(--border);border-radius:12px;padding:6px 10px;background:#141c29}
+.sy-how summary{cursor:pointer;font-weight:700;font-size:14.5px}
+.sy-how ol,.sy-how ul{padding-left:1.3em;margin:6px 0}.sy-how li{margin:4px 0}
+.sy-how a{color:#9cc2ff}
+.sy-link{margin-top:10px}
