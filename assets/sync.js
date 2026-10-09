@@ -96,9 +96,13 @@ if(typeof window==="undefined") return;
 
 /* ====================== 浏览器部分 ====================== */
 var LS_TOKEN="topik.sync.token", LS_GIST="topik.sync.gist", LS_BASE="topik.sync.base", LS_STATE="topik.sync.state",
-    LS_UPD="topik.sync.upd", LS_DEV="topik.sync.device", LS_AUTO="topik.sync.auto";
+    LS_UPD="topik.sync.upd", LS_DEV="topik.sync.device", LS_AUTO="topik.sync.auto",
+    LS_LAST="topik.sync.last",    // {try:上次开始同步的时间, ok:上次成功同步的开始时间}（所有标签页共用，用来限制频率）
+    LS_DIRTY="topik.sync.dirty";  // 本机最后一次改进度的时间（> last.ok 就表示还有没上传的改动）
 var FILE="topik-progress.json", APIURL="https://api.github.com";
-var DEBOUNCE=5000, MIN_GAP=8000, TIMEOUT=20000;
+var INTERVAL=5*60*1000,   // 自动同步（拉取 + 合并 + 上传）最多每 5 分钟一次
+    FLUSH_GAP=60*1000,     // 切到后台 / 关闭页面时，有未上传的改动就静默上传一次（但距上次同步至少 1 分钟）
+    TIMEOUT=20000;
 var store=null; try{store=window.localStorage}catch(e){}
 var rawSet=null, rawRemove=null;
 try{rawSet=Storage.prototype.setItem;rawRemove=Storage.prototype.removeItem}catch(e){}
@@ -119,11 +123,15 @@ function fmtTime(t){if(!t)return "";var d=new Date(t),p=function(n){return Strin
   var td=new Date();var same=d.toDateString()===td.toDateString();
   return (same?"今天 ":(d.getMonth()+1)+"/"+d.getDate()+" ")+p(d.getHours())+":"+p(d.getMinutes())}
 
-/* ---- 拦截本页对进度 key 的写入：记修改时间 + 5 秒后自动同步 ---- */
-var dirty=false, timer=null;
+/* ---- 拦截本页对进度 key 的写入：记修改时间，等 5 分钟定时器统一上传 ---- */
+var timer=null;
+function last(){var o=jget(LS_LAST,{});return isObj(o)?o:{}}
+function pending(){var d=+lsGet(LS_DIRTY)||0;return d>0&&d>=(+last().ok||0)}   // 有没上传的本机改动（跨标签页 / 刷新后也记得）
+function sinceTry(){return now()-(+last().try||0)}
+function due(){return sinceTry()>=INTERVAL}
 function touched(k){
   if(!KEYS[k]) return;
-  var u=jget(LS_UPD,{}); u[k]=now(); jset(LS_UPD,u); dirty=true; schedule(DEBOUNCE);
+  var t=now(), u=jget(LS_UPD,{}); u[k]=t; jset(LS_UPD,u); lsSetRaw(LS_DIRTY,String(t)); schedule();
 }
 if(store&&rawSet){
   try{
@@ -202,16 +210,16 @@ function readLocal(){
 }
 
 /* ---- 同步主流程：拉取 → 合并 → 写回本机 → 推送 ---- */
-var running=null, again=false, lastRun=0;
+var running=null;
 function setState(s){s.at=now();jset(LS_STATE,s);render()}
 function state(){return jget(LS_STATE,{})}
 function sync(opt){
   opt=opt||{};
   if(!configured()) return Promise.resolve({skipped:true});
-  if(running){again=true;return running}
+  if(running) return running;
   if(timer){clearTimeout(timer);timer=null}
-  lastRun=now(); render("syncing");
-  var hadDirty=dirty; dirty=false;
+  var startAt=now(), L=last(); L.try=startAt; jset(LS_LAST,L);
+  if(!opt.silent) render("syncing");
   var changed=[];
   running=Promise.resolve().then(function(){
     var gid=getGist();
@@ -252,27 +260,39 @@ function sync(opt){
       return put.then(function(){finish(pid);return {changed:changed,pushed:true,warn:warn}});
     });
   }).then(function(res){
+    var L2=last(); L2.ok=startAt; L2.try=Math.max(+L2.try||0,startAt); jset(LS_LAST,L2);   // 开始同步之后又改的，仍算未上传
     setState({ok:true,msg:res.warn||"",changed:res.changed.length,pushed:res.pushed});
     if(res.changed.length) applied(res.changed,opt);
     return res;
   },function(e){
-    if(hadDirty) dirty=true;
     if(changed.length) applied(changed,opt);   // 已经写进本机的合并结果也要通知各模块
     if(e&&e.code==="notfound"&&getGist()) e=E("notfound","找不到 Gist "+getGist()+"（ID 填错了，或 Token 不是同一个 GitHub 账号）");
     setState({ok:false,msg:(e&&e.message)||"同步失败"});
     return {error:e};
   }).then(function(r){
     running=null; render();
-    if(again){again=false;schedule(1500)}
+    schedule();   // 还有没上传的改动（比如同步途中又做了题）：排到下一个 5 分钟
     return r;
   });
   return running;
 }
-function schedule(ms){
-  if(!configured()||!autoOn()) return;
-  if(timer) clearTimeout(timer);
-  var wait=Math.max(ms,MIN_GAP-(now()-lastRun));
-  timer=setTimeout(function(){timer=null;sync()},wait);
+/* 有未上传的改动时，在“距上次同步满 5 分钟”那一刻自动同步一次（已有定时器就不动它） */
+function schedule(){
+  if(!configured()||!autoOn()||timer||running||!pending()) return;
+  var wait=Math.max(1000,INTERVAL-sinceTry());
+  timer=setTimeout(function(){
+    timer=null;
+    if(!pending()) return;                 // 别的标签页已经传过了
+    if(!due()){schedule();return}          // 别的标签页刚同步过：顺延
+    if(document.visibilityState==="hidden"){autoSync({silent:true});return}
+    autoSync({});
+  },wait);
+}
+/* 自动同步：距上次同步不到 5 分钟就跳过 */
+function autoSync(opt){
+  if(!configured()||!autoOn()||running) return;
+  if(!due()){schedule();return}
+  sync(opt||{});
 }
 
 /* 合并带来了其他设备的进度：通知各模块重新读取（避免内存里的旧数据把新数据覆盖掉） */
@@ -280,6 +300,7 @@ var loadedAt=now(), interacted=false;
 ["pointerdown","keydown","touchstart"].forEach(function(ev){window.addEventListener(ev,function(){interacted=true},{capture:true,passive:true})});
 function applied(keys,opt){
   try{window.dispatchEvent(new CustomEvent("topik-sync",{detail:{keys:keys}}))}catch(e){try{var ev=document.createEvent("CustomEvent");ev.initCustomEvent("topik-sync",false,false,{keys:keys});window.dispatchEvent(ev)}catch(x){}}
+  if(opt.silent) return;   // 后台静默上传：不弹提示、不刷新
   var t=null; try{t=+sessionStorage.getItem("topik.sync.reloadAt")||0}catch(e){}
   if(opt.initial&&!interacted&&now()-loadedAt<15000&&now()-t>60000&&!sheetOpen()){
     try{sessionStorage.setItem("topik.sync.reloadAt",String(now()))}catch(e){}
@@ -296,7 +317,8 @@ function statusText(mode){
   var s=state();
   if(!s.at) return {cls:"",t:"☁️ 已设置，等待第一次同步"};
   if(!s.ok) return {cls:"bad",t:"☁️ 同步失败："+s.msg+"（"+fmtTime(s.at)+"）"};
-  return {cls:s.msg?"warn":"ok",t:"☁️ 上次同步："+fmtTime(s.at)+(s.msg?" · "+s.msg:"")};
+  var pend=pending()&&autoOn()?" · 有新进度，"+(due()?"稍后":"约 "+Math.max(1,Math.ceil((INTERVAL-sinceTry())/60000))+" 分钟内")+"自动上传":"";
+  return {cls:s.msg?"warn":"ok",t:"☁️ 上次同步："+fmtTime(s.at)+pend+(s.msg?" · "+s.msg:"")};
 }
 function render(mode){
   var bar=document.getElementById("syncBar");
@@ -314,7 +336,7 @@ function openSheet(){
   var el=document.createElement("div"); el.className="ai-sheet"; el.id="sySheet"; el.setAttribute("role","dialog"); el.setAttribute("aria-label","进度同步设置");
   var names=SYNC_KEYS.map(function(k){return KEYS[k].name});
   el.innerHTML='<h3>☁️ 进度同步（手机 ⇄ 电脑）</h3>'+
-    '<p class="minfo">把学习进度（错题本、词库复习、写作 / 阅读 / 语法练习记录、AI 批改记录等）存到你自己 GitHub 账号里的一个<b>私密 Gist</b>，每台设备打开网站时自动拉取合并，做题后 5 秒自动上传。两边的记录会合并，不会互相覆盖。</p>'+
+    '<p class="minfo">把学习进度（错题本、词库复习、写作 / 阅读 / 语法练习记录、AI 批改记录等）存到你自己 GitHub 账号里的一个<b>私密 Gist</b>，每 5 分钟最多自动同步一次（打开网站 / 回到前台时距上次同步满 5 分钟才拉取合并；做题产生的新进度由 5 分钟定时器上传；切到后台或关闭页面时如有没上传的进度，会静默补传一次）。想马上同步就点「立即同步」。两边的记录会合并，不会互相覆盖。</p>'+
     '<details class="sy-how"><summary>📋 第一次怎么设置？（点开）</summary><ol class="minfo">'+
       '<li>电脑上登录 GitHub，打开 <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=topik-sync" target="_blank" rel="noopener">创建 Token 页面</a>（classic token）。</li>'+
       '<li>Note 保持 topik-sync；Expiration 选 <b>No expiration</b>（或尽量长）；权限<b>只勾 gist</b>，其它都不要勾；点最下面 Generate token。</li>'+
@@ -325,7 +347,7 @@ function openSheet(){
     '<input id="syTok" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="'+(configured()?"已保存 "+esc(mask(getToken()))+"（留空 = 不修改）":"粘贴 ghp_… Token")+'">'+
     '<label class="lb" for="syGist">Gist ID（可留空：自动查找 / 自动新建）</label>'+
     '<input id="syGist" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="留空自动" value="'+esc(getGist())+'">'+
-    '<label class="ai-tog"><input type="checkbox" id="syAuto"'+(autoOn()?" checked":"")+'> 自动同步（打开网站时 + 做题后 5 秒）</label>'+
+    '<label class="ai-tog"><input type="checkbox" id="syAuto"'+(autoOn()?" checked":"")+'> 自动同步（最多每 5 分钟一次）</label>'+
     '<div class="minfo sy-t" id="syState"></div>'+
     '<div class="racts"><button type="button" class="gbtn pri" data-sy="save">保存并同步</button><button type="button" class="gbtn" data-sy="now">立即同步</button><button type="button" class="gbtn" data-sy="clear">清除 Token</button><button type="button" class="gbtn" data-sy="close">关闭</button></div>'+
     '<div class="ai-msg" id="syMsg" aria-live="polite"></div>'+
@@ -372,16 +394,23 @@ function boot(){
     if(b.getAttribute("data-sy")==="open") openSheet();
     else {b.disabled=true;sync({manual:true}).then(function(r){b.disabled=false;if(r&&r.error)toastMsg("❌ "+r.error.message);else if(r&&!r.skipped&&!r.changed.length)toastMsg("☁️ 已同步")})}});
   render();
-  if(configured()&&autoOn()) setTimeout(function(){sync({initial:true})},300);
+  if(configured()&&autoOn()){
+    if(due()) setTimeout(function(){autoSync({initial:true})},300);   // 距上次同步满 5 分钟才拉取（刷新 / 换页面不会重新同步）
+    else schedule();                                                   // 否则只为没上传的改动排定时器
+  }
 }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot); else boot();
+function flush(){   // 切到后台 / 锁屏 / 关闭页面：有没上传的改动就静默补传（防止手机上进度丢在本机）
+  if(!configured()||!autoOn()||running||!pending()||sinceTry()<FLUSH_GAP) return;
+  sync({silent:true});
+}
 document.addEventListener("visibilitychange",function(){
   if(!configured()||!autoOn()) return;
-  if(document.visibilityState==="hidden"){if(dirty)sync()}           // 切到后台 / 锁屏：马上上传
-  else if(now()-lastRun>30000) sync();                                 // 回到前台：拉一下别的设备的进度
+  if(document.visibilityState==="hidden") flush();
+  else autoSync({initial:false});      // 回到前台：距上次同步满 5 分钟才拉取
 });
-window.addEventListener("pagehide",function(){if(dirty&&configured()&&autoOn())sync()});
-window.addEventListener("online",function(){if(configured()&&autoOn())schedule(1000)});
+window.addEventListener("pagehide",flush);
+window.addEventListener("online",function(){if(configured()&&autoOn()&&pending())autoSync({})});
 setInterval(function(){render()},60000);   // 更新“今天 xx:xx”
 
 root.TopikSync={sync:sync,open:openSheet,close:closeSheet,configured:configured,KEYS:KEYS,mergeKey:mergeKey,status:function(){return statusText().t}};
