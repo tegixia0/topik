@@ -43,6 +43,9 @@
 | `syn` | 建议 | 近义词/同类词 1–3 个：`[{"ko":"…","zh":"…"}]` |
 | `ant` | 可选 | 反义词 0–2 个，没有自然的反义词就写 `[]` |
 
+| `voice` | 动词自动补 | 动词的 自/他：`自`（自动词，不及物）/ `他`（他动词，带 을/를）/ `自他`（两用）/ `被动` / `使动`；不用手写，`publish.py` 和 `tools/build_flashcards.py` 按 `voice.json` 自动填 |
+| `pair` | 可选 | 对应词 `[{"ko":"끝나다","voice":"自"}]`（自↔他、主动↔被动/使动），同样由 `voice.json` 自动填 |
+
 `syn`/`ant` 也接受简写字符串 `"대응하다（应对）; 처리하다（处理）"` 或 `["대응하다（应对）"]`，`publish.py` 会自动转换。
 
 ## 写作 51·52（`writing/`）
@@ -290,3 +293,15 @@ python3 tools/add_accepted.py --remove w54:p11 "증가하다가 줄어들었다"
 
 生成：`python3 tools/build_bank.py`（`--stats` 只看统计）→ `bank/index.json`（词表 ~210KB：韩语、中文、分类、级别、高频、词性）＋ `bank/o-NN.json`（按学习顺序每 250 词一块的详情，每日/高频练习用）＋ `bank/c-<分类>.json`（按分类的详情）。详情文件带 `?v=<build>` 缓存，改了内容 build 号自动变。
 原始数据重新抽取：`python3 tools/bank_extract.py`（需要官方 xls 和词典导出，见脚本开头）→ `tools/bank_src/base.json`。
+
+## 动词 自动/他动/被动/使动 标签（`voice.json`）
+
+中→韩 时 끝나다/끝내다、열다/열리다、먹다/먹이다 这类词中文意思一样，分不清该写哪个，所以每个动词都标了：
+
+- `自`（自动词，不及物，例：끝나다）/ `他`（他动词，带 을/를，例：끝내다）/ `自他`（两用，例：움직이다、멈추다）/ `被动`（例：열리다、잡히다、쓰이다；X되다 是 X하다 的被动时也标被动，如 사용되다）/ `使动`（例：먹이다、알리다、높이다）。
+- `voice.json` 是总表：`{"끝내다": {"voice": "他", "pair": [{"ko": "끝나다", "voice": "自"}]}}`；`pair` 是对应词。同形异义词可以加 `"zh": {"聋": {"voice": "自"}}`（按卡片中文意思选标签，如 먹다）。
+- `python3 tools/apply_voice.py` 把总表写进所有词汇数据（`bank/o-*.json`、`bank/c-*.json`、`wordinfo.json`、`decks/*.json`、`categories/*.json`）：pos 含「动词」的词条加 `voice`（和 `pair`），其它字段不动；同时更新 `bank/index.json` 的 `build`（分块缓存版本）。`--check` 只列出没有标签的动词。`tools/build_bank.py` 重建词库时也会带上。
+- 每日新词：`publish.py` 自动从 `voice.json` 补 `voice`/`pair`；HTML 里给了 `voice` 而总表没有的动词会写进 `voice.json`；都没有的打印 `WARNING`（请补进 `voice.json`）。
+- 显示：闪卡（每日/分类/全部/错题本）和 📚 词库练习在**题目上**显示「动词·他动」小标签（中→韩 就能看到）；答案里直接显示说明和「↔ 끝나다（自动）」，词库词表点开的详情里也有。`assets/voice.js` 负责显示，没有 `voice` 字段的旧错题用 `voice.json` 补。
+- 可下载的每日闪卡 HTML：`python3 tools/build_flashcards.py vocab.json --date YYYY-MM-DD --theme "主题"`（模板 `tools/flashcard_template.html`，自动补 `voice`），或 `python3 tools/build_flashcards.py 旧的.html` 用新模板原地重新生成。
+

@@ -243,7 +243,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261009a">
+<link rel="stylesheet" href="assets/modules.css?v=20261009b">
 </head>
 <body>
 <div class="wrap">
@@ -326,7 +326,8 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="grammar/grammar.js?v=20261009a"></script>
 <script src="assets/wsplit.js?v=20261002e"></script>
 <script src="writing/w5354.js?v=20261009a"></script>
-<script src="bank/bank.js?v=20261009a"></script>
+<script src="assets/voice.js?v=20261009a"></script>
+<script src="bank/bank.js?v=20261009b"></script>
 <script>
 (function(){
 "use strict";
@@ -389,14 +390,15 @@ function variants(ans){
 function match(user,ans){var u=norm(user);if(!u)return false;return variants(ans).indexOf(u)>=0}
 
 /* ---------- 词汇信息（词性/记忆法/近反义词） ---------- */
-var INFO_KEYS=["pos","hanja","mem","tip","syn","ant"];
+var INFO_KEYS=["pos","hanja","mem","tip","syn","ant","voice","pair"];
+var VOICE=window.TopikVoice||{of:function(){return null},tagText:function(c,p){return p||""},rowHTML:function(){return ""},badge:function(){return ""},load:function(){return Promise.resolve()}};
 function info(c){ // card fields win, wordinfo.json fills gaps (e.g. old 错题本 entries)
   if(!c||c.t!=="v") return null;
   var w=WI[c.ko]||{},o={},any=false;
   INFO_KEYS.forEach(function(k){var v=(c[k]!=null&&c[k]!==""&&!(Array.isArray(c[k])&&!c[k].length))?c[k]:w[k];if(v!=null&&v!==""){o[k]=v;if(!(Array.isArray(v)&&!v.length))any=true}});
   return any?o:null;
 }
-function posBadge(c){var i=info(c);return i&&i.pos?'<span class="posb">'+esc(i.pos)+"</span>":""}
+function posBadge(c){var i=info(c);return i&&i.pos?'<span class="posb">'+esc(i.pos)+"</span>"+" "+VOICE.badge({ko:c.ko,zh:c.zh,pos:i.pos,voice:i.voice}):""}
 function chips(list,cls){
   return '<div class="chips">'+list.map(function(x){
     if(typeof x==="string") return '<span class="chip '+cls+'" lang="ko">'+esc(x)+"</span>";
@@ -407,6 +409,8 @@ function vid(c){return "v:"+c.ko}   // 稳定卡片ID：单词卡按韩语词（
 var ACC=window.TopikAcc||{load:function(){return Promise.resolve()},alts:function(){return []},find:function(){return null},altsHTML:function(){return ""},okHTML:function(){return ""},copy:function(){}};
 function infoHTML(c,open){
   var i=info(c), accH=c&&c.t==="v"?ACC.altsHTML(vid(c)):""; if(!i&&!accH) return "";
+  var vr=i?VOICE.rowHTML({ko:c.ko,zh:c.zh,pos:i.pos,voice:i.voice,pair:i.pair}):"";   // 动词 自动/他动/被动/使动 + ↔ 对应词：答案里直接显示（不折叠）
+  if(vr) vr='<div class="wi vc-ans">'+vr+"</div>";
   i=i||{};
   var b=accH;
   if(i.pos||i.hanja) b+='<div class="row">'+(i.pos?'<span class="posb">'+esc(i.pos)+"</span> ":"")+(i.hanja?'<span class="k" style="display:inline;margin-left:4px">汉字</span> <span class="hj">'+esc(i.hanja)+"</span>":"")+"</div>";
@@ -414,7 +418,7 @@ function infoHTML(c,open){
   if(i.tip) b+='<div class="tipbox">⚠️ 易错：'+esc(i.tip)+"</div>";
   if(i.syn&&i.syn.length) b+='<div class="row"><span class="k">≈ 近义词 / 同类词</span>'+chips(i.syn,"syn")+"</div>";
   if(i.ant&&i.ant.length) b+='<div class="row"><span class="k">⇄ 反义词</span>'+chips(i.ant,"ant")+"</div>";
-  return '<details class="wi'+(open?" hot":"")+'" id="wi"'+(open?" open":"")+'><summary>📖 词性·记忆法·近反义词'+(accH?" · 也可以写":"")+'</summary><div class="body">'+b+"</div></details>";
+  return vr+'<details class="wi'+(open?" hot":"")+'" id="wi"'+(open?" open":"")+'><summary>📖 词性·记忆法·近反义词'+(accH?" · 也可以写":"")+'</summary><div class="body">'+b+"</div></details>";
 }
 function openInfo(){var d=$("wi");if(d){d.open=true;d.classList.add("hot");try{d.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}}}
 
@@ -429,7 +433,7 @@ function loadDeck(date){
   if(cache[date]) return Promise.resolve(cache[date]);
   return getJSON("decks/"+date+".json").then(function(d){cache[date]=d;return d});
 }
-function loadWI(){return getJSON("wordinfo.json").then(function(w){WI=w||{}}).catch(function(){WI={}})}
+function loadWI(){return Promise.all([getJSON("wordinfo.json").then(function(w){WI=w||{}}).catch(function(){WI={}}),VOICE.load()])}
 function loadIndex(){
   var cats=getJSON("decks/categories.json").then(function(c){CATS=c||[]}).catch(function(){CATS=[]});
   return Promise.all([getJSON("decks/index.json").then(function(ix){index=ix||[]}),cats]).then(renderDeckSel);
@@ -503,9 +507,13 @@ function show(){
   state="ask"; cur=queue[pos];
   var mi=MODE_INFO[mode], koPrompt=(mode==="v_ko_zh"||mode==="g_ko_zh");
   $("label").textContent=mi.label+(source==="all"||source==="wrong"?" · "+mmdd(cur.date||""):"");
-  var tag=$("tag"), ci=info(cur); tag.className="tag";
+  var tag=$("tag"), ci=info(cur); tag.className="tag"; tag.title="";
   if(cur.point){tag.hidden=false;tag.textContent=cur.point}
-  else if(ci&&ci.pos){tag.hidden=false;tag.className="tag pos";tag.textContent=ci.pos}
+  else if(ci&&(ci.pos||VOICE.of({ko:cur.ko,zh:cur.zh,pos:ci.pos,voice:ci.voice}))){   // 中→韩：题目上就显示「动词·他动」，区分 끝나다/끝내다 这类词
+    var vv=VOICE.of({ko:cur.ko,zh:cur.zh,pos:ci.pos,voice:ci.voice,pair:ci.pair});
+    tag.hidden=false;tag.className="tag pos"+(vv?" vc":"");tag.textContent=vv?VOICE.tagText({ko:cur.ko,zh:cur.zh,pos:ci.pos,voice:ci.voice},ci.pos):ci.pos;
+    tag.title=vv?VOICE.LONG[vv.voice]:"";
+  }
   else tag.hidden=true;
   var p=$("prompt"); p.className="prompt"+(cur.t==="g"?" sent":"");
   p.setAttribute("lang",koPrompt?"ko":"zh-CN");

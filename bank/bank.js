@@ -22,6 +22,7 @@ function today(){return dstr(new Date())}
 function addDays(s,n){var p=s.split("-"),d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+n);return dstr(d)}
 var ACC=window.TopikAcc||{load:function(){return Promise.resolve()},find:function(){return null},altsHTML:function(){return ""},okHTML:function(){return '<div class="title">✓ 对</div>'},copy:function(){},normalize:function(s){return String(s||"").replace(/\s+/g,"")},answerVariants:function(s){return [String(s||"").replace(/\s+/g,"")]}};
 function norm(s){return ACC.normalize(s)}
+var VOICE=window.TopikVoice||{of:function(){return null},tagText:function(c,p){return p||""},rowHTML:function(){return ""},LONG:{}};
 function match(user,ans){var u=norm(user);if(!u)return false;return ACC.answerVariants(String(ans)).indexOf(u)>=0}
 function canSpeak(){return "speechSynthesis" in window}
 function speak(t){if(!canSpeak())return;try{speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang="ko-KR";u.rate=.9;speechSynthesis.speak(u)}catch(e){}}
@@ -71,7 +72,7 @@ function mark(w,ok){
 function loadWrong(){try{return JSON.parse(localStorage.getItem(LS_WRONG))||{}}catch(e){return {}}}
 function wrongAdd(w,mk){   // 和闪卡错题本同一格式：键 "v|韩语"，m[模式]=次数
   var all=loadWrong(),k="v|"+w.ko,c=card(w),e=all[k]||{t:"v",ko:w.ko,m:{}};
-  e.zh=w.zh; e.date=e.date||"词库"; ["ex","exzh","pos","hanja","mem","tip","syn","ant"].forEach(function(f){if(c[f]!=null)e[f]=c[f]});
+  e.zh=w.zh; e.date=e.date||"词库"; ["ex","exzh","pos","hanja","mem","tip","syn","ant","voice","pair"].forEach(function(f){if(c[f]!=null)e[f]=c[f]});
   e.m=e.m||{}; e.m[mk]=(e.m[mk]||0)+1; e.last=Date.now(); all[k]=e;
   try{localStorage.setItem(LS_WRONG,JSON.stringify(all))}catch(x){}
 }
@@ -167,9 +168,10 @@ function detailHTML(c){
 function chips(list,cls){
   return '<div class="chips">'+list.map(function(x){if(typeof x==="string")return '<span class="chip '+cls+'" lang="ko">'+esc(x)+"</span>";return '<span class="chip '+cls+'"><b lang="ko">'+esc(x.ko)+"</b>"+(x.zh?" <span>"+esc(x.zh)+"</span>":"")+"</span>"}).join("")+"</div>";
 }
-function infoBody(c){
+function infoBody(c,noVoice){
   var b=ACC.altsHTML("v:"+c.ko);
   if(c.pos||c.hanja) b+='<div class="row">'+(c.pos?'<span class="posb">'+esc(c.pos)+"</span> ":"")+(c.hanja?'<span class="k" style="display:inline;margin-left:4px">汉字</span> <span class="hj">'+esc(c.hanja)+"</span>":"")+"</div>";
+  if(!noVoice) b+=VOICE.rowHTML(c);   // 动词 自动/他动/被动/使动 + ↔ 对应词
   if(c.mem) b+='<div class="row"><span class="k">🧠 记忆法</span>'+esc(c.mem)+"</div>";
   if(c.tip) b+='<div class="tipbox">⚠️ 易错：'+esc(c.tip)+"</div>";
   if(c.syn&&c.syn.length) b+='<div class="row"><span class="k">≈ 近义词 / 同类词</span>'+chips(c.syn,"syn")+"</div>";
@@ -177,8 +179,10 @@ function infoBody(c){
   return b;
 }
 function infoHTML(c,open){
-  var b=infoBody(c); if(!b) return "";
-  return '<details class="wi'+(open?" hot":"")+'" id="bkWi"'+(open?" open":"")+'><summary>📖 词性·记忆法·近反义词</summary><div class="body">'+b+"</div></details>";
+  var b=infoBody(c,true), vr0=VOICE.rowHTML(c); if(!b&&!vr0) return "";
+  var vr=VOICE.rowHTML(c); if(vr) vr='<div class="wi vc-ans">'+vr+"</div>";   // 动词标签+对应词：答案里直接显示（不折叠）
+  if(!b) return vr;
+  return vr+'<details class="wi'+(open?" hot":"")+'" id="bkWi"'+(open?" open":"")+'><summary>📖 词性·记忆法·近反义词</summary><div class="body">'+b+"</div></details>";
 }
 
 /* ---------- 高频 / 分类 列表 ---------- */
@@ -299,7 +303,7 @@ function renderQuiz(){
   if(S.i>=S.q.length) return summary();
   var w=cur(), c=card(w), z=S.mode==="zh2ko", n=S.q.length;
   var h='<div class="bar"><span>'+esc(S.label)+'</span><span class="sp"></span><span><b>'+(S.i+1)+"/"+n+'</b></span><span>对 <b style="color:var(--ok)">'+S.ok+'</b></span><span>错 <b style="color:var(--bad)">'+S.bad+'</b></span></div><div class="progress"><i style="width:'+(S.i/n*100)+'%"></i></div>';
-  h+='<div class="card" id="bkQuiz"><div class="label"><span>'+(z?"中文 → 写韩语单词":"韩语 → 想中文意思")+'</span><span class="tag pos">'+esc(w.pos)+" · "+lvlName(w.lvl)+(w.hf?" · ⭐":"")+'</span></div>';
+  h+='<div class="card" id="bkQuiz"><div class="label"><span>'+(z?"中文 → 写韩语单词":"韩语 → 想中文意思")+'</span><span class="tag pos'+(VOICE.of(c)?" vc":"")+'"'+(VOICE.of(c)?' title="'+esc(VOICE.LONG[VOICE.of(c).voice])+'"':"")+'>'+esc(VOICE.of(c)?VOICE.tagText(c):w.pos)+" · "+lvlName(w.lvl)+(w.hf?" · ⭐":"")+'</span></div>';
   h+='<div class="prompt" lang="'+(z?"zh-CN":"ko")+'">'+esc(z?w.zh:w.ko)+(!z&&canSpeak()?' <button class="speak" id="bkSpk" aria-label="朗读">🔊</button>':"")+"</div>";
   h+='<div class="hintline" id="bkHint">'+(z?'<button type="button" id="bkHintBtn">显示提示</button>':"")+"</div>";
   h+='<textarea class="answer" id="bkAns" rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" lang="'+(z?"ko":"zh-CN")+'" placeholder="'+(z?"输入韩语…":"输入中文意思（可留空直接看答案）")+'"></textarea>';

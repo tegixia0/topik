@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TOPIK 闪卡</title>
+<style>
+:root { --bg:#0f1419; --card:#1a2332; --ink:#e8eef7; --muted:#8b9bb4; --accent:#4f8cff; --ok:#2ecc71; --bad:#ff6b6b; --skip:#f0c14b; --border:#2a3a52; }
+* { box-sizing: border-box; }
+body { margin:0; min-height:100vh; font-family:"Noto Sans SC","Noto Sans KR",system-ui,sans-serif; background:radial-gradient(1200px 600px at 20% -10%,#1e3a5f 0%,transparent 55%),var(--bg); color:var(--ink); display:flex; flex-direction:column; align-items:center; padding:24px 16px 40px; }
+h1 { font-size:1.25rem; font-weight:700; margin:0 0 4px; }
+.sub { color:var(--muted); font-size:.85rem; margin-bottom:18px; text-align:center; max-width:520px; line-height:1.4; }
+.modes { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:16px; max-width:640px; }
+.modes button { border:1px solid var(--border); background:var(--card); color:var(--ink); padding:8px 12px; border-radius:999px; cursor:pointer; font-size:.85rem; }
+.modes button.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+.stats { display:flex; gap:14px; color:var(--muted); font-size:.8rem; margin-bottom:14px; }
+.stats b { color:var(--ink); }
+.card { width:min(560px,100%); background:var(--card); border:1px solid var(--border); border-radius:20px; padding:28px 24px 22px; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+.prompt-label { color:var(--muted); font-size:.75rem; letter-spacing:.06em; margin-bottom:8px; }
+.prompt { font-size:1.35rem; font-weight:700; line-height:1.45; margin-bottom:8px; word-break:break-word; min-height:2.8em; }
+.hint { color:var(--muted); font-size:.85rem; min-height:1.2em; margin-bottom:16px; }
+input#answer { width:100%; padding:14px 16px; border-radius:12px; border:1px solid var(--border); background:#0d121a; color:var(--ink); font-size:1.05rem; outline:none; }
+input#answer:focus { border-color:var(--accent); }
+.feedback { margin-top:12px; min-height:3.2em; font-size:.95rem; line-height:1.5; }
+.feedback.ok { color:var(--ok); }
+.feedback.bad { color:var(--bad); }
+.actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+.actions button { flex:1; min-width:90px; padding:12px 10px; border-radius:12px; border:none; cursor:pointer; font-weight:600; font-size:.95rem; }
+#btnCheck { background:var(--accent); color:#fff; }
+#btnSkip { background:#2a3344; color:var(--skip); }
+#btnRetry { background:#3a2430; color:var(--bad); display:none; }
+#btnNext { background:var(--ok); color:#0b1a10; display:none; }
+#btnSelfOk { display:none; background:#1e3d2f; color:var(--ok); }
+#btnSelfBad { display:none; background:#3a2430; color:var(--bad); }
+.done { display:none; text-align:center; padding:12px 0 4px; }
+.done h2 { margin:0 0 8px; font-size:1.3rem; }
+.ex { margin-top:8px; color:var(--muted); font-size:.85rem; }
+.vtag { display:inline-block; margin-left:8px; padding:1px 9px; border-radius:999px; font-size:.75rem; font-weight:700; letter-spacing:0; background:#3a2a1a; color:#ffd29a; border:1px solid #6a4a26; vertical-align:middle; }
+.vtag:empty { display:none; }
+.voice { margin-top:8px; font-size:.85rem; color:var(--ink); }
+.voice b.v { display:inline-block; padding:0 8px; border-radius:999px; background:#2a3344; color:#ffd29a; margin-right:4px; }
+footer { margin-top:20px; color:var(--muted); font-size:.75rem; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>TOPIK 闪卡</h1>
+  <div class="sub">今日：__THEME__ · 单词闪卡（中→韩 / 韩→中）</div>
+  <div class="modes" id="modes">
+    <button data-mode="v_zh_ko" class="active">单词中→韩</button>
+    <button data-mode="v_ko_zh">单词韩→中</button>
+  </div>
+  <div class="stats">
+    <span>进度 <b id="progress">0/0</b></span>
+    <span>对 <b id="okCount">0</b></span>
+    <span>错 <b id="badCount">0</b></span>
+    <span>跳过 <b id="skipCount">0</b></span>
+  </div>
+  <div class="card" id="mainCard">
+    <div class="prompt-label"><span id="promptLabel">中文</span><span class="vtag" id="vtag"></span></div>
+    <div class="prompt" id="prompt"></div>
+    <div class="hint" id="hint"></div>
+    <input id="answer" type="text" autocomplete="off" placeholder="在此输入答案…" />
+    <div class="feedback" id="feedback"></div>
+    <div class="actions">
+      <button type="button" id="btnCheck">核对</button>
+      <button type="button" id="btnSkip">跳过</button>
+      <button type="button" id="btnRetry">再试</button>
+      <button type="button" id="btnSelfOk">意思对了</button>
+      <button type="button" id="btnSelfBad">差得远</button>
+      <button type="button" id="btnNext">下一张</button>
+    </div>
+  </div>
+  <div class="card done" id="doneCard">
+    <h2>本轮结束</h2>
+    <p id="doneSummary"></p>
+    <div class="actions" style="margin-top:16px">
+      <button type="button" id="btnRestart" style="background:var(--accent);color:#fff">再洗一局</button>
+    </div>
+  </div>
+  <footer>Enter 核对/下一张 · Esc 跳过</footer>
+  <script id="vocab-data" type="application/json">__VOCAB_JSON__</script>
+  <script>
+(function () {
+  const VOCAB = JSON.parse(document.getElementById("vocab-data").textContent);
+  const GRAMMAR = [];
+
+  let mode = "v_zh_ko";
+  let deck = [];
+  let idx = 0;
+  let ok = 0, bad = 0, skip = 0;
+  let awaitingNext = false;
+  let lastWrong = false;
+
+  function shuffle(a) {
+    const arr = a.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  function normalize(s) {
+    return String(s || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[\u3000-\u303f\uff00-\uffef.,!?;:'"()\[\]«»]/g, "");
+  }
+
+  function answersMatch(user, expected) {
+    const u = normalize(user);
+    if (!u) return false;
+    const variants = String(expected).split(/[、/;|]/).map(normalize).filter(Boolean);
+    for (let i = 0; i < variants.length; i++) {
+      const v = variants[i];
+      if (v === u || v.indexOf(u) !== -1 || u.indexOf(v) !== -1) return true;
+    }
+    return false;
+  }
+
+  // 动词 自动/他动/被动/使动（voice / pair 字段）：中→韩 时题目上就显示，区分 끝나다/끝내다、열다/열리다 这类中文意思相同的词
+  const VNAME = { "自": "自动", "他": "他动", "自他": "自他两用", "被动": "被动", "使动": "使动" };
+  const VLONG = { "自": "自动词：不及物，不带宾语 을/를", "他": "他动词：及物，带宾语 을/를", "自他": "自他两用：可以带 을/를，也可以不带",
+    "被动": "被动：主语是被…的一方（不带 을/를）", "使动": "使动：让/使…（带宾语 을/를）" };
+  function voiceTag(v) { return v && VNAME[v.voice] ? "动词·" + VNAME[v.voice] : ""; }
+  function voiceHtml(c) {
+    if (!c.voice || !VNAME[c.voice]) return "";
+    let h = '<div class="voice"><b class="v">' + VNAME[c.voice] + "</b>" + escapeHtml(VLONG[c.voice]);
+    if (c.pair && c.pair.length) {
+      h += "<br>↔ " + c.pair.map(function (p) { return "<b>" + escapeHtml(p.ko) + "</b>（" + escapeHtml(VNAME[p.voice] || p.voice || "") + "）"; }).join("　");
+    }
+    return h + "</div>";
+  }
+  function isToChineseMode() {
+    return mode === "v_ko_zh" || mode === "g_ko_zh";
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function hideSelf() {
+    document.getElementById("btnSelfOk").style.display = "none";
+    document.getElementById("btnSelfBad").style.display = "none";
+  }
+
+  function buildDeck() {
+    if (mode.indexOf("v_") === 0) {
+      deck = shuffle(VOCAB.map(function (v) {
+        return {
+          prompt: mode === "v_zh_ko" ? v.zh : v.ko,
+          answer: mode === "v_zh_ko" ? v.ko : v.zh,
+          hint: mode === "v_zh_ko" ? (v.hint || "") : "",
+          tag: "",
+          ex: v.ex || "",
+          voice: v.voice || "",
+          pair: v.pair || [],
+          vtag: voiceTag(v),
+          label: mode === "v_zh_ko" ? "中文 → 写韩语单词" : "韩语 → 写中文意思"
+        };
+      }));
+    } else {
+      deck = shuffle(GRAMMAR.map(function (g) {
+        return {
+          prompt: mode === "g_zh_ko" ? g.zh : g.ko,
+          answer: mode === "g_zh_ko" ? g.ko : g.zh,
+          hint: "本句练的语法：" + g.point,
+          tag: g.point,
+          ex: "",
+          label: mode === "g_zh_ko" ? "中文句子 → 写成韩语" : "韩语句子 → 写成中文"
+        };
+      }));
+    }
+    idx = 0; ok = 0; bad = 0; skip = 0;
+    awaitingNext = false; lastWrong = false;
+    document.getElementById("mainCard").style.display = "block";
+    document.getElementById("doneCard").style.display = "none";
+    updateStats();
+    showCard();
+  }
+
+  function updateStats() {
+    document.getElementById("progress").textContent = Math.min(idx + 1, deck.length) + "/" + deck.length;
+    document.getElementById("okCount").textContent = String(ok);
+    document.getElementById("badCount").textContent = String(bad);
+    document.getElementById("skipCount").textContent = String(skip);
+  }
+
+  function showCard() {
+    if (idx >= deck.length) {
+      document.getElementById("mainCard").style.display = "none";
+      document.getElementById("doneCard").style.display = "block";
+      document.getElementById("doneSummary").textContent =
+        "共 " + deck.length + " 张 · 对 " + ok + " · 错 " + bad + " · 跳过 " + skip;
+      document.getElementById("progress").textContent = deck.length + "/" + deck.length;
+      return;
+    }
+    const c = deck[idx];
+    document.getElementById("promptLabel").textContent = c.label;
+    document.getElementById("vtag").textContent = c.vtag || "";
+    document.getElementById("vtag").title = c.voice ? VLONG[c.voice] || "" : "";
+    document.getElementById("prompt").textContent = c.prompt;
+    document.getElementById("hint").textContent = c.hint || "";
+    document.getElementById("answer").value = "";
+    document.getElementById("answer").disabled = false;
+    document.getElementById("answer").placeholder = mode.slice(-5) === "zh_ko" ? "写成韩语…" : "写成中文…";
+    document.getElementById("feedback").className = "feedback";
+    document.getElementById("feedback").textContent = "";
+    document.getElementById("btnCheck").style.display = "inline-block";
+    document.getElementById("btnSkip").style.display = "inline-block";
+    document.getElementById("btnRetry").style.display = "none";
+    hideSelf();
+    document.getElementById("btnNext").style.display = "none";
+    awaitingNext = false;
+    lastWrong = false;
+    updateStats();
+    document.getElementById("answer").focus();
+  }
+
+  function check() {
+    if (awaitingNext || idx >= deck.length) return;
+    const c = deck[idx];
+    const user = document.getElementById("answer").value;
+    const fb = document.getElementById("feedback");
+    if (!String(user).trim()) {
+      fb.className = "feedback bad";
+      fb.textContent = "先输入答案再核对。";
+      return;
+    }
+
+    if (isToChineseMode()) {
+      document.getElementById("answer").disabled = true;
+      document.getElementById("btnCheck").style.display = "none";
+      document.getElementById("btnSkip").style.display = "none";
+      document.getElementById("btnRetry").style.display = "none";
+      document.getElementById("btnNext").style.display = "none";
+      document.getElementById("btnSelfOk").style.display = "inline-block";
+      document.getElementById("btnSelfBad").style.display = "inline-block";
+      fb.className = "feedback";
+      fb.innerHTML =
+        "你的写法：<b>" + escapeHtml(user.trim()) + "</b><br>参考译法：<b>" + escapeHtml(c.answer) + "</b>" +
+        '<div class="ex">意思接近就算对。翻译没有唯一标准。</div>' +
+        (c.tag ? '<div class="ex">语法：' + escapeHtml(c.tag) + "</div>" : "") + voiceHtml(c);
+      awaitingNext = true;
+      lastWrong = false;
+      updateStats();
+      return;
+    }
+
+    if (answersMatch(user, c.answer)) {
+      ok++;
+      fb.className = "feedback ok";
+      fb.innerHTML = "正确！" +
+        (c.tag ? '<div class="ex">语法：' + escapeHtml(c.tag) + "</div>" : "") +
+        (c.ex ? '<div class="ex">例句：' + escapeHtml(c.ex) + "</div>" : "") + voiceHtml(c);
+      document.getElementById("answer").disabled = true;
+      document.getElementById("btnCheck").style.display = "none";
+      document.getElementById("btnSkip").style.display = "none";
+      document.getElementById("btnRetry").style.display = "none";
+      hideSelf();
+      document.getElementById("btnNext").style.display = "inline-block";
+      awaitingNext = true;
+      lastWrong = false;
+    } else if (mode === "g_zh_ko") {
+      document.getElementById("answer").disabled = true;
+      document.getElementById("btnCheck").style.display = "none";
+      document.getElementById("btnSkip").style.display = "none";
+      document.getElementById("btnNext").style.display = "none";
+      document.getElementById("btnSelfOk").style.display = "inline-block";
+      document.getElementById("btnSelfBad").style.display = "inline-block";
+      fb.className = "feedback";
+      fb.innerHTML =
+        "你的写法：<b>" + escapeHtml(user.trim()) + "</b><br>参考句子：<b>" + escapeHtml(c.answer) + "</b>" +
+        '<div class="ex">若语法用对、意思一样，可点「意思对了」。</div>' +
+        (c.tag ? '<div class="ex">目标语法：' + escapeHtml(c.tag) + "</div>" : "");
+      awaitingNext = true;
+      lastWrong = false;
+    } else {
+      bad++;
+      lastWrong = true;
+      fb.className = "feedback bad";
+      fb.innerHTML = "不对。参考：<b>" + escapeHtml(c.answer) + "</b>" +
+        (c.ex ? '<div class="ex">例句：' + escapeHtml(c.ex) + "</div>" : "") + voiceHtml(c);
+      document.getElementById("btnCheck").style.display = "none";
+      document.getElementById("btnSkip").style.display = "none";
+      document.getElementById("btnRetry").style.display = "inline-block";
+      hideSelf();
+      document.getElementById("btnNext").style.display = "inline-block";
+      awaitingNext = true;
+    }
+    updateStats();
+  }
+
+  function selfOk() {
+    if (!awaitingNext) return;
+    ok++;
+    lastWrong = false;
+    hideSelf();
+    document.getElementById("btnNext").style.display = "inline-block";
+    document.getElementById("btnRetry").style.display = "none";
+    const c = deck[idx];
+    const fb = document.getElementById("feedback");
+    fb.className = "feedback ok";
+    fb.innerHTML = "意思对了 ✓<div class=\"ex\">参考：" + escapeHtml(c.answer) + "</div>" +
+      (c.tag ? '<div class="ex">语法：' + escapeHtml(c.tag) + "</div>" : "") + voiceHtml(c);
+    updateStats();
+  }
+
+  function selfBad() {
+    if (!awaitingNext) return;
+    bad++;
+    lastWrong = true;
+    hideSelf();
+    document.getElementById("btnRetry").style.display = "inline-block";
+    document.getElementById("btnNext").style.display = "inline-block";
+    const c = deck[idx];
+    const fb = document.getElementById("feedback");
+    fb.className = "feedback bad";
+    fb.innerHTML = "先记参考：<b>" + escapeHtml(c.answer) + "</b>" +
+      (c.tag ? '<div class="ex">语法：' + escapeHtml(c.tag) + "</div>" : "") + voiceHtml(c);
+    updateStats();
+  }
+
+  function skipCard() {
+    if (awaitingNext || idx >= deck.length) return;
+    skip++;
+    const c = deck[idx];
+    const fb = document.getElementById("feedback");
+    fb.className = "feedback";
+    fb.innerHTML = "已跳过。答案：<b>" + escapeHtml(c.answer) + "</b>" +
+      (c.tag ? '<div class="ex">语法：' + escapeHtml(c.tag) + "</div>" : "") + voiceHtml(c);
+    document.getElementById("answer").disabled = true;
+    document.getElementById("btnCheck").style.display = "none";
+    document.getElementById("btnSkip").style.display = "none";
+    document.getElementById("btnRetry").style.display = "none";
+    hideSelf();
+    document.getElementById("btnNext").style.display = "inline-block";
+    awaitingNext = true;
+    updateStats();
+  }
+
+  function retry() {
+    if (!lastWrong) return;
+    const c = deck[idx];
+    const insertAt = Math.min(idx + 2 + Math.floor(Math.random() * 3), deck.length);
+    deck.splice(insertAt, 0, c);
+    document.getElementById("answer").value = "";
+    document.getElementById("answer").disabled = false;
+    document.getElementById("feedback").className = "feedback";
+    document.getElementById("feedback").textContent = "再试一次（答错会稍后再出现）。";
+    document.getElementById("btnCheck").style.display = "inline-block";
+    document.getElementById("btnSkip").style.display = "inline-block";
+    document.getElementById("btnRetry").style.display = "none";
+    hideSelf();
+    document.getElementById("btnNext").style.display = "none";
+    awaitingNext = false;
+    lastWrong = false;
+    document.getElementById("answer").focus();
+  }
+
+  function next() {
+    if (!awaitingNext) return;
+    idx++;
+    showCard();
+  }
+
+  document.getElementById("modes").addEventListener("click", function (e) {
+    const btn = e.target.closest("button[data-mode]");
+    if (!btn) return;
+    document.querySelectorAll(".modes button").forEach(function (b) { b.classList.remove("active"); });
+    btn.classList.add("active");
+    mode = btn.getAttribute("data-mode");
+    buildDeck();
+  });
+
+  document.getElementById("btnCheck").onclick = check;
+  document.getElementById("btnSkip").onclick = skipCard;
+  document.getElementById("btnRetry").onclick = retry;
+  document.getElementById("btnSelfOk").onclick = selfOk;
+  document.getElementById("btnSelfBad").onclick = selfBad;
+  document.getElementById("btnNext").onclick = next;
+  document.getElementById("btnRestart").onclick = buildDeck;
+
+  document.getElementById("answer").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (awaitingNext) {
+        if (document.getElementById("btnNext").style.display !== "none") next();
+      } else check();
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { e.preventDefault(); skipCard(); }
+  });
+
+  if (!VOCAB.length && !GRAMMAR.length) {
+    document.getElementById("prompt").textContent = "题库是空的，请重新下载最新闪卡。";
+  } else {
+    buildDeck();
+  }
+})();
+  </script>
+</body>
+</html>

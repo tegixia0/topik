@@ -350,3 +350,16 @@ details.ghints>summary::-webkit-details-marker{display:none}
 .sy-how ol,.sy-how ul{padding-left:1.3em;margin:6px 0}.sy-how li{margin:4px 0}
 .sy-how a{color:#9cc2ff}
 .sy-link{margin-top:10px}
+
+/* 动词 自动/他动/被动/使动 标签（assets/voice.js） */
+.vcb{display:inline-block;font-size:12px;line-height:1.4;padding:1px 8px;border-radius:999px;font-weight:700;vertical-align:middle;white-space:nowrap;border:1px solid transparent}
+.vcb.vc-自{background:#1f3a2c;color:#7ee2a8;border-color:#2f5b43}
+.vcb.vc-他{background:#3a2a1a;color:#ffc27a;border-color:#6a4a26}
+.vcb.vc-自他{background:#2c2a40;color:#c5b8ff;border-color:#4a4470}
+.vcb.vc-被动{background:#3a1f2c;color:#ff9fc4;border-color:#6a3550}
+.vcb.vc-使动{background:#1f3340;color:#86d4ff;border-color:#2f5568}
+.vc-row .vc-long{font-size:13px;opacity:.9}
+.vc-row .vc-pair{margin-top:4px;font-size:14px}
+.label .tag.pos.vc{background:#3a2a1a;color:#ffd29a;border-color:#6a4a26;font-weight:700}
+.wi.vc-ans{margin-top:10px;padding:8px 12px;border:1px solid var(--border);border-radius:14px;background:#141c29;font-size:15px;line-height:1.6}
+.wi.vc-ans .row{margin:0}

@@ -261,6 +261,8 @@ def main():
     look = base.get("lookup", {})
     rows_look = {}
     M = parse_manual()
+    from apply_voice import load_voice, label as voice_label
+    VOICE = load_voice()
     WI = jload(os.path.join(SITE, "wordinfo.json")) if os.path.exists(os.path.join(SITE, "wordinfo.json")) else {}
     lem, rtext = reading_tokens()
     words = base["words"]
@@ -367,6 +369,8 @@ def main():
         for k in ("zh", "pos", "hanja", "mem", "tip", "syn", "ant", "ex", "exzh"):
             if k in m: e[k] = m[k]
         if m.get("tipadd"): e["tip"] = (e.get("tip", "") + " " + m["tipadd"]).strip()
+        lab = voice_label(ko, e.get("pos"), VOICE, e.get("zh"))   # 动词 自/他/被动/使动（voice.json，见 tools/apply_voice.py）
+        if lab: e.update(lab)
         if m.get("cat"): e["_cat"] = m["cat"]; e["_how"] = "manual"
         if not e["_cat"]:
             c = kw_class(e["zh"], e["_kpos"])
@@ -415,7 +419,7 @@ def main():
     # 输出
     bd = os.path.join(SITE, "bank"); os.makedirs(bd, exist_ok=True)
     for f in glob.glob(os.path.join(bd, "o-*.json")) + glob.glob(os.path.join(bd, "c-*.json")): os.remove(f)
-    DK = ("pos", "hanja", "mem", "tip", "syn", "ant", "ex", "exzh")
+    DK = ("pos", "hanja", "mem", "tip", "syn", "ant", "ex", "exzh", "voice", "pair")
     def det(e):
         d = {}
         for k in DK:
