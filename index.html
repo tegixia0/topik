@@ -27,9 +27,12 @@ header select{flex:1;min-width:0}
 select{font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--ink);appearance:none;-webkit-appearance:none;
   background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
   background-position:calc(100% - 18px) 55%,calc(100% - 12px) 55%;background-size:6px 6px;background-repeat:no-repeat;padding-right:30px}
-.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .modes button{min-height:46px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:16px;font-weight:600}
 .modes button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.wrong-entry{display:block;width:100%;min-height:48px;margin:0 0 10px;border:1px solid #9b3340;background:#2a1518;color:#ffb4bc;border-radius:14px;font-size:16px;font-weight:800}
+.wrong-entry.on{background:#9b3340;border-color:#9b3340;color:#fff}
+.wrong-entry:disabled{opacity:.55;border-color:var(--border);background:var(--card);color:var(--muted)}
 .bar{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:15px;margin:4px 2px 8px}
 .bar b{color:var(--ink)}
 .bar .sp{flex:1}
@@ -243,7 +246,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261010a">
+<link rel="stylesheet" href="assets/modules.css?v=20261010b">
 </head>
 <body>
 <div class="wrap">
@@ -265,6 +268,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
     <button data-mode="v_zh_ko">单词 中→韩</button>
     <button data-mode="v_ko_zh">单词 韩→中</button>
   </div>
+  <button type="button" class="wrong-entry" id="goWrong" aria-label="重练错词">📕 错词本（0）</button>
   <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
   <div class="progress"><i id="progBar"></i></div>
 
@@ -281,7 +285,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 
   <footer>
     <div id="deckInfo"></div>
-    <div><button id="shareCat" hidden>🔗 复制本题库链接</button> <button id="clearWrong">清空错题本</button> · <button id="reload">刷新题库</button></div>
+    <div><button id="shareCat" hidden>🔗 复制本题库链接</button> <button id="clearWrong">清空错词本</button> · <button id="reload">刷新题库</button></div>
   </footer>
   </div>
   <div id="writing" hidden>
@@ -326,7 +330,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <div class="toast" id="toast"></div>
 <script src="assets/sync.js?v=20261010a"></script>
 <script src="assets/accepted.js?v=20261007a"></script>
-<script src="reading/reading.js?v=20261009a"></script>
+<script src="reading/reading.js?v=20261010a"></script>
 <script src="listening/listening.js?v=20261010a"></script>
 <script src="assets/ai.js?v=20261009a"></script>
 <script src="writing/wai.js?v=20261008a"></script>
@@ -334,7 +338,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="assets/wsplit.js?v=20261002e"></script>
 <script src="writing/w5354.js?v=20261009a"></script>
 <script src="assets/voice.js?v=20261009a"></script>
-<script src="bank/bank.js?v=20261009b"></script>
+<script src="bank/bank.js?v=20261010a"></script>
 <script>
 (function(){
 "use strict";
@@ -460,11 +464,20 @@ function renderDeckSel(){
     }
     h.push('<option value="all">全部混合（'+index.length+" 天"+(CATS.length?" + "+CATS.length+" 类":"")+"）</option>");
   }
-  h.push('<option value="wrong">错题本（'+wrongCards(mode).length+"）</option>");
+  h.push('<option value="wrong">📕 错词本（'+wrongCards(mode).length+"）</option>");
   sel.innerHTML=h.join("");
   if(wantSource){source=wantSource;wantSource=null;if(source!=="latest"&&!Array.prototype.some.call(sel.options,function(o){return o.value===source}))toast("找不到这个题库，已打开最新一天")}
   sel.value=source; if(sel.value!==source){source="latest";sel.value="latest"}
   var sh=$("shareCat"); if(sh) sh.hidden=!(source.indexOf("cat-")===0||/^\d{4}-/.test(source));
+  updateWrongEntry();
+}
+function updateWrongEntry(){
+  var b=$("goWrong"); if(!b) return;
+  var n=wrongCards(mode).length, on=source==="wrong";
+  b.classList.toggle("on",on);
+  b.disabled=false;
+  b.textContent=on?("📕 正在练错词本（"+n+"）· 点此退出"):("📕 错词本 · 重练错词（"+n+"）");
+  if(!n&&!on) b.textContent="📕 错词本（空）";
 }
 function getPool(){
   var type=MODE_INFO[mode].type;
@@ -485,7 +498,7 @@ function start(cards,redo){
   $("summary").hidden=true; $("quiz").hidden=false;
   if(!queue.length){
     $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
-    s.innerHTML='<div class="empty">'+(source==="wrong"?"这个模式的错题本是空的 🎉<br>去练新卡吧。":"这个题库里没有单词卡。")+"</div>";
+    s.innerHTML='<div class="empty">'+(source==="wrong"?"错词本是空的 🎉<br>闪卡或词库答错的单词会出现在这里，可以单独重练。":"这个题库里没有单词卡。")+"</div>";
     updateBar(); return;
   }
   show();
@@ -558,7 +571,7 @@ function check(){
     state="wrong1";
     fb.className="feedback bad";
     fb.innerHTML='<div class="title">✗ 拼写不对</div>你写的：<span lang="ko">'+esc(user)+"</span><br>正确："+refHTML()+exLine()+infoHTML(cur,true);
-    setActions([{text:"再试一次",cls:"b-primary",fn:retry},{text:"下一张",cls:"",fn:function(){grade(false)}},
+    setActions([{text:"✏️ 再写一次",cls:"b-primary",fn:retry},{text:"下一张",cls:"",fn:function(){grade(false)}},
       {text:ACC.BTN||"📋 复制给老师",cls:"b-ghost small full acc-copy",fn:function(){askTeacher(user)}},
       {text:"其实我写对了（算对）",cls:"b-ghost small full",fn:function(){grade(true)}}]);
     if(canSpeak()) speak(cur.ko);
@@ -577,7 +590,7 @@ function check(){
   fb.innerHTML=h;
   var acts=[{text:"✓ 对",cls:"b-ok",fn:function(){grade(true)}},{text:"✗ 不对",cls:"b-bad",fn:function(){
     if(cur.t==="v"&&$("wi")){ // show the info panel prominently before moving on
-      bad++;missed.push(cur);recordWrong(cur);state="wrong2";updateBar();openInfo();
+      bad++;missed.push(cur);recordWrong(cur);if(source==="wrong")updateWrongEntry();state="wrong2";updateBar();openInfo();
       setActions([{text:"记住了，下一张",cls:"b-primary full",fn:next}]);
     } else grade(false);
   }}];
@@ -591,7 +604,7 @@ function giveUp(){
   $("answer").disabled=true; state="wrong1";
   var fb=$("fb"); fb.className="feedback bad";
   fb.innerHTML='<div class="title">答案</div>'+refHTML()+exLine()+infoHTML(cur,true);
-  setActions([{text:"记住了，下一张",cls:"b-primary full",fn:function(){grade(false)}}]);
+  setActions([{text:"✏️ 再写一次",cls:"b-primary",fn:retry},{text:"记住了，下一张",cls:"",fn:function(){grade(false)}}]);
   if(canSpeak()) speak(cur.ko);
 }
 function retry(){
@@ -605,9 +618,11 @@ function askTeacher(user){
 }
 function grade(right,auto,alt){
   if(right){ok++;recordRight(cur)} else {bad++;missed.push(cur);recordWrong(cur)}
+  if(source==="wrong") updateWrongEntry();
   if(auto){
     state="right"; var fb=$("fb"); fb.className="feedback ok";
-    fb.innerHTML=(alt?ACC.okHTML(alt,cur.ko)+'<div class="sub">你写的：<span lang="ko">'+esc($("answer").value.trim())+"</span></div>":'<div class="title">✓ 正确！</div>'+refHTML())+exLine()+infoHTML(cur,false);
+    var rm=source==="wrong"?'<div class="sub">已从错词本移除（再答错会重新记入）</div>':"";
+    fb.innerHTML=(alt?ACC.okHTML(alt,cur.ko)+'<div class="sub">你写的：<span lang="ko">'+esc($("answer").value.trim())+"</span></div>":'<div class="title">✓ 正确！</div>'+refHTML())+rm+exLine()+infoHTML(cur,false);
     setActions([{text:"下一张",cls:"b-primary full",fn:next}]);
     updateBar(); focusNextBtn(); return;
   }
@@ -635,7 +650,7 @@ function finish(){
   s.innerHTML=h;
   if(missed.length) acts.push({text:"只练错题（"+missed.length+"）",cls:"b-bad full",fn:function(){start(missed.slice(),true)}});
   acts.push({text:"再来一轮",cls:"b-primary",fn:function(){start(pool)}});
-  acts.push({text:"错题本（"+wrongCards(mode).length+"）",cls:"",fn:function(){source="wrong";renderDeckSel();reload()}});
+  acts.push({text:"📕 错词本（"+wrongCards(mode).length+"）",cls:"b-bad"+(missed.length?"":" full"),fn:function(){source="wrong";renderDeckSel();reload()}});
   if(mode==="g_zh_ko"&&written.length) acts.push({text:"复制本轮句子",cls:"b-ghost full",fn:function(){
     copy(written.map(function(w,i){return (i+1)+". "+w.zh+(w.point?"（"+w.point+"）":"")+"\n我写的："+w.mine}).join("\n\n"))}});
   var box=$("sumActs");
@@ -653,7 +668,8 @@ function setMode(m){
 $("modes").addEventListener("click",function(e){var b=e.target.closest("button[data-mode]");if(b)setMode(b.getAttribute("data-mode"))});
 function deckURL(){
   var base=location.origin+location.pathname, q="";
-  if(source.indexOf("cat-")===0) q="?cat="+encodeURIComponent(source.slice(4));
+  if(source==="wrong") q="?deck=wrong";
+  else if(source.indexOf("cat-")===0) q="?cat="+encodeURIComponent(source.slice(4));
   else if(/^\d{4}-\d{2}-\d{2}$/.test(source)) q="?deck="+source;
   return base+q;
 }
@@ -667,7 +683,12 @@ $("answer").addEventListener("keydown",function(e){
 document.addEventListener("keydown",function(e){
   if(e.key==="Enter"&&state!=="ask"&&!$("flash").hidden&&document.activeElement.tagName!=="BUTTON"){var b=$("actions").querySelector("button");if(b&&!$("quiz").hidden){e.preventDefault();b.click()}}
 });
-$("clearWrong").onclick=function(){if(confirm("确定清空所有错题记录？")){saveWrong({});renderDeckSel();if(source==="wrong")reload();toast("已清空")}};
+$("clearWrong").onclick=function(){if(confirm("确定清空所有错词记录？")){saveWrong({});renderDeckSel();if(source==="wrong")reload();toast("已清空")}};
+$("goWrong").onclick=function(){
+  if(source==="wrong"){source="latest";QS.deck=null;syncURL();renderDeckSel();reload();return}
+  if(!wrongCards(mode).length){toast("错词本是空的，去练新卡吧");updateWrongEntry();return}
+  source="wrong";QS.deck=null;syncURL();renderDeckSel();reload();
+};
 $("reload").onclick=function(){cache={};Promise.all([loadIndex(),loadWI(),ACC.load(true)]).then(reload)};
 
 Array.prototype.forEach.call(document.querySelectorAll("#modes button"),function(b){b.classList.toggle("active",b.getAttribute("data-mode")===mode)});
@@ -1217,7 +1238,7 @@ if(window.TopikListening) TopikListening.init();
 if(window.TopikGrammar) TopikGrammar.init();
 var o0={}, catL=String(WQS.cat||"").toLowerCase(), hash=location.hash.replace("#","");
 var v0;
-if(WQS.bank||hash==="bank"){v0="bank";var bk=String(WQS.bank||"");o0={tab:{hf:"hf",daily:"daily",cat:"cat",progress:"prog",prog:"prog"}[bk]||(bk==="1"||!bk?null:"daily"),c:WQS.c}}   // 📚 词库：?bank=1|hf|daily|cat&c=<id>|progress
+if(WQS.bank||hash==="bank"){v0="bank";var bk=String(WQS.bank||"");o0={tab:{hf:"hf",daily:"daily",cat:"cat",progress:"prog",prog:"prog",wrong:"wrong"}[bk]||(bk==="1"||!bk?null:"daily"),c:WQS.c}}   // 📚 词库：?bank=1|hf|daily|cat&c=<id>|progress
 else if(WQS.listening||hash==="listening"){v0="listening";o0={tab:WQS.tab||({guide:"guide",prac:"prac",type:"type",wrong:"wrong"})[WQS.listening],round:WQS.round,type:WQS.type,q:WQS.q}}   // 🎧 听力：?listening=1|guide|prac|type|wrong[&round=96][&type=idea][&q=96-14]
 else if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1"}}
 else if(WQS.grammar||catL==="grammar-core"||/^grammar-/.test(catL)||hash==="grammar"||hash==="grammar-core"||hash==="grammar-drill"){

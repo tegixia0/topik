@@ -233,7 +233,7 @@ function addVocab(q){
   (q.v||[]).forEach(function(v){if(!v[0]||!v[1])return;var k="v|"+v[0];
     var e=w[k]||{t:"v",ko:v[0],zh:v[1],hint:(v[2]?v[2]+" · ":"")+"阅读 "+label(q),ex:"",exzh:"",point:"",date:"reading",m:{}};
     if(!w[k])n++; e.m.v_zh_ko=(e.m.v_zh_ko||0)+1; e.last=Date.now(); w[k]=e});
-  save(LS_VWRONG,w); toast(n?"已加入 "+n+" 个生词到单词错题本（闪卡→错题本）":"这些生词已经在错题本里了");
+  save(LS_VWRONG,w); toast(n?"已加入 "+n+" 个生词到错词本（闪卡顶部「📕 错词本」或词库「错词」可重练）":"这些生词已经在错词本里了");
 }
 function copyQ(q,my){
   var g=q.gid?groups[q.gid]:null, t="【TOPIK II 读解 "+label(q)+"】"+typeLabel(q)+"\n※ "+q.instr+"\n";
