@@ -177,6 +177,18 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 - 已收录：第96回（48题，42–43 官方因版权未公开原文）、第91回（50题）、第83回（50题）、第60回（50题），共198题。
 - 深链接：`?reading=1`、`?reading=1&type=insert`（题型 id：grammar synonym ad match order blank long headline blank2 match2 theme insert long2）、`?reading=1&round=60`（或 91 / 83 / 96）、`&tab=mock|wrong|tips`。
 
+## 听力（`listening/`）
+
+- 顶部「🎧 听力」：攻略（考试概况、各题号做法、**没听懂时怎么选**、信号词、每日练法，每条都链接到真题例子）、真题练习（选回次 → 按题号分组的题目列表 → 听音频、选答案 → 答案 + 대본 + 中文翻译 + 解析/陷阱/对应攻略/生词）、按题型练（两回混合）、错题本（错因标签：单词 / 转折 / 同义改写 / 没听清）。
+- 数据 `listening/data.json` 由 `python3 tools/build_listening.py` 生成，全部来自 topik.go.kr 官方公开资料：
+  - 题干 / 选项 / 正答：官网「기출문제 풀어보기」的官方题目脚本 `https://www.topik.go.kr/asset/exam/exam{n}/exam_{n}_2_h.js` → `node tools/listening_src/parse_exam_js.js {n} <下载目录>` → `tools/listening_src/official_{n}.json`；
+  - 듣기 대본：官网 기출문제 자료실的「{n}회 TOPIK II 듣기 대본」PDF；83回是文字版（pdftotext），96回是扫描件（300dpi OCR 后对照原 PDF 和原音频逐句校对）→ `tools/listening_src/script{n}.py`；
+  - 音频：官方 1교시 듣기 MP3，按 `tools/listening_src/cuts_{n}.json`（起止秒数，静音检测 + 两遍重复的互相关对齐）用 ffmpeg 切成每段一个文件 `listening/audio/{n}/qNN.mp3`（单声道 22.05kHz 48kbps，`-vn` 去掉封面图）。1–20 每题一段；21–50 每两题一段、只保留第一遍（页面上“从头听”即第二遍）。重新切：`ffmpeg -ss <起> -to <止> -i {n}_2.mp3 -vn -ac 1 -ar 22050 -b:a 48k qNN.mp3`；
+  - 1–3 题图片：官方题目图片 `listening/img/l{n}_q{m}_{1-4}.png`；
+  - 中文翻译 / 解析 / 陷阱 / 攻略标签 / 生词：`tools/listening_src/ann{n}.py`（自写评注）。攻略正文在 `listening/listening.js` 的 `guideHTML()`。
+- 已收录：第96回（50题）、第83回（50题），共100题、70段音频（约 21MB）。
+- 深链接：`?listening=1`（攻略）、`?listening=prac&round=83`、`?listening=1&type=idea`（题型 id：pic next act match idea doing intent who attitude topic before detail manner）、`?listening=1&q=96-14`、`?listening=wrong`。
+
 ## 语法（`grammar/`）
 
 - 顶部「🧩 语法」：语法表（按功能分组 + 搜索）、易混组（中文对比表）、**分类练**（按功能组做整句针对性练习）、闪卡（中→韩写语法 / 句子填空写形式 / 韩→中自评 / 整句中→韩 / 整句韩→中；宽松判分 + “其实我写对了”；打字卡答错或点“不会”后有「✏️ 再写一次」：清空输入、隐藏答案重写，可无限次，单词提示保留；成绩和错题本只按第一次算，重写答对不会移出错题本，只提示“重写后答对”）、语法错题本（localStorage `topik.grammar.wrong.v1`）。
@@ -200,7 +212,7 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 - 入口：顶部导航下面的同步状态行「☁️ … ⚙️ 设置」（每个页面都有）；AI 判题设置面板里也有「进度同步设置」按钮。代码在 `assets/sync.js`（必须在其它模块之前加载）。
 - 设置：创建 classic token（<https://github.com/settings/tokens/new?scopes=gist&description=topik-sync>，**只勾 gist**，不过期）→ 在每台设备粘贴同一个 Token。第一次同步自动建私密 Gist `topik-progress.json`；另一台设备没有 Gist ID 时会在你的 gist 里按文件名找到它（也可以手动填 Gist ID）。
 - **Token 只存在本机 localStorage（`topik.sync.token`），不同步、不进仓库；DeepSeek Key 也不同步。** 仓库里绝不放 Token。
-- 同步的 key：`topik.wrong.v1`、`topik.bank.v1`、`topik.writing.v1`、`topik.wg.wrong.v1`、`topik.w54.wrong.v1`、`topik.writing.ai.v1`、`topik.w54.ai.v1`、`topik.grammar.wrong.v1`、`topik.grammar.drill.v1`、`topik.grammar.aiAccepted.v1`、`topik.reading.v1`、`topik.reading.last`。不同步：Key/Token、界面偏好（`topik.view`、`topik.mode`、各种 `*.opt*`、`topik.ai.on`、`topik.grammar.hintsOn.v1`、`topik.wsplit.v1`）、进行中的整套模拟 `topik.reading.mock.v1`。
+- 同步的 key：`topik.wrong.v1`、`topik.bank.v1`、`topik.writing.v1`、`topik.wg.wrong.v1`、`topik.w54.wrong.v1`、`topik.writing.ai.v1`、`topik.w54.ai.v1`、`topik.grammar.wrong.v1`、`topik.grammar.drill.v1`、`topik.grammar.aiAccepted.v1`、`topik.reading.v1`、`topik.reading.last`、`topik.listening.v1`（听力作答 `a` 取 `t` 较新；错题 `w` 取 `last` 较新、次数 `n` 取大）。不同步：Key/Token、界面偏好（`topik.view`、`topik.mode`、各种 `*.opt*`、`topik.ai.on`、`topik.grammar.hintsOn.v1`、`topik.wsplit.v1`）、进行中的整套模拟 `topik.reading.mock.v1`。
 - 合并：三方合并（本机上次同步时的共同版本 `topik.sync.base` + 本机 + 云端）。只有一边改了 → 用改了的一边（删除也会同步，比如错题答对移出、清空错题本）；两边都改了 → 按数据形状合并：对象逐键合并、计数取大、数组按 id 并集去重、带时间戳的记录（词库每词 `l`/`n`，自评 `t`，阅读作答 `t`，分类练 `lastAt`）取较新的一条；其它标量按该 key 最后修改时间。没有共同版本（第一次同步、云端被别的设备覆盖过）时做并集，任何一边的数据都不丢。
 - 时机（自动同步 = 拉取 + 合并 + 上传，**所有标签页合计最多每 5 分钟一次**；上次同步时间存在 `topik.sync.last`，刷新页面 / 切换模块 / 开新标签页都不会重新同步）：
   - 打开网站、回到前台：距上次同步满 5 分钟才同步，否则什么都不做。只有拉到了其他设备的新进度、且刚打开还没操作时才自动刷新一次页面；没变化的例行同步不弹提示。

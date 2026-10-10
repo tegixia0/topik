@@ -29,7 +29,11 @@ var KEYS={
   "topik.grammar.drill.v1":    {name:"语法分类练进度", pol:function(p){return p.length===1?{newer:byNum("lastAt"),max:["seen"]}:null}},
   "topik.grammar.aiAccepted.v1":{name:"AI 判对后记住的写法", pol:function(p){return p.length===1?{arr:true,id:function(e){return e&&typeof e==="object"?String(e.a):canon(e)},sort:byNum("at")}:null}},
   "topik.reading.v1":          {name:"阅读 作答记录 + 错题本", pol:function(p){return p.length===2&&p[0]==="a"?{newer:byNum("t")}:null}},
-  "topik.reading.last":        {name:"阅读 上次整套模拟成绩", pol:function(p){return p.length===0?{newer:byNum("t")}:null}}
+  "topik.reading.last":        {name:"阅读 上次整套模拟成绩", pol:function(p){return p.length===0?{newer:byNum("t")}:null}},
+  "topik.listening.v1":        {name:"听力 作答记录 + 错题本", pol:function(p){
+      if(p.length===2&&p[0]==="a") return {newer:byNum("t")};
+      if(p.length===2&&p[0]==="w") return {newer:byNum("last"),max:["n"]};
+      return null}}
 };
 var SYNC_KEYS=Object.keys(KEYS);
 

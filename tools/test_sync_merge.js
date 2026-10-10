@@ -49,6 +49,17 @@ t("阅读：作答取较新，错题计数取大",()=>{
   const m=M("topik.reading.v1",undefined,l,r,true);
   assert.strictEqual(m.a.x.c,2); assert.deepStrictEqual(m.w,{x:2,z:1}); assert.ok(m.a.y);
 });
+t("听力：作答取 t 较新；错题 {n,c,last,tag} 取 last 较新、n 取大；本机移出错题本会传播",()=>{
+  const l={a:{"96-1":{c:1,ok:false,t:5},"83-2":{c:0,ok:true,t:3}},w:{"96-1":{n:2,c:1,last:5,tag:"para"}}};
+  const r={a:{"96-1":{c:0,ok:true,t:9}},w:{"96-1":{n:1,c:3,last:7,tag:""},"83-5":{n:1,c:2,last:2}}};
+  const m=M("topik.listening.v1",undefined,l,r,true);
+  assert.deepStrictEqual(m.a["96-1"],{c:0,ok:true,t:9}); assert.ok(m.a["83-2"]);
+  assert.deepStrictEqual(m.w["96-1"],{n:2,c:3,last:7,tag:""}); assert.ok(m.w["83-5"]);
+  assert.ok(S.eq(M("topik.listening.v1",m,m,m,true),m));
+  const b={a:{},w:{"83-5":{n:1,c:2,last:2},"96-3":{n:1,c:0,last:1}}}, l2={a:{},w:{"96-3":{n:1,c:0,last:1}}}, r2={a:{"96-9":{c:2,ok:true,t:4}},w:{"83-5":{n:1,c:2,last:2},"96-3":{n:1,c:0,last:1}}};
+  assert.deepStrictEqual(M("topik.listening.v1",b,l2,r2,false),{a:{"96-9":{c:2,ok:true,t:4}},w:{"96-3":{n:1,c:0,last:1}}});
+  assert.ok(!S.KEYS["topik.listening.opt.v1"]);
+});
 t("阅读上次模拟成绩：取 t 较新",()=>{
   assert.strictEqual(M("topik.reading.last",undefined,{round:96,score:60,t:1},{round:91,score:70,t:2},true).round,91);
 });

@@ -243,13 +243,14 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261009b">
+<link rel="stylesheet" href="assets/modules.css?v=20261010a">
 </head>
 <body>
 <div class="wrap">
-  <nav class="topnav n5" id="topnav">
+  <nav class="topnav n6" id="topnav">
     <button type="button" data-view="flash">📇 闪卡</button>
     <button type="button" data-view="writing">✍️ 写作</button>
+    <button type="button" data-view="listening">🎧 听力</button>
     <button type="button" data-view="reading">📖 阅读</button>
     <button type="button" data-view="grammar">🧩 语法</button>
     <button type="button" data-view="bank">📚 词库</button>
@@ -311,6 +312,11 @@ details.pc[open]>summary .pk{color:#ffd98a}
     <div id="rBody"></div>
     <footer><div>阅读真题：官方公开的 TOPIK II 第96·91·83·60回 读解试卷（83·91回为扫描版，OCR 后逐行对照原图校对），答案以官方正答表为准。</div></footer>
   </div>
+  <div id="listening" hidden>
+    <div class="mtabs" id="ltabs"><button type="button" data-tab="guide">攻略</button><button type="button" data-tab="prac">真题练习</button><button type="button" data-tab="type">按题型练</button><button type="button" data-tab="wrong">错题本</button></div>
+    <div id="lBody"></div>
+    <footer><div>听力真题：TOPIK 官网公开的 TOPIK II 第96·83回 듣기（题目、官方正答、듣기 대본、MP3 按题切分）。96回대본为扫描版，OCR 后对照原 PDF 与音频逐句校对。</div></footer>
+  </div>
   <div id="bank" hidden></div>
   <div id="grammar" hidden>
     <div class="mtabs n5" id="gtabs"><button type="button" data-tab="list">语法表</button><button type="button" data-tab="cmp">易混组</button><button type="button" data-tab="drill">分类练</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="wrong">错题本</button></div>
@@ -318,9 +324,10 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="assets/sync.js?v=20261009b"></script>
+<script src="assets/sync.js?v=20261010a"></script>
 <script src="assets/accepted.js?v=20261007a"></script>
 <script src="reading/reading.js?v=20261009a"></script>
+<script src="listening/listening.js?v=20261010a"></script>
 <script src="assets/ai.js?v=20261009a"></script>
 <script src="writing/wai.js?v=20261008a"></script>
 <script src="grammar/grammar.js?v=20261009a"></script>
@@ -343,7 +350,7 @@ var source="latest";            // "latest" | date | "cat-<slug>" | "all" | "wro
 /* 深链接：?cat=taste  ?deck=2026-09-29  &mode=zh2ko|ko2zh（旧的 gko2zh|gzh2ko → zh2ko） */
 var QS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1).replace(/\+/g," "))});return o})();
 var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"v_zh_ko",gzh2ko:"v_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"v_zh_ko",g_zh_ko:"v_zh_ko"};
-if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||/^grammar-/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.grammar||QS.writing||QS.bank){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
+if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||/^grammar-/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.listening||QS.grammar||QS.writing||QS.bank){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
 else if(QS.deck) source=QS.deck;
@@ -710,12 +717,13 @@ function mkBadges(id){var m=st.marks[id];if(!m)return "";var h="";["a","b"].forE
 
 /* 视图切换 */
 function setView(v,o){
-  if(["writing","reading","grammar","bank"].indexOf(v)<0)v="flash";
-  $("flash").hidden=v!=="flash"; $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("grammar").hidden=v!=="grammar"; $("bank").hidden=v!=="bank";
+  if(["writing","reading","listening","grammar","bank"].indexOf(v)<0)v="flash";
+  $("flash").hidden=v!=="flash"; $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("listening").hidden=v!=="listening"; $("grammar").hidden=v!=="grammar"; $("bank").hidden=v!=="bank";
   Array.prototype.forEach.call(document.querySelectorAll("#topnav button"),function(b){b.classList.toggle("active",b.getAttribute("data-view")===v)});
   try{localStorage.setItem(LS_VIEW,v)}catch(e){}
-  document.title={writing:opts.part==="5354"?"TOPIK 写作 53·54":"TOPIK 写作 51·52",reading:"TOPIK 阅读真题",grammar:"TOPIK 语法",bank:"TOPIK 词库"}[v]||"TOPIK 闪卡";
+  document.title={writing:opts.part==="5354"?"TOPIK 写作 53·54":"TOPIK 写作 51·52",reading:"TOPIK 阅读真题",listening:"TOPIK 听力",grammar:"TOPIK 语法",bank:"TOPIK 词库"}[v]||"TOPIK 闪卡";
   if(v==="reading"&&window.TopikReading) TopikReading.open(o||{});
+  if(v==="listening"&&window.TopikListening) TopikListening.open(o||{});
   if(v==="grammar"&&window.TopikGrammar) TopikGrammar.open(o||{});
   if(v==="bank"&&window.TopikBank) TopikBank.open(o||{});
   if(v==="writing") setPart(opts.part,o);
@@ -1205,10 +1213,12 @@ if(w54Link){opts.part="5354";save();w54o={tab:String(WQS.cat||"").toLowerCase()=
 else if(wgLink||WQS.writing==="mistakes"||location.hash==="#mistakes"){opts.part="5152";save()}
 if(window.TopikW54) TopikW54.init();
 if(window.TopikReading) TopikReading.init();
+if(window.TopikListening) TopikListening.init();
 if(window.TopikGrammar) TopikGrammar.init();
 var o0={}, catL=String(WQS.cat||"").toLowerCase(), hash=location.hash.replace("#","");
 var v0;
 if(WQS.bank||hash==="bank"){v0="bank";var bk=String(WQS.bank||"");o0={tab:{hf:"hf",daily:"daily",cat:"cat",progress:"prog",prog:"prog"}[bk]||(bk==="1"||!bk?null:"daily"),c:WQS.c}}   // 📚 词库：?bank=1|hf|daily|cat&c=<id>|progress
+else if(WQS.listening||hash==="listening"){v0="listening";o0={tab:WQS.tab||({guide:"guide",prac:"prac",type:"type",wrong:"wrong"})[WQS.listening],round:WQS.round,type:WQS.type,q:WQS.q}}   // 🎧 听力：?listening=1|guide|prac|type|wrong[&round=96][&type=idea][&q=96-14]
 else if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1"}}
 else if(WQS.grammar||catL==="grammar-core"||/^grammar-/.test(catL)||hash==="grammar"||hash==="grammar-core"||hash==="grammar-drill"){
   v0="grammar";
