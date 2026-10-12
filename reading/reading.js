@@ -46,7 +46,8 @@ function open(o){
   if(o.round&&!o.type){opt.type="all"}
   if(o.round){opt.round=String(o.round); opt.tab="prac"; opt.idx=0}
   if(o.tab) opt.tab=o.tab;
-  if(o.wrong){opt.wrong=true;opt.tab="prac";opt.idx=0}
+  if(o.wrong){opt.wrong=true;opt.undone=false;opt.tab="prac";opt.idx=0}
+  if(o.undone){opt.undone=true;opt.wrong=false;opt.tab="prac";opt.idx=0}
   save(LS_OPT,opt);
   $("rBody").innerHTML='<div class="card empty">加载中…</div>';
   ensure().then(function(){
@@ -67,8 +68,11 @@ function setTab(t){
 }
 /* ---------- 单元（共享文章的题目放一起） ---------- */
 function filtered(){
-  return Q.filter(function(q){return (opt.round==="all"||String(q.round)===opt.round)&&(opt.type==="all"||q.type===opt.type)&&(!opt.wrong||st.w[q.id])});
+  return Q.filter(function(q){return (opt.round==="all"||String(q.round)===opt.round)&&(opt.type==="all"||q.type===opt.type)&&(!opt.wrong||st.w[q.id])&&(!opt.undone||!isDone(q.id))});
 }
+/* “已做”= 练习里点过选项，或整套模拟里选过答案（模拟中留空的 c:-1 仍算未做）；↺重做 会清掉记录 */
+function isDone(id){var r=st.a[id];return !!(r&&r.c!=null&&r.c>=0)}
+function undoneN(list){return list.filter(function(q){return !isDone(q.id)}).length}
 function units(list){
   var out=[],cur=null;
   list.forEach(function(q){
@@ -95,6 +99,8 @@ function unitHTML(u,mode){
     var g=groups[u.gid]||{};
     h+='<div class="rhdr"><span class="rtag real">真题 第'+q0.round+'回 第'+g.range[0]+'～'+g.range[1]+'题</span> ※ '+esc(q0.instr)+'</div>';
     h+='<div class="rpass">'+rich(g.passage)+'</div>';
+    var hid=mode==="prac"&&opt.undone?(g.range[1]-g.range[0]+1)-u.qs.length:0;
+    if(hid>0) h+='<div class="minfo">本篇另有 '+hid+' 题已做过，已隐藏</div>';
     if(mode!=="mock"&&g.tr) h+='<details class="tr"><summary>中文翻译（建议做完再看）</summary><div class="rx"><p>'+rich(g.tr)+'</p></div></details>';
   }
   u.qs.forEach(function(q){h+=qHTML(q,mode,!!u.gid)});
@@ -134,17 +140,19 @@ function fbHTML(q,my){
 /* ---------- 练习 ---------- */
 function annTag(r){var a=r.ann==null?r.count:r.ann;return a>=r.count?" · 有解析":a>0?" · 解析 "+a+"/"+r.count:" · 无解析"}
 function renderPrac(){
-  var rounds=D.rounds.map(function(r){return '<option value="'+r.round+'"'+(opt.round===String(r.round)?" selected":"")+'>第'+r.round+'回'+(r.date?' · '+esc(r.date):'')+'（'+r.count+'题'+annTag(r)+'）</option>'}).join("");
+  var rounds=D.rounds.map(function(r){return '<option value="'+r.round+'"'+(opt.round===String(r.round)?" selected":"")+'>第'+r.round+'回'+(r.date?' · '+esc(r.date):'')+'（'+r.count+'题'+(opt.undone?' · 未做 '+undoneN(Q.filter(function(q){return q.round===r.round})):annTag(r))+'）</option>'}).join("");
   var base=Q.filter(function(q){return opt.round==="all"||String(q.round)===opt.round});
   var types=D.types.map(function(t){var n=base.filter(function(q){return q.type===t.id}).length;return n?'<option value="'+t.id+'"'+(opt.type===t.id?" selected":"")+'>'+t.range+' '+esc(t.label)+'（'+n+'）</option>':""}).join("");
+  var un=undoneN(Q.filter(function(q){return (opt.round==="all"||String(q.round)===opt.round)&&(opt.type==="all"||q.type===opt.type)})), unAll=undoneN(Q);
   var wn=Object.keys(st.w).length, list=filtered(), us=units(list);
   if(opt.idx>=us.length) opt.idx=0;
   var done=list.filter(function(q){return st.a[q.id]}), okn=done.filter(function(q){return st.a[q.id].ok}).length;
-  var h='<div class="fbar"><select id="rRound" aria-label="回次"><option value="all">全部回次</option>'+rounds+'</select><select id="rType" aria-label="题型"><option value="all">全部题型</option>'+types+'</select>'+
-    '<button type="button" class="chip'+(opt.wrong?" on":"")+'" id="rWrongOnly" style="white-space:nowrap">只看错题（'+wn+'）</button><button type="button" class="chip" id="rLink">🔗 链接</button></div>';
-  h+='<div class="minfo">共 '+list.length+' 题 · 已做 '+done.length+(done.length?' · 正确率 '+Math.round(okn*100/done.length)+'%':"")+' · 选项一点即判，答错自动进阅读错题本</div>';
-  if(!us.length){h+='<div class="card empty">'+(opt.wrong?"错题本是空的 🎉":"没有符合条件的题目")+'</div>';$("rBody").innerHTML=h;bindPrac();return}
-  var nav='<div class="unav"><button type="button" data-nav="-1"'+(opt.idx<=0?" disabled":"")+'>◀ 上一题</button><span class="pos">'+(opt.idx+1)+' / '+us.length+'</span><button type="button" data-nav="1"'+(opt.idx>=us.length-1?" disabled":"")+'>下一题 ▶</button></div>';
+  var h='<div class="fbar"><select id="rRound" aria-label="回次"><option value="all">全部回次'+(opt.undone?'（未做 '+unAll+'）':'')+'</option>'+rounds+'</select><select id="rType" aria-label="题型"><option value="all">全部题型</option>'+types+'</select>'+
+    '<button type="button" class="chip'+(opt.wrong?" on":"")+'" id="rWrongOnly" style="white-space:nowrap">只看错题（'+wn+'）</button><button type="button" class="chip'+(opt.undone?" on":"")+'" id="rUndone" style="white-space:nowrap">只做未做题（'+un+'）</button><button type="button" class="chip" id="rLink">🔗 链接</button></div>';
+  if(opt.undone) h+='<div class="minfo">📝 只做未做题：'+(opt.round==="all"?"全部回次（共 "+unAll+" 题未做，按回次从新到旧）":"第"+opt.round+"回")+' · 剩 '+list.length+' 题未做。做过的题下次自动不再出现；想重做某题可在答案里点「↺ 重做」。</div>';
+  else h+='<div class="minfo">共 '+list.length+' 题 · 已做 '+done.length+(done.length?' · 正确率 '+Math.round(okn*100/done.length)+'%':"")+' · 选项一点即判，答错自动进阅读错题本</div>';
+  if(!us.length){h+='<div class="card empty">'+(opt.wrong?"错题本是空的 🎉":opt.undone?"这里的题都做完了 🎉 换个回次/题型，或关掉「只做未做题」":"没有符合条件的题目")+'</div>';$("rBody").innerHTML=h;bindPrac();return}
+  var nav='<div class="unav"><button type="button" data-nav="-1"'+(opt.idx<=0?" disabled":"")+'>◀ 上一题</button><span class="pos">'+(opt.idx+1)+' / '+us.length+'</span><button type="button" data-nav="1"'+(opt.idx>=us.length-1&&!opt.undone?" disabled":"")+'>下一题 ▶</button></div>';
   h+=nav+unitHTML(us[opt.idx],"prac")+nav;
   $("rBody").innerHTML=h; bindPrac(us);
 }
@@ -152,8 +160,9 @@ function bindPrac(){
   var r=$("rRound"),t=$("rType"),w=$("rWrongOnly"),l=$("rLink");
   if(r) r.onchange=function(){opt.round=r.value;opt.idx=0;if(opt.type!=="all"&&!Q.some(function(q){return q.type===opt.type&&(opt.round==="all"||String(q.round)===opt.round)}))opt.type="all";save(LS_OPT,opt);renderPrac()};
   if(t) t.onchange=function(){opt.type=t.value;opt.idx=0;save(LS_OPT,opt);renderPrac()};
-  if(w) w.onclick=function(){opt.wrong=!opt.wrong;opt.idx=0;save(LS_OPT,opt);renderPrac()};
-  if(l) l.onclick=function(){var u=location.origin+location.pathname+"?reading=1"+(opt.type!=="all"?"&type="+opt.type:"")+(opt.round!=="all"?"&round="+opt.round:"");copy(u,"链接已复制")};
+  var ud=$("rUndone"); if(ud) ud.onclick=function(){opt.undone=!opt.undone;if(opt.undone)opt.wrong=false;opt.idx=0;save(LS_OPT,opt);renderPrac()};
+  if(w) w.onclick=function(){opt.wrong=!opt.wrong;if(opt.wrong)opt.undone=false;opt.idx=0;save(LS_OPT,opt);renderPrac()};
+  if(l) l.onclick=function(){var u=location.origin+location.pathname+"?reading=1"+(opt.type!=="all"?"&type="+opt.type:"")+(opt.round!=="all"?"&round="+opt.round:"")+(opt.undone?"&undone=1":"");copy(u,"链接已复制")};
 }
 function answer(id,i){
   var q=byId[id]; if(!q) return;
@@ -263,7 +272,7 @@ function bind(){
         var c=$("mCnt");if(c)c.textContent="已答 "+Object.keys(m.answers).length+"/"+Q.filter(function(q){return q.round===m.round}).length;return}
       answer(qid,i); return;
     }
-    var nav=b.getAttribute("data-nav"); if(nav){opt.idx+=+nav;save(LS_OPT,opt);renderPrac();window.scrollTo(0,0);return}
+    var nav=b.getAttribute("data-nav"); if(nav){var cur=opt.undone&&+nav>0&&root.querySelectorAll(".rq[data-id]"),gone=cur&&cur.length&&Array.prototype.every.call(cur,function(x){return isDone(x.getAttribute("data-id"))});if(!gone)opt.idx+=+nav;save(LS_OPT,opt);renderPrac();window.scrollTo(0,0);return}
     var mk=b.getAttribute("data-mock"); if(mk){startMock(mk);return}
     var a=b.getAttribute("data-act"); if(!a) return;
     if(a==="vocab") addVocab(byId[qid]);
@@ -272,9 +281,9 @@ function bind(){
     else if(a==="submit"){var m=mockSt(),n=Q.filter(function(q){return m&&q.round===m.round}).length,d=m?Object.keys(m.answers).length:0;if(d<n&&!confirm("还有 "+(n-d)+" 题没答，确定交卷？"))return;submitMock()}
     else if(a==="quit"){if(confirm("放弃本次模拟？（不计分）")){save(LS_MOCK,null);if(timerId){clearInterval(timerId);timerId=null}renderMock()}}
     else if(a==="again"){renderMock()}
-    else if(a==="towrong"||a==="drill"){opt.wrong=true;opt.round="all";opt.type="all";opt.idx=0;setTab("prac")}
+    else if(a==="towrong"||a==="drill"){opt.wrong=true;opt.undone=false;opt.round="all";opt.type="all";opt.idx=0;setTab("prac")}
     else if(a==="clearw"){if(confirm("清空阅读错题本？")){st.w={};save(LS,st);renderWrong()}}
-    else if(a==="goto"){var q=byId[qid];opt.wrong=false;opt.round=String(q.round);opt.type="all";var us=units(filtered());opt.idx=Math.max(0,us.findIndex(function(u){return u.qs.some(function(x){return x.id===qid})}));delete st.a[qid];save(LS,st);setTab("prac")}
+    else if(a==="goto"){var q=byId[qid];opt.wrong=false;opt.undone=false;opt.round=String(q.round);opt.type="all";var us=units(filtered());opt.idx=Math.max(0,us.findIndex(function(u){return u.qs.some(function(x){return x.id===qid})}));delete st.a[qid];save(LS,st);setTab("prac")}
     else if(a==="practype"){opt.type=b.getAttribute("data-type");opt.round="all";opt.wrong=false;opt.idx=0;setTab("prac")}
   });
 }

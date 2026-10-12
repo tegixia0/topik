@@ -330,7 +330,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <div class="toast" id="toast"></div>
 <script src="assets/sync.js?v=20261012b"></script>
 <script src="assets/accepted.js?v=20261007a"></script>
-<script src="reading/reading.js?v=20261012a"></script>
+<script src="reading/reading.js?v=20261012b"></script>
 <script src="listening/listening.js?v=20261010a"></script>
 <script src="assets/ai.js?v=20261009a"></script>
 <script src="writing/wai.js?v=20261008a"></script>
@@ -1246,7 +1246,7 @@ var o0={}, catL=String(WQS.cat||"").toLowerCase(), hash=location.hash.replace("#
 var v0;
 if(WQS.bank||hash==="bank"){v0="bank";var bk=String(WQS.bank||"");o0={tab:{hf:"hf",daily:"daily",cat:"cat",progress:"prog",prog:"prog",wrong:"wrong"}[bk]||(bk==="1"||!bk?null:"daily"),c:WQS.c}}   // 📚 词库：?bank=1|hf|daily|cat&c=<id>|progress
 else if(WQS.listening||hash==="listening"){v0="listening";o0={tab:WQS.tab||({guide:"guide",prac:"prac",type:"type",wrong:"wrong"})[WQS.listening],round:WQS.round,type:WQS.type,q:WQS.q}}   // 🎧 听力：?listening=1|guide|prac|type|wrong[&round=96][&type=idea][&q=96-14]
-else if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1"}}
+else if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1",undone:WQS.undone==="1"}}
 else if(WQS.grammar||catL==="grammar-core"||/^grammar-/.test(catL)||hash==="grammar"||hash==="grammar-core"||hash==="grammar-drill"){
   v0="grammar";
   var gCat=null;
