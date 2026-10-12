@@ -35,7 +35,7 @@ def segs(html):
 BL='\x02'
 # spaces the web script inserted where the printed line wrapped inside a word (checked against the PDF wording/spelling rules)
 # typos in the web script, corrected to the official PDF wording (checked on the page images)
-TEXTFIX={64:[('특징이 있 다 .','특징이 있다.'),('SNS상에서 이루어진다 ( ㉢ )','SNS상에서 이루어진다. ( ㉢ )')],52:[('노력이 필요하다..','노력이 필요하다.')]}
+TEXTFIX={102:[('원기등','원기둥'),('층분한','충분한')],64:[('특징이 있 다 .','특징이 있다.'),('SNS상에서 이루어진다 ( ㉢ )','SNS상에서 이루어진다. ( ㉢ )')],52:[('노력이 필요하다..','노력이 필요하다.')]}
 SPACEFIX={35:['수집 하려고'],41:['자리매김 되었다고','최대화 하고'],64:['보존 되어','판매 하는','달성 하는','출동 하거나']}
 def tidy(s):
     s=s.replace('\u3000',' ').replace('∼','~').replace('～','~').replace('\U000f0854','『').replace('\U000f0855','』')
@@ -85,6 +85,7 @@ def round_qs(r):
         for a,b in TEXTFIX.get(r,[]):
             for f in ('passage','gpassage','bogi','stem'):
                 if q[f]: q[f]=q[f].replace(a,b)
+            q['opts']=[x.replace(a,b) for x in q['opts']]
         for w in SPACEFIX.get(r,[]):
             for f in ('passage','gpassage','bogi','stem'):
                 if q[f]: q[f]=q[f].replace(w,w.replace(' ',''))
