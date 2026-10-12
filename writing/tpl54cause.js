@@ -196,7 +196,7 @@ function renderGuide(box){
   h+='<li><b>[개인적 부담 또는 문제]</b>：完整小句 +「다는」（예: 부담이 커진다는）。</li>';
   h+='<li><b>[긍정적 영향]는 계기</b>：冠形词干，使整段读作「…는 계기」。</li>';
   h+='<li>默写时占位可原样打，也可用中文「[原因1]」等。</li>';
-  h+='</ul><div class="racts"><button type="button" class="gbtn" data-tpl-a="copyall">📋 复制完整骨架</button><button type="button" class="gbtn pri" data-tpl-a="godrill">✏️ 开始逐句默写</button></div></div>';
+  h+='</ul><div class="racts"><button type="button" class="gbtn" data-tpl-a="copyall">📋 复制完整骨架</button><button type="button" class="gbtn pri" data-tpl-a="godrill">✏️ 开始逐句默写</button><button type="button" class="gbtn" data-a="go54types">📚 其他题型（利弊/对策/必要性/态度/观点）</button></div></div>';
 
   h+='<div class="gcat">语法要点</div><div class="card" style="padding:0"><div style="overflow-x:auto"><table class="ctbl w54tbl"><tr><th>语法</th><th>意思</th><th>用法</th></tr>';
   GRAM.forEach(function(g){

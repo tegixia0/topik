@@ -2,6 +2,8 @@
 .mtabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
 .mtabs.n5{grid-template-columns:repeat(5,1fr);gap:4px}
 .mtabs.n5 button{font-size:13.5px;padding:0 2px}
+.mtabs.n6{grid-template-columns:repeat(3,1fr);gap:4px}
+.mtabs.n6 button{font-size:13.5px;padding:0 2px;min-height:36px}
 .mtabs button{min-height:40px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:15px;font-weight:700}
 .mtabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .fbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
@@ -427,3 +429,16 @@ span.ltag{padding:1px 7px;font-size:12.5px}
 .tpl54 .fbx.ok .title{color:var(--ok)}
 .tpl54 .fbx.bad .title{color:var(--bad)}
 .tpl54-sent>summary .f{min-width:2.6em}
+
+/* 54 题型总览（writing/tpl54types.js） */
+.t54 .t54seg button{font-size:14px}
+.t54pick{margin:6px 0}
+.t54pick button{font-size:18px}
+.t54type .t54h{font-size:16px;margin-bottom:2px}
+.t54qs{margin:4px 0 6px;padding-left:20px;line-height:1.6}
+.t54tpl{padding:9px 12px;margin-bottom:6px}
+.t54essay p{line-height:1.8;margin:2px 0 6px;text-indent:1em;word-break:keep-all;overflow-wrap:anywhere}
+.t54ai{margin-top:10px}
+.t54 mark.dm{background:#6b2f35;color:#ffd0d0;border-radius:3px}
+.t54 mark.dx{background:#6b5a1f;color:#fff3c4;border-radius:3px}
+#t54Full{min-height:260px;font-size:16px;line-height:1.7}

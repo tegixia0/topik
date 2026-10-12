@@ -33,7 +33,8 @@ function ensure(){
 }
 function open(o){
   o=o||{};
-  if(o.tab&&["cheat","cards","prac","wrong","54tpl"].indexOf(o.tab)>=0) opt.tab=o.tab;
+  if(o.tab==="54types")opt.t54=o.t54||{};
+  if(o.tab&&["cheat","cards","prac","wrong","54tpl","54types"].indexOf(o.tab)>=0) opt.tab=o.tab;
   if(o.mode==="zh2ko"||o.mode==="ko2zh"){opt.mode=o.mode;R=null}
   if(o.no==="53"||o.no==="54") opt.no=opt.cst=o.no;
   if(o.q){opt.tab="prac";opt.cur=o.q}
@@ -45,11 +46,11 @@ function open(o){
   }).catch(function(e){$("w54Body").innerHTML='<div class="card empty">53·54 数据加载失败：'+esc(e.message)+"</div>"});
 }
 function setTab(t){
-  if(["cheat","cards","prac","wrong","54tpl"].indexOf(t)<0)t="cheat";
+  if(["cheat","cards","prac","wrong","54tpl","54types"].indexOf(t)<0)t="cheat";
   if(opt.tab==="prac"&&t!=="prac"&&!leaveOK())return;
   opt.tab=t; save();
   Array.prototype.forEach.call(document.querySelectorAll("#w54tabs button"),function(b){b.classList.toggle("active",b.getAttribute("data-tab")===t)});
-  if(t==="cheat") renderCheat(); else if(t==="cards"){if(!R)newRound();renderCard()} else if(t==="prac") renderPrac(); else if(t==="54tpl") render54Tpl(); else renderWrong();
+  if(t==="cheat") renderCheat(); else if(t==="cards"){if(!R)newRound();renderCard()} else if(t==="prac") renderPrac(); else if(t==="54tpl") render54Tpl(); else if(t==="54types") render54Types(); else renderWrong();
 }
 function leaveOK(){var ta=$("w54Essay");if(ta&&AIR&&AIR.st==="done"&&AIR.key===ta.value.trim())return true;   // AI 批改过 = 已存进「我之前的作文」
   if(ta&&ta.value.trim().length>20)return confirm("作文不会保存，离开后会清空。确定离开？（可以先点「复制给老师」）");return true}
@@ -59,6 +60,7 @@ function linkFor(t){
   if(t==="prac") return b+"?writing=5354&tab=prac"+(opt.cur?"&q="+encodeURIComponent(opt.cur):"");
   if(t==="wrong") return b+"?writing=5354&tab=wrong";
   if(t==="54tpl") return b+"?writing=54tpl";
+  if(t==="54types") return b+"?writing=54types";
   return b+"?writing=5354";
 }
 function foot(extra){return '<footer><div>'+(extra||"")+'</div><div><button type="button" data-a="link">🔗 复制本页链接</button></div></footer>'}
@@ -105,11 +107,18 @@ function cheatBody(no,q){
   });
   h+='<div class="gcat">模板 · 语体</div>';
   if(no==="54"){
-    h+='<div class="card tpl54-nav"><b>📝 54 原因类万能模板</b><div class="minfo" style="margin:4px 0 8px">开场→原因→个人影响→社会收束的可替换骨架 + 逐句中→韩默写。</div><div class="racts"><button type="button" class="gbtn pri" data-a="go54tpl">打开「原因模版」</button></div></div>';
+    h+='<div class="card tpl54-nav"><b>📝 54 原因类万能模板</b><div class="minfo" style="margin:4px 0 8px">开场→原因→个人影响→社会收束的可替换骨架 + 逐句中→韩默写。</div><div class="racts"><button type="button" class="gbtn pri" data-a="go54tpl">打开「原因模版」</button><button type="button" class="gbtn" data-a="go54types">📚 6 大题型模板</button></div></div>';
   }
   h+=no==="53"?tplHTML(D.tpl53,D.check53,"53"):tplHTML(D.tpl54,D.check54,"54");
   h+=styleHTML();
   return h;
+}
+
+/* ---------- 54 题型总览（writing/tpl54types.js） ---------- */
+function render54Types(){
+  var o=opt.t54||{}; opt.t54=null;
+  if(window.TopikW54Types) TopikW54Types.render($("w54Body"),o);
+  else $("w54Body").innerHTML='<div class="card empty">54 题型模块未加载</div>';
 }
 
 /* ---------- 54 原因类万能模板 ---------- */
@@ -448,6 +457,7 @@ function bind(){
   $("w54Body").addEventListener("change",function(e){if(e.target.id==="w54Pick"){var list=qList(),i=+e.target.value;if(!leaveOK()){e.target.value=String(list.indexOf(QBY[opt.cur]));return}opt.cur=list[i].id;revealed=false;save();renderPrac()}});
   $("w54Body").addEventListener("click",function(e){
     if(window.TopikW54Tpl&&TopikW54Tpl.onClick(e)) return;
+    if(window.TopikW54Types&&TopikW54Types.onClick(e)) return;
     var ex=e.target.closest(".ex[data-q]"); if(ex){goQid(ex.getAttribute("data-q"));return}
     var b=e.target.closest("button"); if(!b) return;
     var wa=b.getAttribute("data-wai");
@@ -463,6 +473,7 @@ function bind(){
     switch(a){
       case "link": copyText(linkFor(opt.tab),"链接已复制"); return;
       case "go54tpl": setTab("54tpl"); return;
+      case "go54types": setTab("54types"); return;
       case "copytpl": copyText(b.getAttribute("data-t"),"模板已复制"); return;
       case "clear": if(confirm("确定清空 53·54 闪卡错题本？")){W={};saveW();if(opt.scope==="wrong")newRound();setTab(opt.tab);toast("已清空")} return;
       case "check": submit(); return;

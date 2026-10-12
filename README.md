@@ -150,6 +150,7 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
   - 闪卡 `?cat=writing-5354`（可加 `&mode=zh2ko|ko2zh`）
   - 真题 `?writing=5354&tab=prac`（可加 `&q=60-53` 直接打开某题）、错题本 `?writing=5354&tab=wrong`、`#w5354`
   - 原因类模板 `?writing=54tpl`（或 `?writing=5354&tab=54tpl`）
+  - 54 题型总览 `?writing=54types`（`&type=cause|pros|solve|need|attitude|debate`，`&mode=drill|full|random`）：6 类结构/句型/易错 + 逐句默写（差异高亮）+ AI 判句 / 整篇 / 全文 TOPIK 评分（/50）
 
 ## 分类词库（味道 / 运动 / 鸟类 …）
 
