@@ -413,3 +413,16 @@ a.lq{color:#9fc0ff;text-decoration:underline;text-underline-offset:2px;white-spa
 .ltag.on{background:#3b2230;border-color:var(--bad);color:#ffc9c9}
 span.ltag{padding:1px 7px;font-size:12.5px}
 .lnext{flex:1 1 100%;min-height:46px;font-size:16px}
+
+/* ---------- 54 原因类万能模板 ---------- */
+.tpl54-warn{border:1px solid #6b5a1e;background:#221f12;border-radius:14px;padding:12px 14px;margin-bottom:10px;font-size:14.5px;line-height:1.65}
+.tpl54-warn b{color:var(--warn);display:block;margin-bottom:4px}
+.tpl54-nav{margin-bottom:10px}
+.tpl54 .prompt.sent{font-size:20px;line-height:1.55}
+.tpl54 .ansline{font-size:17px;font-weight:700;color:#ffd98a;margin:6px 0;line-height:1.7;word-break:keep-all;overflow-wrap:anywhere}
+.tpl54 .mine{font-size:14.5px;color:var(--muted);margin-top:4px}
+.tpl54 .fbx{margin-top:10px}
+.tpl54 .fbx .title{font-weight:800;font-size:18px}
+.tpl54 .fbx.ok .title{color:var(--ok)}
+.tpl54 .fbx.bad .title{color:var(--bad)}
+.tpl54-sent>summary .f{min-width:2.6em}

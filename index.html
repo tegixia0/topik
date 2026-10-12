@@ -246,7 +246,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261010b">
+<link rel="stylesheet" href="assets/modules.css?v=20261012a">
 </head>
 <body>
 <div class="wrap">
@@ -307,7 +307,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
     <footer><div id="wInfo"></div><div><button id="wClear">清空写作记录</button> · <button id="wReload">刷新题库</button></div></footer>
     </div>
     <div id="w54" hidden>
-      <div class="mtabs" id="w54tabs"><button type="button" data-tab="cheat">速查</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="prac">真题</button><button type="button" data-tab="wrong">错题本</button></div>
+      <div class="mtabs n5" id="w54tabs"><button type="button" data-tab="cheat">速查</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="prac">真题</button><button type="button" data-tab="wrong">错题本</button><button type="button" data-tab="54tpl">原因模版</button></div>
       <div id="w54Body"></div>
     </div>
   </div>
@@ -328,7 +328,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="assets/sync.js?v=20261010a"></script>
+<script src="assets/sync.js?v=20261012a"></script>
 <script src="assets/accepted.js?v=20261007a"></script>
 <script src="reading/reading.js?v=20261010a"></script>
 <script src="listening/listening.js?v=20261010a"></script>
@@ -336,7 +336,8 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="writing/wai.js?v=20261008a"></script>
 <script src="grammar/grammar.js?v=20261009a"></script>
 <script src="assets/wsplit.js?v=20261002e"></script>
-<script src="writing/w5354.js?v=20261009a"></script>
+<script src="writing/tpl54cause.js?v=20261012a"></script>
+<script src="writing/w5354.js?v=20261012a"></script>
 <script src="assets/voice.js?v=20261009a"></script>
 <script src="bank/bank.js?v=20261010a"></script>
 <script>
@@ -1228,9 +1229,11 @@ $("wReload").onclick=function(){loaded=false;cheatLoaded=false;ensure().then(fun
 var WQS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");o[decodeURIComponent(i<0?kv:kv.slice(0,i))]=decodeURIComponent(i<0?"":kv.slice(i+1))});return o})();
 var wgLink=String(WQS.cat||"").toLowerCase()==="writing-grammar"||location.hash==="#writing-grammar";
 if(wgLink){opts.tab="cards";if(WQS.mode==="zh2ko"||WQS.mode==="ko2zh"){wg.mode=WQS.mode;wgSaveOpts()}save()}
-var w54Link=String(WQS.cat||"").toLowerCase()==="writing-5354"||WQS.writing==="5354"||location.hash==="#w5354";   // 53·54：?writing=5354[&tab=cheat|cards|prac|wrong][&q=60-53][&no=53|54]、?cat=writing-5354[&mode=zh2ko|ko2zh]
+var w54TplLink=WQS.writing==="54tpl"||WQS.writing==="54cause"||location.hash==="#w54tpl";   // 54 原因类模板：?writing=54tpl
+var w54Link=String(WQS.cat||"").toLowerCase()==="writing-5354"||WQS.writing==="5354"||location.hash==="#w5354"||w54TplLink;   // 53·54：?writing=5354[&tab=…]、?writing=54tpl、?cat=writing-5354
 var w54o={};
-if(w54Link){opts.part="5354";save();w54o={tab:String(WQS.cat||"").toLowerCase()==="writing-5354"?"cards":(WQS.tab||"cheat"),mode:WQS.mode,q:WQS.q,no:WQS.no}}
+if(w54TplLink){opts.part="5354";save();w54o={tab:"54tpl"}}
+else if(w54Link){opts.part="5354";save();w54o={tab:String(WQS.cat||"").toLowerCase()==="writing-5354"?"cards":(WQS.tab||"cheat"),mode:WQS.mode,q:WQS.q,no:WQS.no}}
 else if(wgLink||WQS.writing==="mistakes"||location.hash==="#mistakes"){opts.part="5152";save()}
 if(window.TopikW54) TopikW54.init();
 if(window.TopikReading) TopikReading.init();

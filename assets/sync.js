@@ -21,6 +21,7 @@ var KEYS={
   "topik.writing.v1":          {name:"写作 51·52 自评", pol:function(p){return p.length===2&&p[0]==="marks"?{newer:byNum("t")}:null}},
   "topik.wg.wrong.v1":         {name:"写作 51·52 语法闪卡错题", pol:null},
   "topik.w54.wrong.v1":        {name:"写作 53·54 闪卡错题", pol:null},
+  "topik.w54.tpl.v1":          {name:"写作 54 原因类模板默写进度", pol:function(p){return p.length===1?{newer:byNum("lastAt"),max:["seen"]}:null}},
   "topik.writing.ai.v1":       {name:"写作 51·52 AI 评分记录", pol:function(p){
       return p.length===1&&p[0]==="entries"?{arr:true,id:function(e){return e&&typeof e==="object"?[e.q,e.k,e.at,e.try].join("|"):canon(e)},sort:byNum("at"),cap:800}:null}},
   "topik.w54.ai.v1":           {name:"写作 53·54 AI 批改记录", pol:function(p){

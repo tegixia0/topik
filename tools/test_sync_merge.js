@@ -67,6 +67,10 @@ t("语法分类练进度：取 lastAt 较新，seen 取大",()=>{
   const m=M("topik.grammar.drill.v1",undefined,{c1:{seen:12,lastOk:3,lastN:10,lastAt:5}},{c1:{seen:8,lastOk:9,lastN:10,lastAt:7}},true);
   assert.deepStrictEqual(m.c1,{seen:12,lastOk:9,lastN:10,lastAt:7});
 });
+t("54 原因类模板默写进度：取 lastAt 较新，seen 取大",()=>{
+  const m=M("topik.w54.tpl.v1",undefined,{cause:{seen:4,lastOk:10,lastN:15,lastAt:5}},{cause:{seen:2,lastOk:14,lastN:15,lastAt:9}},true);
+  assert.deepStrictEqual(m.cause,{seen:4,lastOk:14,lastN:15,lastAt:9});
+});
 t("语法错题本 {n,last}：并集，计数取大；本机答对删除传播",()=>{
   const b={g1:{n:1,last:1},g2:{n:2,last:2}}, l={g2:{n:2,last:2},g3:{n:1,last:3}}, r={g1:{n:1,last:1},g2:{n:3,last:4}};
   assert.deepStrictEqual(M("topik.grammar.wrong.v1",b,l,r,true),{g2:{n:3,last:4},g3:{n:1,last:3}});

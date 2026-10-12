@@ -106,12 +106,13 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 
 ## 写作 53·54（`writing/w5354.*`）
 
-「✍️ 写作」→「53·54 图表·议论文」，四个标签页：
+「✍️ 写作」→「53·54 图表·议论文」，五个标签页：
 
 - **速查**：53 / 54 分页 + 搜索。每个句型是一张可折叠卡片：韩语句型、中文意思、🧠 记忆法（汉字词对中文）、⚠️ 易错、例句（标“官方范文 第N回”的逐字取自该回官方 모범답안，其余标“自拟例句”）；另有 53/54 模板骨架（可复制）、交卷前检查清单、-습니다 → -ㄴ다 语体对照表。
 - **闪卡**：60 张（53 × 24、54 × 20、万能词 × 16）。中→韩打字（只比较韩文；`(으)`、`을/를`、`하였/했` 等自动放宽，另有「其实我写对了」）或韩→中自评；答错/没记住进 53·54 错题本（localStorage `topik.w54.wrong.v1`），在错题本或重练里答对自动移出。
 - **真题**：22 题 = 53 × 11 + 54 × 11，全部来自官方公开试卷（第35·36·37·47·52·60·64·83·91·96·102回）。53 附原卷图表截图（`writing/img/w{回}_53.png`）＋图表数字文字版；作文框每次都是空白、**不保存**（离开时有提示）；实时字数（含空格和标点、不含换行，≈原稿纸格数；53 目标 200–300，54 目标 600–700）；「📋 复制给老师」复制题目（含图表文字版）＋作文；「看参考答案」显示官方模范答案（第64回 54 官方未公开 → 标「参考范文（自编）」）。
 - **错题本**：上面是「✍️ 作文易错点」（老师批改的 53/54 作文错误按类型汇总次数，附规则和例子，点例子去那道题重做），下面是闪卡错题列表。
+- **原因模版**（`writing/tpl54cause.js`）：54 大作文「原因类」四段万能骨架（韩语全文 + 逐句中文 + 语法要点 + 填空说明）。⚠️ 注明只是可替换骨架，不是完整 600–700 字作文；并修正原图「(으)로 수 있다」→「(으)ㄹ 수 있다」等槽位说明。**逐句默写**：看中文写韩语骨架，占位可打 〇〇 / `[원인 1]` 或中文 `[原因1]`；大作文要求保持 -다 体（-습니다/-아·어요 判错）；答错可「✏️ 再写一次」（第一次仍记错）。进度 `topik.w54.tpl.v1`（可同步）。速查 54 分页也有入口按钮。
 
 ### 我之前的作文（`writing/essaylog.json`）
 
@@ -148,6 +149,7 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
   - 速查 `?writing=5354`（`&no=54` 打开 54 分页）
   - 闪卡 `?cat=writing-5354`（可加 `&mode=zh2ko|ko2zh`）
   - 真题 `?writing=5354&tab=prac`（可加 `&q=60-53` 直接打开某题）、错题本 `?writing=5354&tab=wrong`、`#w5354`
+  - 原因类模板 `?writing=54tpl`（或 `?writing=5354&tab=54tpl`）
 
 ## 分类词库（味道 / 运动 / 鸟类 …）
 
@@ -212,7 +214,7 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 - 入口：顶部导航下面的同步状态行「☁️ … ⚙️ 设置」（每个页面都有）；AI 判题设置面板里也有「进度同步设置」按钮。代码在 `assets/sync.js`（必须在其它模块之前加载）。
 - 设置：创建 classic token（<https://github.com/settings/tokens/new?scopes=gist&description=topik-sync>，**只勾 gist**，不过期）→ 在每台设备粘贴同一个 Token。第一次同步自动建私密 Gist `topik-progress.json`；另一台设备没有 Gist ID 时会在你的 gist 里按文件名找到它（也可以手动填 Gist ID）。
 - **Token 只存在本机 localStorage（`topik.sync.token`），不同步、不进仓库；DeepSeek Key 也不同步。** 仓库里绝不放 Token。
-- 同步的 key：`topik.wrong.v1`、`topik.bank.v1`、`topik.writing.v1`、`topik.wg.wrong.v1`、`topik.w54.wrong.v1`、`topik.writing.ai.v1`、`topik.w54.ai.v1`、`topik.grammar.wrong.v1`、`topik.grammar.drill.v1`、`topik.grammar.aiAccepted.v1`、`topik.reading.v1`、`topik.reading.last`、`topik.listening.v1`（听力作答 `a` 取 `t` 较新；错题 `w` 取 `last` 较新、次数 `n` 取大）。不同步：Key/Token、界面偏好（`topik.view`、`topik.mode`、各种 `*.opt*`、`topik.ai.on`、`topik.grammar.hintsOn.v1`、`topik.wsplit.v1`）、进行中的整套模拟 `topik.reading.mock.v1`。
+- 同步的 key：`topik.wrong.v1`、`topik.bank.v1`、`topik.writing.v1`、`topik.wg.wrong.v1`、`topik.w54.wrong.v1`、`topik.w54.tpl.v1`、`topik.writing.ai.v1`、`topik.w54.ai.v1`、`topik.grammar.wrong.v1`、`topik.grammar.drill.v1`、`topik.grammar.aiAccepted.v1`、`topik.reading.v1`、`topik.reading.last`、`topik.listening.v1`（听力作答 `a` 取 `t` 较新；错题 `w` 取 `last` 较新、次数 `n` 取大）。不同步：Key/Token、界面偏好（`topik.view`、`topik.mode`、各种 `*.opt*`、`topik.ai.on`、`topik.grammar.hintsOn.v1`、`topik.wsplit.v1`）、进行中的整套模拟 `topik.reading.mock.v1`。
 - 合并：三方合并（本机上次同步时的共同版本 `topik.sync.base` + 本机 + 云端）。只有一边改了 → 用改了的一边（删除也会同步，比如错题答对移出、清空错题本）；两边都改了 → 按数据形状合并：对象逐键合并、计数取大、数组按 id 并集去重、带时间戳的记录（词库每词 `l`/`n`，自评 `t`，阅读作答 `t`，分类练 `lastAt`）取较新的一条；其它标量按该 key 最后修改时间。没有共同版本（第一次同步、云端被别的设备覆盖过）时做并集，任何一边的数据都不丢。
 - 时机（自动同步 = 拉取 + 合并 + 上传，**所有标签页合计最多每 5 分钟一次**；上次同步时间存在 `topik.sync.last`，刷新页面 / 切换模块 / 开新标签页都不会重新同步）：
   - 打开网站、回到前台：距上次同步满 5 分钟才同步，否则什么都不做。只有拉到了其他设备的新进度、且刚打开还没操作时才自动刷新一次页面；没变化的例行同步不弹提示。
