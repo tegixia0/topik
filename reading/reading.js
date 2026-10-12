@@ -117,28 +117,31 @@ function qHTML(q,mode,inGroup){
   return h;
 }
 function fbHTML(q,my){
-  var ok=my===q.ans, h='<div class="rres '+(ok?"ok":"bad")+'">'+(my==null?"未作答 · 正确答案 "+NUM[q.ans]:ok?"✔ 正确！":"✘ 选了 "+NUM[my]+" · 正确答案 "+NUM[q.ans])+'</div>';
-  h+='<details class="rx"'+(ok?"":" open")+'><summary>解析 · 翻译 · 生词</summary>';
-  h+='<h4>🔑 关键句</h4><p class="key">'+rich(q.k)+'</p>';
-  h+='<h4>💡 解析</h4><p>'+rich(q.e)+'</p>';
-  h+='<h4>选项逐条</h4><ol>'+q.o.map(function(x,i){return '<li>'+NUM[i]+' '+esc(x)+'</li>'}).join("")+'</ol>';
-  var tr=q.tr||(q.gid&&groups[q.gid]?"（见上方文章的“中文翻译”）":"");
+  var ok=my===q.ans, h='<div class="rres '+(ok?"ok":"bad")+'">'+(my==null?"未作答 · 正确答案 "+NUM[q.ans]:ok?"✔ 正确！":"✘ 选了 "+NUM[my]+" · 正确答案 "+NUM[q.ans]+" "+esc(q.opts[q.ans]))+'</div>';
+  var hasE=!!(q.e||q.k||(q.o&&q.o.length));
+  h+='<details class="rx"'+(ok?"":" open")+'><summary>'+(hasE?"解析 · 翻译 · 生词":"答案 · 操作")+'</summary>';
+  if(!hasE) h+='<p class="minfo">本题暂无中文翻译和解析（题目、答案均为官方原题）。不懂的话可以点下面「📋 复制题目发给老师」。</p>';
+  if(q.k) h+='<h4>🔑 关键句</h4><p class="key">'+rich(q.k)+'</p>';
+  if(q.e) h+='<h4>💡 解析</h4><p>'+rich(q.e)+'</p>';
+  if(q.o&&q.o.length) h+='<h4>选项逐条</h4><ol>'+q.o.map(function(x,i){return '<li>'+NUM[i]+' '+esc(x)+'</li>'}).join("")+'</ol>';
+  var tr=q.tr||(q.gid&&groups[q.gid]&&groups[q.gid].tr?"（见上方文章的“中文翻译”）":"");
   if(tr) h+='<h4>中文翻译</h4><p>'+rich(tr)+'</p>';
   if(q.v&&q.v.length) h+='<h4>生词</h4><table class="vt">'+q.v.map(function(v){return '<tr><td>'+esc(v[0])+'</td><td>'+esc(v[1]||"")+'</td><td>'+esc(v[2]||"")+'</td></tr>'}).join("")+'</table>';
   if(q.g) h+='<h4>语法</h4><ul style="padding-left:18px;margin:2px 0">'+q.g.split(/[;；]/).filter(Boolean).map(function(x){return '<li>'+esc(x.trim())+'</li>'}).join("")+'</ul>';
-  h+='<div class="racts"><button type="button" data-act="vocab" data-q="'+q.id+'">➕ 生词加入单词错题本</button><button type="button" data-act="copy" data-q="'+q.id+'" data-my="'+(my==null?"":my)+'">📋 复制题目发给老师</button>'+(opt.tab==="prac"?'<button type="button" data-act="redo" data-q="'+q.id+'">↺ 重做</button>':"")+'</div>';
+  h+='<div class="racts">'+(q.v&&q.v.length?'<button type="button" data-act="vocab" data-q="'+q.id+'">➕ 生词加入单词错题本</button>':'')+'<button type="button" data-act="copy" data-q="'+q.id+'" data-my="'+(my==null?"":my)+'">📋 复制题目发给老师</button>'+(opt.tab==="prac"?'<button type="button" data-act="redo" data-q="'+q.id+'">↺ 重做</button>':"")+'</div>';
   return h+'</details>';
 }
 /* ---------- 练习 ---------- */
+function annTag(r){var a=r.ann==null?r.count:r.ann;return a>=r.count?" · 有解析":a>0?" · 解析 "+a+"/"+r.count:" · 无解析"}
 function renderPrac(){
-  var rounds=D.rounds.map(function(r){return '<option value="'+r.round+'"'+(opt.round===String(r.round)?" selected":"")+'>第'+r.round+'回（'+r.count+'题）</option>'}).join("");
+  var rounds=D.rounds.map(function(r){return '<option value="'+r.round+'"'+(opt.round===String(r.round)?" selected":"")+'>第'+r.round+'回'+(r.date?' · '+esc(r.date):'')+'（'+r.count+'题'+annTag(r)+'）</option>'}).join("");
   var base=Q.filter(function(q){return opt.round==="all"||String(q.round)===opt.round});
   var types=D.types.map(function(t){var n=base.filter(function(q){return q.type===t.id}).length;return n?'<option value="'+t.id+'"'+(opt.type===t.id?" selected":"")+'>'+t.range+' '+esc(t.label)+'（'+n+'）</option>':""}).join("");
   var wn=Object.keys(st.w).length, list=filtered(), us=units(list);
   if(opt.idx>=us.length) opt.idx=0;
   var done=list.filter(function(q){return st.a[q.id]}), okn=done.filter(function(q){return st.a[q.id].ok}).length;
   var h='<div class="fbar"><select id="rRound" aria-label="回次"><option value="all">全部回次</option>'+rounds+'</select><select id="rType" aria-label="题型"><option value="all">全部题型</option>'+types+'</select>'+
-    '<button type="button" class="chip'+(opt.wrong?" on":"")+'" id="rWrongOnly">只看错题（'+wn+'）</button><button type="button" class="chip" id="rLink">🔗 链接</button></div>';
+    '<button type="button" class="chip'+(opt.wrong?" on":"")+'" id="rWrongOnly" style="white-space:nowrap">只看错题（'+wn+'）</button><button type="button" class="chip" id="rLink">🔗 链接</button></div>';
   h+='<div class="minfo">共 '+list.length+' 题 · 已做 '+done.length+(done.length?' · 正确率 '+Math.round(okn*100/done.length)+'%':"")+' · 选项一点即判，答错自动进阅读错题本</div>';
   if(!us.length){h+='<div class="card empty">'+(opt.wrong?"错题本是空的 🎉":"没有符合条件的题目")+'</div>';$("rBody").innerHTML=h;bindPrac();return}
   var nav='<div class="unav"><button type="button" data-nav="-1"'+(opt.idx<=0?" disabled":"")+'>◀ 上一题</button><span class="pos">'+(opt.idx+1)+' / '+us.length+'</span><button type="button" data-nav="1"'+(opt.idx>=us.length-1?" disabled":"")+'>下一题 ▶</button></div>';
@@ -170,11 +173,13 @@ function renderMock(){
   var m=mockSt();
   if(m&&!m.done){runMock(m);return}
   var h='<div class="card"><h3 style="margin:0 0 6px">整套模拟 · 70分钟</h3><p class="minfo">TOPIK II 读解 50题 / 70分钟。中途刷新不会丢失；时间到自动交卷，交卷后统计分数、各题型正确率，错题进错题本并显示解析。</p>';
-  D.rounds.forEach(function(r){h+='<button type="button" class="gbtn pri" style="margin:4px 6px 4px 0" data-mock="'+r.round+'">开始 第'+r.round+'回（'+r.count+'题'+(r.count<50?"，缺"+(50-r.count)+"题":"")+'）</button>'});
+  h+='<div class="mgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px;margin:6px 0">';
+  D.rounds.forEach(function(r){h+='<button type="button" class="gbtn pri" style="margin:0;padding:8px 6px;line-height:1.3" data-mock="'+r.round+'">第'+r.round+'回<br><small style="font-weight:400;opacity:.85">'+esc(r.date||"")+' · '+r.count+'题'+(r.ann===0?' · 无解析':'')+'</small></button>'});
+  h+='</div>';
   var last=load("topik.reading.last",null);
   if(last) h+='<p class="minfo">上次：第'+last.round+'回 '+last.score+'/'+last.full+' 分（'+new Date(last.t).toLocaleString()+'）</p>';
   var sk=D.rounds.filter(function(r){return Object.keys(r.skipped||{}).length});
-  sk.forEach(function(r){h+='<p class="minfo">第'+r.round+'回 第'+Object.keys(r.skipped).join("、")+'题：'+esc(r.skipped[Object.keys(r.skipped)[0]])+'，不计分。</p>'});
+  if(sk.length) h+='<p class="minfo">以下题目官方因版权未公开原文（저작권 관련 법령에 따라 지문 비공개），不收录、不计分，限时按题数比例缩短：'+sk.map(function(r){return '第'+r.round+'回 '+Object.keys(r.skipped).join("、")}).join("；")+'。</p>';
   $("rBody").innerHTML=h+'</div>';
 }
 function startMock(round){
@@ -242,7 +247,7 @@ function copyQ(q,my){
   if(q.bogi) t+="<보기> "+plain(q.bogi)+"\n";
   if(q.stem) t+=q.n+". "+plain(q.stem)+"\n";
   t+=q.opts.map(function(o,i){return NUM[i]+" "+o}).join("\n")+"\n";
-  t+="我的答案："+(my===""||my==null||my<0?"未答":NUM[my])+"　正确答案："+NUM[q.ans]+"\n关键句："+plain(q.k)+"\n老师，这题我不太明白：";
+  t+="我的答案："+(my===""||my==null||my<0?"未答":NUM[my])+"　正确答案："+NUM[q.ans]+(q.k?"\n关键句："+plain(q.k):"")+"\n老师，这题我不太明白：";
   copy(t,"题目已复制，可以粘贴发给老师");
 }
 /* ---------- 事件 ---------- */

@@ -171,13 +171,14 @@ localStorage 键：`topik.writing.v1`（存 `{marks:{id:{a,b,t}}}`；旧版的 `
 ## 阅读真题（`reading/`）
 
 - 顶部「📖 阅读」：练习（按 回次 / 题型 / 只看错题 筛选，点选项即判，答错展开解析）、整套模拟（50题/70分钟按比例限时，交卷出分和各题型正确率）、阅读错题本、题型攻略。
-- 数据 `reading/rounds.json` 由 `python3 tools/build_reading.py` 生成：
-  - 原文：官方公开 2교시 PDF（kajiritate-no-hangul.com 镜像 `{n}_TOPIK2_2.pdf`）用 `tools/reading_parse.py` 解析 → `tools/reading_src/{n}.json`；第83/91回 PDF 是扫描图：`pdftoppm -r 300 -gray` + `tesseract -l kor --psm 4` OCR 后逐行对照原图校对，转写在 `tools/src{n}.py`（运行即生成 `reading_src/{n}.json`）；
-  - 答案：官方正答表 `{n}_TOPIK2_A.pdf`（第96/91/83回为图片，人工读表）；
-  - 注释：`tools/rd{n}.py`（中文翻译、关键句、解析、逐项分析、生词、语法；`FIX` 修正抽取问题/加下划线）。
-  - 5–10 题图片从原卷裁剪：`reading/img/r{n}_q{m}.png`。
-- 已收录：第96回（48题，42–43 官方因版权未公开原文）、第91回（50题）、第83回（50题）、第60回（50题），共198题。
-- 深链接：`?reading=1`、`?reading=1&type=insert`（题型 id：grammar synonym ad match order blank long headline blank2 match2 theme insert long2）、`?reading=1&round=60`（或 91 / 83 / 96）、`&tab=mock|wrong|tips`。
+- 收录 topik.go.kr 官方公开的**全部 12 回** TOPIK II 读解：第35·36·37·41·47·52·60·64·83·91·96·102回（官网「토픽 기출문제 풀어보기」和 학습 자료실 只公开了这 12 回）。
+  - 42–43 题全部 12 回的官方题目数据都标「저작권 관련 법령에 따라 지문 비공개」；第60/83/91回的官方 PDF 里有原文（已收录），其余各回 PDF 同样未公开 → 不收录。第102回 23–24 同理。
+- 数据 `reading/rounds.json` 由 `python3 tools/build_reading.py` 生成，两种官方来源：
+  - **PDF 回**（60/83/91/96）：官方 2교시 PDF（kajiritate-no-hangul.com 镜像 `{n}_TOPIK2_2.pdf`）用 `tools/reading_parse.py` 解析 → `tools/reading_src/{n}.json`；第83/91回 PDF 是扫描图：`pdftoppm -r 300 -gray` + `tesseract -l kor --psm 4` OCR 后逐行对照原图校对，转写在 `tools/src{n}.py`；答案：官方正答表 `{n}_TOPIK2_A.pdf`；5–10 题图片从原卷裁剪。
+  - **官网题目数据回**（35/36/37/41/47/52/64/102）：「토픽 기출문제 풀어보기」用的官方读解脚本 `https://www.topik.go.kr/asset/exam/exam{n}/exam_{n}_2_r.js`（题干/文章/<보기>/选项 + 正答 `ca`；需带浏览器 User-Agent 才能下载），原文件存 `tools/reading_src/official/exam_{n}_2_r.js` → `node tools/reading_src/parse_exam_r.js tools/reading_src/official {n…}` → `official/{n}.json` → `tools/reading_official.py` 转换（只规范空白：旧卷脚本按纸面换行加了 `<br/>`，是否断在词中间由 `official/wraps.json` 决定，以音节/词频模型生成后人工复核；`SPACEFIX` 修正网页脚本在换行处多出的空格）。5–10 题图片是官方题图 `/asset/exam/exam{n}/images/{n}_2_2_{q}.png`（缩到 1000px 宽）。
+  - 这套转换在第60/83/91/96回上与 PDF 版逐字对比过（差异只有个别空格和引号样式）。
+  - 注释：`tools/rd{n}.py`（中文翻译、关键句、解析、逐项分析、生词、语法）。官网题目数据回的注释是可选的：没有注释的题照常可做、判分、进错题本，只显示“暂无解析”；回次下拉框里标「有解析 / 解析 x/y / 无解析」。
+- 深链接：`?reading=1`、`?reading=1&type=insert`（题型 id：grammar synonym ad match order blank long headline blank2 match2 theme insert long2）、`?reading=1&round=102`（35–102 任一回）、`&tab=mock|wrong|tips`。
 
 ## 听力（`listening/`）
 
