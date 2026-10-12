@@ -36,7 +36,7 @@ BL='\x02'
 # spaces the web script inserted where the printed line wrapped inside a word (checked against the PDF wording/spelling rules)
 # typos in the web script, corrected to the official PDF wording (checked on the page images)
 TEXTFIX={102:[('원기등','원기둥'),('층분한','충분한')],64:[('특징이 있 다 .','특징이 있다.'),('SNS상에서 이루어진다 ( ㉢ )','SNS상에서 이루어진다. ( ㉢ )')],52:[('노력이 필요하다..','노력이 필요하다.')]}
-SPACEFIX={35:['수집 하려고'],41:['자리매김 되었다고','최대화 하고'],64:['보존 되어','판매 하는','달성 하는','출동 하거나']}
+SPACEFIX={35:['수집 하려고','모양 에는'],41:['자리매김 되었다고','최대화 하고','활쏘기 에서는'],47:['교환 한다'],52:['상처 에는'],64:['보존 되어','판매 하는','달성 하는','출동 하거나','생물학자 이다','동물들 에게','서비 스를','떠들썩 팔랑나비']}
 def tidy(s):
     s=s.replace('\u3000',' ').replace('∼','~').replace('～','~').replace('\U000f0854','『').replace('\U000f0855','』')
     s=s.replace('，',', ').replace('－','-')
