@@ -35,7 +35,7 @@ def segs(html):
 BL='\x02'
 # spaces the web script inserted where the printed line wrapped inside a word (checked against the PDF wording/spelling rules)
 # typos in the web script, corrected to the official PDF wording (checked on the page images)
-TEXTFIX={102:[('원기등','원기둥'),('층분한','충분한')],64:[('특징이 있 다 .','특징이 있다.'),('SNS상에서 이루어진다 ( ㉢ )','SNS상에서 이루어진다. ( ㉢ )')],52:[('노력이 필요하다..','노력이 필요하다.')]}
+TEXTFIX={102:[('원기등','원기둥'),('층분한','충분한')],64:[('특징이 있 다 .','특징이 있다.'),('SNS상에서 이루어진다 ( ㉢ )','SNS상에서 이루어진다. ( ㉢ )')],52:[('노력이 필요하다..','노력이 필요하다.'),('이런 취지에 부합하여 실제로 특허 제도는 기술 혁신과 산업 발전에 크게 이바지해 왔다.','<u>이런 취지에 부합하여 실제로 특허 제도는 기술 혁신과 산업 발전에 크게 이바지해 왔다.</u>')]}
 SPACEFIX={35:['수집 하려고','모양 에는'],41:['자리매김 되었다고','최대화 하고','활쏘기 에서는'],47:['교환 한다'],52:['상처 에는'],64:['보존 되어','판매 하는','달성 하는','출동 하거나','생물학자 이다','동물들 에게','서비 스를','떠들썩 팔랑나비']}
 def tidy(s):
     s=s.replace('\u3000',' ').replace('∼','~').replace('～','~').replace('\U000f0854','『').replace('\U000f0855','』')
@@ -57,7 +57,7 @@ def unwrap(s,key,lines=False):
     out=''
     for i,p in enumerate(parts):
         if i==0: out=p; continue
-        if lines or re.match(r'\s*(\((가|나|다|라)\)|（(가|나|다|라)）|<보\s*기>|<보기>)',p) or not p.strip() or not out.strip():
+        if re.match(r'\s*(\((가|나|다|라)\)|（(가|나|다|라)）|<보\s*기>|<보기>)',p) or not p.strip() or not out.strip():
             out=out.rstrip()+'\n'+p.lstrip(); continue
         a=out.rstrip(); b=p.lstrip()
         if out!=a or p!=b: out=a+' '+b; continue          # explicit space at the wrap
