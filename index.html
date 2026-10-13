@@ -31,6 +31,9 @@ select{font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(
 .modes button{min-height:46px;border:1px solid var(--border);background:var(--card);color:var(--ink);border-radius:12px;font-size:16px;font-weight:600}
 .modes button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .wrong-entry{display:block;width:100%;min-height:48px;margin:0 0 10px;border:1px solid #9b3340;background:#2a1518;color:#ffb4bc;border-radius:14px;font-size:16px;font-weight:800}
+.shuf-entry{display:flex;gap:8px;margin:0 0 10px}.shuf-entry button{flex:1;min-height:46px;border-radius:14px;border:1px solid #3a5a9b;background:#152036;color:#b8d0ff;font-size:15px;font-weight:800}.shuf-entry button.on{background:#3a5a9b;color:#fff}.shuf-entry .lst{flex:0 0 auto;padding:0 12px}
+#shufList{margin:0 0 12px}#shufList .tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}#shufList .tools button{min-height:40px;padding:0 10px;border-radius:10px}#shufList ol{padding-left:2.4em;margin:0;line-height:1.7;font-size:17px}#shufList li{border-bottom:1px solid var(--border);padding:4px 0}#shufList .k{font-weight:700;display:inline-block;min-width:7.5em;border-bottom:1px dashed transparent}#shufList.hk .k{border-bottom-color:var(--border)}#shufList .z{color:var(--muted);margin-left:.5em}#shufList.hk .k,#shufList.hz .z{visibility:hidden}
+@media print{body *{visibility:hidden}#shufList,#shufList *{visibility:visible}#shufList{position:absolute;left:0;top:0;color:#000}#shufList .tools{display:none}#shufList .z{color:#333}}
 .wrong-entry.on{background:#9b3340;border-color:#9b3340;color:#fff}
 .wrong-entry:disabled{opacity:.55;border-color:var(--border);background:var(--card);color:var(--muted)}
 .bar{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:15px;margin:4px 2px 8px}
@@ -268,6 +271,8 @@ details.pc[open]>summary .pk{color:#ffd98a}
     <button data-mode="v_zh_ko">单词 中→韩</button>
     <button data-mode="v_ko_zh">单词 韩→中</button>
   </div>
+  <div class="shuf-entry"><button type="button" id="goShuf">🔀 全部已学词·打乱复习</button><button type="button" class="lst" id="goShufList">📝 打乱词表</button></div>
+  <div class="card" id="shufList" hidden></div>
   <button type="button" class="wrong-entry" id="goWrong" aria-label="重练错词">📕 错词本（0）</button>
   <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
   <div class="progress"><i id="progBar"></i></div>
@@ -359,8 +364,8 @@ var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"v_zh_ko",gzh2ko:"v_zh_ko
 if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||/^grammar-/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.listening||QS.grammar||QS.writing||QS.bank){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
-else if(QS.deck) source=QS.deck;
-if(QS.cat||QS.deck){try{localStorage.setItem("topik.view","flash")}catch(e){}}
+else if(QS.deck) source=(/^(shuffle|shuf|all-shuffled)$/i.test(QS.deck)?"shuf":QS.deck);
+if(QS.cat||QS.deck||QS.list){try{localStorage.setItem("topik.view","flash")}catch(e){}}
 var wantSource=source;
 var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
 
@@ -466,12 +471,14 @@ function renderDeckSel(){
     }
     h.push('<option value="all">全部混合（'+index.length+" 天"+(CATS.length?" + "+CATS.length+" 类":"")+"）</option>");
   }
+  if(index.length||CATS.length) h.push('<option value="shuf">🔀 全部已学词·打乱复习（可续做）</option>');
   h.push('<option value="wrong">📕 错词本（'+wrongCards(mode).length+"）</option>");
   sel.innerHTML=h.join("");
   if(wantSource){source=wantSource;wantSource=null;if(source!=="latest"&&!Array.prototype.some.call(sel.options,function(o){return o.value===source}))toast("找不到这个题库，已打开最新一天")}
   sel.value=source; if(sel.value!==source){source="latest";sel.value="latest"}
   var sh=$("shareCat"); if(sh) sh.hidden=!(source.indexOf("cat-")===0||/^\d{4}-/.test(source));
   updateWrongEntry();
+  var gs=$("goShuf"); if(gs){gs.classList.toggle("on",source==="shuf");gs.textContent=source==="shuf"?"🔀 正在打乱复习全部已学词 · 点此退出":"🔀 全部已学词·打乱复习"}
 }
 function updateWrongEntry(){
   var b=$("goWrong"); if(!b) return;
@@ -485,7 +492,7 @@ function getPool(){
   var type=MODE_INFO[mode].type;
   if(source==="wrong") return Promise.resolve(wrongCards(mode));
   if(!index.length&&!CATS.length) return Promise.resolve([]);
-  var dates = source==="all" ? index.map(function(e){return e.date}).concat(CATS.map(function(c){return c.id}))
+  var dates = (source==="all"||source==="shuf") ? index.map(function(e){return e.date}).concat(CATS.map(function(c){return c.id}))
             : [source==="latest"?(index[0]||{}).date:source];
   return Promise.all(dates.map(loadDeck)).then(function(ds){
     var seen={},out=[];
@@ -495,8 +502,28 @@ function getPool(){
 }
 
 /* ---------- 流程 ---------- */
-function start(cards,redo){
+var LS_SHUF="topik.shuffle.v1";
+function shufLoad(){try{return JSON.parse(localStorage.getItem(LS_SHUF))||{}}catch(e){return {}}}
+function shufSave(){
+  if(source!=="shuf"||isRedo) return;
+  var o=shufLoad(); o[mode]={t:Date.now(),order:queue.map(cardKey),pos:pos,ok:ok,bad:bad,missed:missed.map(cardKey)};
+  try{localStorage.setItem(LS_SHUF,JSON.stringify(o))}catch(e){}
+}
+function shufClear(){var o=shufLoad();delete o[mode];try{localStorage.setItem(LS_SHUF,JSON.stringify(o))}catch(e){}}
+function start(cards,redo,fresh){
   isRedo=!!redo; queue=shuffle(cards); pos=0; ok=0; bad=0; missed=[]; written=[];
+  if(source==="shuf"&&!redo){
+    var sv=shufLoad()[mode], by={}; cards.forEach(function(c){by[cardKey(c)]=c});
+    if(sv&&!fresh&&sv.order&&sv.pos<sv.order.length){
+      var q=sv.order.map(function(k){return by[k]}).filter(Boolean), have={}; q.forEach(function(c){have[cardKey(c)]=1});
+      var extra=shuffle(cards.filter(function(c){return !have[cardKey(c)]}));   // 新发布的词：插到剩余部分里
+      var done=Math.min(sv.pos,q.length), rest=shuffle(q.slice(done).concat(extra));
+      queue=q.slice(0,done).concat(rest); pos=done; ok=sv.ok||0; bad=sv.bad||0;
+      missed=(sv.missed||[]).map(function(k){return by[k]}).filter(Boolean);
+      if(done) toast("已接着上次进度："+(done+1)+"/"+queue.length);
+    }
+    shufSave();
+  }
   $("summary").hidden=true; $("quiz").hidden=false;
   if(!queue.length){
     $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
@@ -525,10 +552,11 @@ function speak(t){if(!canSpeak())return;try{speechSynthesis.cancel();var u=new S
 function autosize(){var a=$("answer");a.style.height="auto";a.style.height=Math.max(a.scrollHeight,54)+"px"}
 
 function show(){
+  shufSave();
   if(pos>=queue.length) return finish();
   state="ask"; cur=queue[pos];
   var mi=MODE_INFO[mode], koPrompt=(mode==="v_ko_zh"||mode==="g_ko_zh");
-  $("label").textContent=mi.label+(source==="all"||source==="wrong"?" · "+mmdd(cur.date||""):"");
+  $("label").textContent=mi.label+(source==="all"||source==="shuf"||source==="wrong"?" · "+mmdd(cur.date||""):"");
   var tag=$("tag"), ci=info(cur); tag.className="tag"; tag.title="";
   if(cur.point){tag.hidden=false;tag.textContent=cur.point}
   else if(ci&&(ci.pos||VOICE.of({ko:cur.ko,zh:cur.zh,pos:ci.pos,voice:ci.voice}))){   // 中→韩：题目上就显示「动词·他动」，区分 끝나다/끝내다 这类词
@@ -616,7 +644,7 @@ function retry(){
 }
 function askTeacher(user){
   var d=cur.date||"", L=deckLabel();
-  ACC.copy({deck:"单词 中→韩 · "+(source==="all"||source==="wrong"?L+" → "+mmdd(d):L)+(d?"（"+d+"）":""),id:vid(cur),zh:cur.zh,ans:cur.ko,mine:user});
+  ACC.copy({deck:"单词 中→韩 · "+(source==="all"||source==="shuf"||source==="wrong"?L+" → "+mmdd(d):L)+(d?"（"+d+"）":""),id:vid(cur),zh:cur.zh,ans:cur.ko,mine:user});
 }
 function grade(right,auto,alt){
   if(right){ok++;recordRight(cur)} else {bad++;missed.push(cur);recordWrong(cur)}
@@ -651,7 +679,8 @@ function finish(){
   h+='<div class="actions" id="sumActs"></div>';
   s.innerHTML=h;
   if(missed.length) acts.push({text:"只练错题（"+missed.length+"）",cls:"b-bad full",fn:function(){start(missed.slice(),true)}});
-  acts.push({text:"再来一轮",cls:"b-primary",fn:function(){start(pool)}});
+  if(source==="shuf"&&!isRedo) shufClear();
+  acts.push({text:source==="shuf"?"🔀 重新打乱再来一轮":"再来一轮",cls:"b-primary",fn:function(){start(pool,false,true)}});
   acts.push({text:"📕 错词本（"+wrongCards(mode).length+"）",cls:"b-bad"+(missed.length?"":" full"),fn:function(){source="wrong";renderDeckSel();reload()}});
   if(mode==="g_zh_ko"&&written.length) acts.push({text:"复制本轮句子",cls:"b-ghost full",fn:function(){
     copy(written.map(function(w,i){return (i+1)+". "+w.zh+(w.point?"（"+w.point+"）":"")+"\n我写的："+w.mine}).join("\n\n"))}});
@@ -671,6 +700,7 @@ $("modes").addEventListener("click",function(e){var b=e.target.closest("button[d
 function deckURL(){
   var base=location.origin+location.pathname, q="";
   if(source==="wrong") q="?deck=wrong";
+  else if(source==="shuf") q="?deck=shuffle";
   else if(source.indexOf("cat-")===0) q="?cat="+encodeURIComponent(source.slice(4));
   else if(/^\d{4}-\d{2}-\d{2}$/.test(source)) q="?deck="+source;
   return base+q;
@@ -678,6 +708,30 @@ function deckURL(){
 function syncURL(){try{var u=deckURL();var m=QS.mode?(u.indexOf("?")<0?"?":"&")+"mode="+encodeURIComponent(QS.mode):"";history.replaceState(null,"",u+(u.indexOf("?")<0?"":m)+location.hash)}catch(e){}}
 $("deckSel").addEventListener("change",function(){source=this.value;QS.mode=null;syncURL();renderDeckSel();reload()});
 $("shareCat").onclick=function(){copy(deckURL())};
+$("goShuf").onclick=function(){
+  if(source==="shuf"){source="latest";syncURL();renderDeckSel();reload();return}
+  source="shuf";QS.deck=null;QS.mode=null;$("shufList").hidden=true;syncURL();renderDeckSel();reload();
+};
+var slHide="";
+function renderShufList(re){
+  var box=$("shufList");
+  var go=function(){
+    var L=box._list; if(!L||re){L=box._list=shuffle(box._all||[])}
+    box.className="card"+(slHide?" h"+slHide:"");
+    box.innerHTML='<b>📝 全部已学词 · 打乱词表（'+L.length+' 词）</b><div class="tools"><button type="button" data-s="">韩+中</button><button type="button" data-s="k">遮韩语（看中文写韩语）</button><button type="button" data-s="z">遮中文</button><button type="button" data-s="re">🔀 再打乱</button><button type="button" data-s="pr">🖨️ 打印</button><button type="button" data-s="x">关闭</button></div><ol>'+
+      L.map(function(c){return '<li><span class="k" lang="ko">'+esc(c.ko)+'</span><span class="z">'+esc(c.zh)+"</span></li>"}).join("")+"</ol>";
+    box.onclick=function(e){var b=e.target.closest("button[data-s]");if(!b)return;var v=b.getAttribute("data-s");
+      if(v==="x"){box.hidden=true;try{history.replaceState(null,"",deckURL()+location.hash)}catch(_){}return}
+      if(v==="pr"){window.print();return} if(v==="re"){renderShufList(true);return} slHide=v;box.className="card"+(v?" h"+v:"")};
+  };
+  box.hidden=false;
+  if(box._all){go();return}
+  box.innerHTML="加载中…";
+  var src=source; source="all"; var p=getPool(); source=src;
+  p.then(function(a){box._all=a;go()});
+}
+$("goShufList").onclick=function(){var b=$("shufList");if(!b.hidden){b.hidden=true;return}renderShufList(false)};
+if(QS.list==="shuffle"||QS.list==="1") setTimeout(function(){if(QS.hide==="ko")slHide="k";if(QS.hide==="zh")slHide="z";renderShufList(false)},0);
 $("answer").addEventListener("input",autosize);
 $("answer").addEventListener("keydown",function(e){
   if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();e.stopPropagation();if(state==="ask")check()}

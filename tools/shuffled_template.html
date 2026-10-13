@@ -1,0 +1,77 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TOPIK 全部已学词 · 打乱复习（离线版）</title>
+<style>
+:root{--bg:#111418;--card:#1b2027;--border:#2c333d;--fg:#e8ecf1;--muted:#97a1ad;--ok:#4cc38a;--bad:#ff6b7a;--acc:#5b8cff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,"PingFang SC","Apple SD Gothic Neo",sans-serif;padding:12px max(12px,env(safe-area-inset-left)) 40px}
+.wrap{max-width:560px;margin:0 auto}h1{font-size:19px;margin:4px 0 10px}
+.seg{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap}.seg button,button{min-height:44px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:15px;padding:0 12px}
+.seg button{flex:1}.seg button.on,.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin:0 0 12px}
+.bar{display:flex;gap:12px;color:var(--muted);font-size:14px}.bar b{color:var(--fg)}.prog{height:6px;background:var(--border);border-radius:3px;margin:6px 0 12px}.prog i{display:block;height:100%;background:var(--acc);border-radius:3px}
+.tag{display:inline-block;font-size:13px;padding:2px 8px;border-radius:8px;background:#26314a;color:#b8d0ff;margin-left:6px}
+.prompt{font-size:28px;font-weight:700;margin:10px 0}
+input{width:100%;font-size:22px;padding:10px;border-radius:12px;border:1px solid var(--border);background:#0d1014;color:var(--fg)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.acts button{flex:1 1 40%}.ok{color:var(--ok)}.bad{color:var(--bad)}
+.big{font-size:26px;font-weight:800}.sub{color:var(--muted);font-size:14px}.tip{background:#2a2414;color:#ffd27a;border-radius:10px;padding:6px 8px;margin:6px 0}
+.row{margin:6px 0}.k{color:var(--muted);font-size:13px;display:block}
+ol{padding-left:2.4em;font-size:17px;line-height:1.8}li{border-bottom:1px solid var(--border)}.z{color:var(--muted);margin-left:.5em}
+.kk{display:inline-block;min-width:7.5em}.hk .kk,.hz .z{visibility:hidden}
+@media print{body{background:#fff;color:#000}.noprint{display:none}.card{border:0}.z{color:#333}}
+</style></head><body><div class="wrap">
+<h1>🔀 全部已学词 · 打乱复习 <span class="sub" id="cnt"></span></h1>
+<div class="seg noprint" id="modes"><button data-m="zh">中→韩（打字）</button><button data-m="ko">韩→中</button><button data-m="list">📝 词表</button></div>
+<div id="app"></div>
+<p class="sub noprint">离线版：进度和错词本保存在本机浏览器（与网站不同步）。</p>
+</div>
+<script>
+var DATA=/*DATA*/[];
+var VN={"自":"自动","他":"他动","自他":"自他两用","被动":"被动","使动":"使动"};
+var $=function(i){return document.getElementById(i)},LS="topik.offline.shuffle.v1",LW="topik.offline.wrong.v1";
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.random()*(i+1)|0,t=a[i];a[i]=a[j];a[j]=t}return a}
+function ld(k){try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return {}}}function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+var BY={};DATA.forEach(function(c){BY[c.ko]=c});$("cnt").textContent="共 "+DATA.length+" 词";
+var st=ld(LS),mode=st.mode||"zh",S,hide="";
+function sess(){var s=st[mode];if(!s||!s.order||s.pos>=s.order.length){s=st[mode]={order:shuffle(DATA).map(function(c){return c.ko}),pos:0,ok:0,bad:0}}return s}
+function save(){st.mode=mode;sv(LS,st)}
+function norm(x){return String(x||"").normalize("NFC").replace(/[\s.,!?·~()（）]/g,"")}
+function okAns(u,ko){u=norm(u);return !!u&&String(ko).replace(/[（(][^）)]*[）)]/g,"").split(/[、,，\/;；]/).concat([ko]).some(function(v){return norm(v)===u})}
+function vtag(c){var t=c.pos||"";if(c.voice&&VN[c.voice])t+=(t?"·":"")+VN[c.voice];return t?'<span class="tag">'+esc(t)+"</span>":""}
+function chips(l){return l.map(function(x){return typeof x==="string"?x:x.ko+(x.zh?" "+x.zh:"")}).map(esc).join("　")}
+function details(c){var h='<div class="big" lang="ko">'+esc(c.ko)+'</div><div>'+esc(c.zh)+" "+vtag(c)+"</div>";
+ if(c.pair&&c.pair.length)h+='<div class="row sub">↔ '+c.pair.map(function(p){return esc(p.ko)+"（"+esc(VN[p.voice]||p.voice||"")+"）"}).join("　")+"</div>";
+ if(c.hanja)h+='<div class="row"><span class="k">汉字</span>'+esc(c.hanja)+"</div>";
+ if(c.mem)h+='<div class="row"><span class="k">🧠 记忆法</span>'+esc(c.mem)+"</div>";
+ if(c.tip)h+='<div class="tip">⚠️ 易错：'+esc(c.tip)+"</div>";
+ if(c.syn&&c.syn.length)h+='<div class="row"><span class="k">≈ 近义词</span>'+chips(c.syn)+"</div>";
+ if(c.ant&&c.ant.length)h+='<div class="row"><span class="k">⇄ 反义词</span>'+chips(c.ant)+"</div>";
+ if(c.ex)h+='<div class="row"><span class="k">例句</span><span lang="ko">'+esc(c.ex)+"</span><br>"+esc(c.exzh||"")+"</div>";return h}
+function wrong(c){var w=ld(LW);w[c.ko]=(w[c.ko]||0)+1;sv(LW,w)}
+function render(){
+ [].forEach.call(document.querySelectorAll("#modes button"),function(b){b.classList.toggle("on",b.dataset.m===mode)});save();
+ if(mode==="list")return list();
+ S=sess();save();var n=S.order.length,app=$("app");
+ if(S.pos>=n){app.innerHTML='<div class="card">本轮结束：对 '+S.ok+" · 错 "+S.bad+'<div class="acts"><button class="pri" id="again">🔀 重新打乱再来</button></div></div>';$("again").onclick=function(){delete st[mode];render()};return}
+ var c=BY[S.order[S.pos]];if(!c){S.pos++;return render()}
+ app.innerHTML='<div class="bar"><span>进度 <b>'+(S.pos+1)+"/"+n+'</b></span><span>对 <b class="ok">'+S.ok+'</b></span><span>错 <b class="bad">'+S.bad+'</b></span><span>错词本 <b>'+Object.keys(ld(LW)).length+'</b></span></div><div class="prog"><i style="width:'+(S.pos/n*100)+'%"></i></div>'+
+  '<div class="card"><div class="sub">'+(mode==="zh"?"看中文 → 写韩语":"看韩语 → 想中文")+vtag(mode==="zh"?{pos:c.pos,voice:c.voice}:{})+'</div><div class="prompt" lang="'+(mode==="zh"?"zh-CN":"ko")+'">'+esc(mode==="zh"?c.zh:c.ko)+'</div>'+
+  '<input id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" lang="'+(mode==="zh"?"ko":"zh-CN")+'" placeholder="'+(mode==="zh"?"输入韩语…":"输入中文（可留空）")+'"><div id="fb"></div><div class="acts" id="acts"></div></div>';
+ ask(c)}
+function acts(l){$("acts").innerHTML=l.map(function(b,i){return '<button data-i="'+i+'" class="'+(b[2]||"")+'">'+b[0]+"</button>"}).join("");$("acts").onclick=function(e){var b=e.target.closest("button");if(b)l[+b.dataset.i][1]()}}
+function next(r){if(r)S.ok++;else{S.bad++;wrong(BY[S.order[S.pos]])}S.pos++;save();render()}
+function ask(c){var a=$("ans");a.value="";a.disabled=false;$("fb").innerHTML="";a.focus();
+ var chk=function(){var u=a.value.trim();a.disabled=true;
+  if(mode==="zh"){if(okAns(u,c.ko)){$("fb").innerHTML='<div class="ok">✓ 正确</div>'+details(c);acts([["下一张",function(){next(true)},"pri"]]);return}
+   $("fb").innerHTML='<div class="bad">'+(u?"✗ 你写的："+esc(u):"答案")+"</div>"+details(c);
+   acts([["✏️ 再写一次",function(){ask(c)},"pri"],["下一张（记错）",function(){next(false)}],["其实写对了",function(){next(true)}]]);return}
+  $("fb").innerHTML=(u?'<div class="sub">你写的：'+esc(u)+"</div>":"")+details(c);
+  acts([["✓ 对",function(){next(true)},"pri"],["✗ 不对",function(){next(false)}],["✏️ 再写一次",function(){ask(c)}]])};
+ a.onkeydown=function(e){if(e.key==="Enter"&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if(!a.disabled)chk()}};
+ acts([["核对",chk,"pri"],["不会 · 看答案",function(){a.value="";chk()}]])}
+var L=null;
+function list(){L=L||shuffle(DATA);var app=$("app");
+ app.innerHTML='<div class="seg noprint" id="lt"><button data-h="">韩+中</button><button data-h="k">遮韩语</button><button data-h="z">遮中文</button><button data-h="re">🔀 再打乱</button><button data-h="pr">🖨️ 打印</button></div><div class="card '+(hide?"h"+hide:"")+'" id="lc"><ol>'+L.map(function(c){return '<li><b class="kk" lang="ko">'+esc(c.ko)+'</b><span class="z">'+esc(c.zh)+"</span></li>"}).join("")+"</ol></div>";
+ $("lt").onclick=function(e){var b=e.target.closest("button");if(!b)return;var h=b.dataset.h;if(h==="pr")return print();if(h==="re"){L=null;return list()}hide=h;$("lc").className="card"+(h?" h"+h:"")}}
+$("modes").onclick=function(e){var b=e.target.closest("button");if(b){mode=b.dataset.m;render()}};
+render();
+</script></body></html>

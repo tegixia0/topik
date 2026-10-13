@@ -15,6 +15,7 @@ function chain(){var fs=arguments;return function(a,b){for(var i=0;i<fs.length;i
    {arr:true, id:fn, sort:fn, cap:n}：数组按 id 并集去重 */
 var KEYS={
   "topik.wrong.v1":            {name:"单词错题本（闪卡 / 词库 / 阅读生词）", pol:null},
+  "topik.shuffle.v1":          {name:"闪卡 全部已学词·打乱复习 进度", pol:function(p){return p.length===1?{newer:byNum("t")}:null}},
   "topik.bank.v1":             {name:"词库 间隔复习 + 每日计划", pol:function(p){
       if(p.length===2&&p[0]==="w") return {newer:chain(byStr("l"),byNum("n"),function(a,b){return ((a.ok||0)+(a.bad||0))-((b.ok||0)+(b.bad||0))}),max:["n","ok","bad"],min:["f"]};
       return null}},
