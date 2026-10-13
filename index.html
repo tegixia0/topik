@@ -33,6 +33,10 @@ select{font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(
 .wrong-entry{display:block;width:100%;min-height:48px;margin:0 0 10px;border:1px solid #9b3340;background:#2a1518;color:#ffb4bc;border-radius:14px;font-size:16px;font-weight:800}
 .shuf-entry{display:flex;gap:8px;margin:0 0 10px}.shuf-entry button{flex:1;min-height:46px;border-radius:14px;border:1px solid #3a5a9b;background:#152036;color:#b8d0ff;font-size:15px;font-weight:800}.shuf-entry button.on{background:#3a5a9b;color:#fff}.shuf-entry .lst{flex:0 0 auto;padding:0 12px}
 #shufList{margin:0 0 12px}#shufList .tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}#shufList .tools button{min-height:40px;padding:0 10px;border-radius:10px}#shufList ol{padding-left:2.4em;margin:0;line-height:1.7;font-size:17px}#shufList li{border-bottom:1px solid var(--border);padding:4px 0}#shufList .k{font-weight:700;display:inline-block;min-width:7.5em;border-bottom:1px dashed transparent}#shufList.hk .k{border-bottom-color:var(--border)}#shufList .z{color:var(--muted);margin-left:.5em}#shufList.hk .k,#shufList.hz .z{visibility:hidden}
+.gpanel{margin:0 0 10px;padding:12px}.gpanel .gh{display:flex;align-items:center;gap:8px;font-weight:800;margin-bottom:8px}.gpanel .gh span{flex:1}.gpanel .gh button{min-height:36px;padding:0 10px;border-radius:10px;font-size:13px}
+.ggrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.ggrid button{min-height:58px;border-radius:12px;border:1px solid var(--border);background:var(--bg,#111);color:var(--ink);font-size:14px;line-height:1.3;padding:4px 6px;text-align:left}.ggrid button b{font-size:15px}.ggrid button small{display:block;color:var(--muted);font-size:12px}.ggrid button.cur{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}.ggrid button.done{border-color:#2f7a4f}.ggrid button.wide{grid-column:1/-1;min-height:46px}
+.wdays .ggrid button.cur{border-color:#9b3340;box-shadow:inset 0 0 0 2px #9b3340}.wwl{margin:8px 0 0;padding:0;list-style:none;font-size:14px}.wwl li{border-bottom:1px solid var(--border);padding:5px 0}.wwl .n{color:var(--bad);font-weight:700}.wwl .d{color:var(--muted);font-size:12px}
+#shufList h4{margin:12px 0 4px;color:#b8d0ff}
 @media print{body *{visibility:hidden}#shufList,#shufList *{visibility:visible}#shufList{position:absolute;left:0;top:0;color:#000}#shufList .tools{display:none}#shufList .z{color:#333}}
 .wrong-entry.on{background:#9b3340;border-color:#9b3340;color:#fff}
 .wrong-entry:disabled{opacity:.55;border-color:var(--border);background:var(--card);color:var(--muted)}
@@ -273,7 +277,9 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
   <div class="shuf-entry"><button type="button" id="goShuf">🔀 全部已学词·打乱复习</button><button type="button" class="lst" id="goShufList">📝 打乱词表</button></div>
   <div class="card" id="shufList" hidden></div>
+  <div class="card gpanel" id="shufPanel" hidden></div>
   <button type="button" class="wrong-entry" id="goWrong" aria-label="重练错词">📕 错词本（0）</button>
+  <div class="card gpanel wdays" id="wrongPanel" hidden></div>
   <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
   <div class="progress"><i id="progBar"></i></div>
 
@@ -365,6 +371,8 @@ if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLow
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
 else if(QS.deck) source=(/^(shuffle|shuf|all-shuffled)$/i.test(QS.deck)?"shuf":QS.deck);
+var shufGroup=Math.max(0,parseInt(QS.group,10)||0);   // 0 = 自动选（上次/第一个没做完的组）
+var wrongDate=(source==="wrong"&&QS.date&&/^(\d{4}-\d{2}-\d{2}|early)$/.test(QS.date))?QS.date:"";   // 错词本按日期练：""=全部错词
 if(QS.cat||QS.deck||QS.list){try{localStorage.setItem("topik.view","flash")}catch(e){}}
 var wantSource=source;
 var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
@@ -382,18 +390,28 @@ function todayStr(){var d=new Date();return d.getFullYear()+"-"+String(d.getMont
 function loadWrong(){try{return JSON.parse(localStorage.getItem(LS_WRONG))||{}}catch(e){return {}}}
 function saveWrong(w){try{localStorage.setItem(LS_WRONG,JSON.stringify(w))}catch(e){}}
 function cardKey(c){return c.t+"|"+c.ko}
+function shDay(ts){return new Date((+ts||Date.now())+8*3600e3).toISOString().slice(0,10)}   // Asia/Shanghai 日期（无夏令时，固定 +8）
+/* 每个错词的「哪天错的」：e.d={"2026-10-13":2,...}。旧记录没有 e.d：按 e.last 那天算 1 次，其余次数记为「早期」 */
+function wrongDays(e){
+  if(e&&e.d&&typeof e.d==="object"&&Object.keys(e.d).length) return e.d;
+  var tot=0,o={}; Object.keys((e&&e.m)||{}).forEach(function(k){tot+=+e.m[k]||0}); tot=tot||1;
+  if(e&&e.last){o[shDay(e.last)]=1;if(tot>1)o.early=tot-1}else o.early=tot;
+  return o;
+}
+function dayLabel(d){return d==="early"?"早期":mmdd(d)}
 function recordWrong(c){
   var w=loadWrong(),k=cardKey(c),e=w[k]||{t:c.t,ko:c.ko,zh:c.zh,hint:c.hint,ex:c.ex,exzh:c.exzh,point:c.point,date:c.date,m:{}};
-  e.zh=c.zh; e.m[mode]=(e.m[mode]||0)+1; e.last=Date.now(); w[k]=e; saveWrong(w);
+  var d=Object.assign({},w[k]?wrongDays(e):{}),t=shDay(Date.now()); d[t]=(d[t]||0)+1; e.d=d;
+  e.zh=c.zh; e.m=e.m||{}; e.m[mode]=(e.m[mode]||0)+1; e.last=Date.now(); w[k]=e; saveWrong(w);
 }
 function recordRight(c){
   if(source!=="wrong") return;             // only clear when drilling the 错题本
   var w=loadWrong(),k=cardKey(c),e=w[k]; if(!e) return;
   delete e.m[mode]; if(!Object.keys(e.m).length) delete w[k]; saveWrong(w);
 }
-function wrongCards(m){
+function wrongCards(m,day){   // day：只要这一天错过的词（两个方向都算）
   var w=loadWrong(),out=[];
-  Object.keys(w).forEach(function(k){var e=w[k];if(e.t==="v"&&e.m&&e.m[m]){var c={t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,exzh:e.exzh,point:e.point,date:e.date};INFO_KEYS.forEach(function(f){if(e[f]!=null)c[f]=e[f]});out.push(c)}});   // 📚 词库记的错题自带词条信息
+  Object.keys(w).forEach(function(k){var e=w[k];if(e.t==="v"&&e.m&&(day?Object.keys(e.m).length&&wrongDays(e)[day]:e.m[m])){var c={t:e.t,ko:e.ko,zh:e.zh,hint:e.hint,ex:e.ex,exzh:e.exzh,point:e.point,date:e.date};INFO_KEYS.forEach(function(f){if(e[f]!=null)c[f]=e[f]});out.push(c)}});   // 📚 词库记的错题自带词条信息
   return out;
 }
 
@@ -478,21 +496,44 @@ function renderDeckSel(){
   sel.value=source; if(sel.value!==source){source="latest";sel.value="latest"}
   var sh=$("shareCat"); if(sh) sh.hidden=!(source.indexOf("cat-")===0||/^\d{4}-/.test(source));
   updateWrongEntry();
-  var gs=$("goShuf"); if(gs){gs.classList.toggle("on",source==="shuf");gs.textContent=source==="shuf"?"🔀 正在打乱复习全部已学词 · 点此退出":"🔀 全部已学词·打乱复习"}
+  var gs=$("goShuf"); if(gs){gs.classList.toggle("on",source==="shuf");gs.textContent=source==="shuf"?"🔀 打乱复习"+(shufGroup?" · 第"+shufGroup+"组":"")+" · 点此退出":"🔀 全部已学词·打乱复习"}
+  if(source!=="shuf"&&$("shufPanel")) $("shufPanel").hidden=true;
+}
+function wrongDayGroups(){   // [{d,n}]，新的在前，「早期」最后
+  var w=loadWrong(),c={};
+  Object.keys(w).forEach(function(k){var e=w[k];if(!e||e.t!=="v"||!e.m||!Object.keys(e.m).length)return;Object.keys(wrongDays(e)).forEach(function(d){c[d]=(c[d]||0)+1})});
+  return Object.keys(c).sort(function(a,b){return a==="early"?1:b==="early"?-1:a<b?1:-1}).map(function(d){return {d:d,n:c[d]}});
+}
+function renderWrongPanel(){
+  var p=$("wrongPanel"); if(!p) return;
+  if(source!=="wrong"){p.hidden=true;return}
+  var G=wrongDayGroups(), all=wrongCards(mode).length, w=loadWrong();
+  var h='<div class="gh"><span>📅 按日期练错词</span></div><div class="ggrid">'+
+    '<button type="button" class="wide'+(wrongDate?"":" cur")+'" data-wd=""><b>📕 全部错词（'+all+'）</b><small>当前方向：'+(mode==="v_ko_zh"?"韩→中":"中→韩")+'</small></button>'+
+    G.map(function(g){return '<button type="button" data-wd="'+g.d+'" class="'+(wrongDate===g.d?"cur":"")+'"><b>'+dayLabel(g.d)+" 错了 "+g.n+" 个</b><small>"+(g.d==="early"?"旧记录（没有日期）":g.d)+"</small></button>"}).join("")+"</div>";
+  var words=Object.keys(w).map(function(k){return w[k]}).filter(function(e){return e&&e.t==="v"&&e.m&&Object.keys(e.m).length&&(!wrongDate||wrongDays(e)[wrongDate])});
+  words.forEach(function(e){var d=wrongDays(e);e._n=Object.keys(d).reduce(function(s,k){return s+(+d[k]||0)},0)});
+  words.sort(function(a,b){return b._n-a._n||(b.last||0)-(a.last||0)});
+  h+='<details style="margin-top:8px"><summary>📋 每个词错了几次（'+words.length+'）</summary><ul class="wwl">'+words.map(function(e){var d=wrongDays(e);
+    return '<li><b lang="ko">'+esc(e.ko)+"</b> "+esc(e.zh||"")+' <span class="n">×'+e._n+'</span><div class="d">'+Object.keys(d).sort(function(a,b){return a==="early"?1:b==="early"?-1:a<b?1:-1}).map(function(k){return dayLabel(k)+(d[k]>1?"×"+d[k]:"")}).join("、")+" · "+Object.keys(e.m).map(function(m){return (m==="v_ko_zh"?"韩→中":"中→韩")}).join("/")+"</div></li>"}).join("")+"</ul></details>";
+  p.innerHTML=h; p.hidden=false;
+  p.onclick=function(e){var b=e.target.closest("button[data-wd]");if(!b)return;wrongDate=b.getAttribute("data-wd");syncURL();renderDeckSel();reload()};
 }
 function updateWrongEntry(){
+  renderWrongPanel();
   var b=$("goWrong"); if(!b) return;
   var n=wrongCards(mode).length, on=source==="wrong";
   b.classList.toggle("on",on);
   b.disabled=false;
-  b.textContent=on?("📕 正在练错词本（"+n+"）· 点此退出"):("📕 错词本 · 重练错词（"+n+"）");
+  b.textContent=on?("📕 正在练错词本"+(wrongDate?" · "+dayLabel(wrongDate):"")+"（"+(wrongDate?wrongCards(mode,wrongDate).length:n)+"）· 点此退出"):("📕 错词本 · 重练错词（"+n+"）");
   if(!n&&!on) b.textContent="📕 错词本（空）";
 }
 function getPool(){
   var type=MODE_INFO[mode].type;
-  if(source==="wrong") return Promise.resolve(wrongCards(mode));
+  if(source==="wrong") return Promise.resolve(wrongCards(mode,wrongDate));
   if(!index.length&&!CATS.length) return Promise.resolve([]);
-  var dates = (source==="all"||source==="shuf") ? index.map(function(e){return e.date}).concat(CATS.map(function(c){return c.id}))
+  if(source==="shuf") return allLearned().then(function(all){var G=shufGroups(all);if(!shufGroup||shufGroup>G.length){shufGroup=shufDefault(G);syncURL()}renderShufPanel(G);return G.length?G[shufGroup-1].cards:[]});
+  var dates = (source==="all") ? index.map(function(e){return e.date}).concat(CATS.map(function(c){return c.id}))
             : [source==="latest"?(index[0]||{}).date:source];
   return Promise.all(dates.map(loadDeck)).then(function(ds){
     var seen={},out=[];
@@ -502,27 +543,74 @@ function getPool(){
 }
 
 /* ---------- 流程 ---------- */
-var LS_SHUF="topik.shuffle.v1";
+/* topik.shuffle.v1：_order={t,id,k:[全部已学词 key，打乱一次后固定]}，每 100 个一组；
+   "g.<模式>.<组号>"={t,oid,order,pos,ok,bad,missed,done,last:{ok,n,at}}。新发布的词追加到 _order 末尾（不打乱已有分组） */
+var LS_SHUF="topik.shuffle.v1", GSZ=100;
 function shufLoad(){try{return JSON.parse(localStorage.getItem(LS_SHUF))||{}}catch(e){return {}}}
-function shufSave(){
-  if(source!=="shuf"||isRedo) return;
-  var o=shufLoad(); o[mode]={t:Date.now(),order:queue.map(cardKey),pos:pos,ok:ok,bad:bad,missed:missed.map(cardKey)};
-  try{localStorage.setItem(LS_SHUF,JSON.stringify(o))}catch(e){}
+function shufPut(o){try{localStorage.setItem(LS_SHUF,JSON.stringify(o))}catch(e){}}
+var idxP=null;
+function allLearned(){
+  if(!index.length&&!CATS.length){idxP=idxP||loadIndex();return idxP.then(function(){return index.length||CATS.length?allLearned():[]})}
+  var s=source;source="all";var p=getPool();source=s;return p}
+function shufOrder(cards){
+  var o=shufLoad(), od=o._order, keys=cards.map(cardKey);
+  if(!keys.length) return (o._order&&Array.isArray(o._order.k))?o._order:{id:"",k:[]};
+  if(!od||!Array.isArray(od.k)||!od.id){od={t:Date.now(),id:Date.now().toString(36),k:shuffle(keys)};o._order=od;shufPut(o);return od}
+  var have={}; od.k.forEach(function(k){have[k]=1});
+  var extra=keys.filter(function(k){return !have[k]});
+  if(extra.length){od.k=od.k.concat(shuffle(extra));od.t=Date.now();o._order=od;shufPut(o)}
+  return od;
 }
-function shufClear(){var o=shufLoad();delete o[mode];try{localStorage.setItem(LS_SHUF,JSON.stringify(o))}catch(e){}}
+function shufGroups(cards){
+  var od=shufOrder(cards), by={}, G=[]; cards.forEach(function(c){by[cardKey(c)]=c});
+  for(var i=0;i<od.k.length;i+=GSZ) G.push({n:G.length+1,from:i+1,to:Math.min(i+GSZ,od.k.length),cards:od.k.slice(i,i+GSZ).map(function(k){return by[k]}).filter(Boolean)});
+  return G;
+}
+function gKey(n,m){return "g."+(m||mode)+"."+n}
+function gProg(n){var o=shufLoad(),g=o[gKey(n)],od=o._order;return g&&od&&g.oid===od.id?g:null}
+function shufDefault(G){
+  var best=0,bt=-1; G.forEach(function(g){var p=gProg(g.n);if(p&&!p.done&&p.pos>0&&p.t>bt){bt=p.t;best=g.n}});
+  if(best) return best;
+  for(var i=0;i<G.length;i++){if(!(gProg(G[i].n)||{}).done) return G[i].n}
+  return 1;
+}
+var shufG=[];
+function renderShufPanel(G){
+  if(G) shufG=G; G=shufG; var p=$("shufPanel"); if(!p) return;
+  if(source!=="shuf"||!G.length){p.hidden=true;return}
+  var tot=G.reduce(function(s,g){return s+g.cards.length},0);
+  p.innerHTML='<div class="gh"><span>🔀 '+tot+' 词 · 每组 '+GSZ+' 个 · 共 '+G.length+' 组</span><button type="button" data-g="re">🔀 重新打乱分组</button></div><div class="ggrid">'+G.map(function(g){
+    var pr=gProg(g.n)||{}, n=g.cards.length, st, acc="";
+    if(pr.done){st="✓ 已完成";acc=pr.last&&pr.last.n?" · 正确率 "+Math.round(pr.last.ok/pr.last.n*100)+"%":""}
+    else if(pr.pos>0){st="进行中 "+pr.pos+"/"+(pr.order||[]).length;var a=(pr.ok||0)+(pr.bad||0);acc=a?" · "+Math.round(pr.ok/a*100)+"%":""}
+    else st=pr.last?"上次 "+Math.round(pr.last.ok/pr.last.n*100)+"%":"未开始";
+    return '<button type="button" data-g="'+g.n+'" class="'+(g.n===shufGroup?"cur ":"")+(pr.done?"done":"")+'"><b>第'+g.n+"组</b> "+g.from+"–"+g.to+"<small>"+st+acc+"</small></button>"}).join("")+"</div>";
+  p.hidden=false;
+  p.onclick=function(e){var b=e.target.closest("button[data-g]");if(!b)return;var v=b.getAttribute("data-g");
+    if(v==="re"){if(!confirm("重新打乱全部已学词并重新分组？各组进度会清零（错词本不受影响）。"))return;shufReset();return}
+    shufGroup=+v;syncURL();renderDeckSel();reload();try{$("quiz").scrollIntoView({block:"nearest"})}catch(_){}};
+}
+function shufReset(){var o=shufLoad();Object.keys(o).forEach(function(k){if(k==="_order"||k.indexOf("g.")===0)delete o[k]});shufPut(o);shufGroup=1;var b=$("shufList");if(b){b._list=null}syncURL();reload().then(function(){if(b&&!b.hidden)renderShufList(false)})}
+function shufSave(){
+  if(source!=="shuf"||isRedo||!shufGroup) return;
+  var o=shufLoad(),k=gKey(shufGroup),old=o[k]||{};
+  o[k]={t:Date.now(),oid:(o._order||{}).id,order:queue.map(cardKey),pos:pos,ok:ok,bad:bad,missed:missed.map(cardKey),last:old.last};
+  if(pos>=queue.length&&queue.length){o[k].done=true;o[k].last={ok:ok,n:queue.length,at:Date.now()}}
+  shufPut(o);
+}
 function start(cards,redo,fresh){
   isRedo=!!redo; queue=shuffle(cards); pos=0; ok=0; bad=0; missed=[]; written=[];
   if(source==="shuf"&&!redo){
-    var sv=shufLoad()[mode], by={}; cards.forEach(function(c){by[cardKey(c)]=c});
-    if(sv&&!fresh&&sv.order&&sv.pos<sv.order.length){
+    var sv=gProg(shufGroup), by={}; cards.forEach(function(c){by[cardKey(c)]=c});
+    if(sv&&!fresh&&!sv.done&&sv.order&&sv.pos<sv.order.length){
       var q=sv.order.map(function(k){return by[k]}).filter(Boolean), have={}; q.forEach(function(c){have[cardKey(c)]=1});
       var extra=shuffle(cards.filter(function(c){return !have[cardKey(c)]}));   // 新发布的词：插到剩余部分里
       var done=Math.min(sv.pos,q.length), rest=shuffle(q.slice(done).concat(extra));
       queue=q.slice(0,done).concat(rest); pos=done; ok=sv.ok||0; bad=sv.bad||0;
       missed=(sv.missed||[]).map(function(k){return by[k]}).filter(Boolean);
-      if(done) toast("已接着上次进度："+(done+1)+"/"+queue.length);
+      if(done) toast("第"+shufGroup+"组 · 接着上次进度："+(done+1)+"/"+queue.length);
     }
-    shufSave();
+    shufSave(); renderShufPanel();
   }
   $("summary").hidden=true; $("quiz").hidden=false;
   if(!queue.length){
@@ -537,7 +625,7 @@ function reload(){
   return getPool().then(function(p){pool=p;start(pool);info.textContent=deckLabel()+" · "+pool.length+" 张"})
     .catch(function(e){info.textContent="加载失败："+e.message+"（下拉刷新重试）"});
 }
-function deckLabel(){var o=$("deckSel").selectedOptions[0];return o?o.textContent:""}
+function deckLabel(){var o=$("deckSel").selectedOptions[0];return (o?o.textContent:"")+(source==="shuf"&&shufGroup?" · 第"+shufGroup+"组":"")+(source==="wrong"&&wrongDate?" · "+dayLabel(wrongDate):"")}
 function updateBar(){
   var n=queue.length,i=Math.min(pos+(state==="done"?0:1),n);
   $("prog").textContent=(n?i:0)+"/"+n; $("okN").textContent=ok; $("badN").textContent=bad;
@@ -669,7 +757,7 @@ function finish(){
   state="done"; updateBar(); $("progBar").style.width="100%";
   $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
   var n=queue.length, pct=n?Math.round(ok/n*100):0;
-  var h='<h2>'+(isRedo?"错题重练结束":"本轮结束")+'</h2><div class="nums">共 '+n+' 张 · <span style="color:var(--ok)">对 '+ok+'</span> · <span style="color:var(--bad)">错 '+bad+"</span> · 正确率 "+pct+"%</div>";
+  var h='<h2>'+(source==="shuf"?"第"+shufGroup+"组 · ":"")+(isRedo?"错题重练结束":"本轮结束")+'</h2><div class="nums">共 '+n+' 张 · <span style="color:var(--ok)">对 '+ok+'</span> · <span style="color:var(--bad)">错 '+bad+"</span> · 正确率 "+pct+"%</div>";
   var acts=[];
   if(missed.length) h+='<div class="sub" style="color:var(--muted)">本轮错题（已记入错题本）：</div><ul class="list">'+missed.map(function(c){var i=info(c)||{};return '<li><span class="ko" lang="ko">'+esc(c.ko)+"</span> "+posBadge(c)+'<br><span class="zh">'+esc(c.zh)+(c.point?" · "+esc(c.point):"")+"</span>"+
     (i.mem?'<div class="mem">🧠 '+esc(i.mem)+"</div>":"")+(i.tip?'<div class="mem t">⚠️ '+esc(i.tip)+"</div>":"")+"</li>"}).join("")+"</ul>";
@@ -678,10 +766,12 @@ function finish(){
   }
   h+='<div class="actions" id="sumActs"></div>';
   s.innerHTML=h;
-  if(missed.length) acts.push({text:"只练错题（"+missed.length+"）",cls:"b-bad full",fn:function(){start(missed.slice(),true)}});
-  if(source==="shuf"&&!isRedo) shufClear();
-  acts.push({text:source==="shuf"?"🔀 重新打乱再来一轮":"再来一轮",cls:"b-primary",fn:function(){start(pool,false,true)}});
-  acts.push({text:"📕 错词本（"+wrongCards(mode).length+"）",cls:"b-bad"+(missed.length?"":" full"),fn:function(){source="wrong";renderDeckSel();reload()}});
+  var SG=source==="shuf";
+  if(missed.length) acts.push({text:(SG?"只练本组错题":"只练错题")+"（"+missed.length+"）",cls:"b-bad full",fn:function(){start(missed.slice(),true)}});
+  if(SG&&!isRedo) renderShufPanel();
+  if(SG&&shufGroup<shufG.length) acts.push({text:"下一组 → 第"+(shufGroup+1)+"组",cls:"b-primary full",fn:function(){shufGroup++;syncURL();renderDeckSel();reload()}});
+  acts.push({text:SG?"🔀 本组再来一轮":"再来一轮",cls:SG?"":"b-primary",fn:function(){start(pool,false,true)}});
+  acts.push({text:"📕 错词本（"+wrongCards(mode).length+"）",cls:"b-bad"+(missed.length?"":" full"),fn:function(){source="wrong";wrongDate="";syncURL();renderDeckSel();reload()}});
   if(mode==="g_zh_ko"&&written.length) acts.push({text:"复制本轮句子",cls:"b-ghost full",fn:function(){
     copy(written.map(function(w,i){return (i+1)+". "+w.zh+(w.point?"（"+w.point+"）":"")+"\n我写的："+w.mine}).join("\n\n"))}});
   var box=$("sumActs");
@@ -699,36 +789,37 @@ function setMode(m){
 $("modes").addEventListener("click",function(e){var b=e.target.closest("button[data-mode]");if(b)setMode(b.getAttribute("data-mode"))});
 function deckURL(){
   var base=location.origin+location.pathname, q="";
-  if(source==="wrong") q="?deck=wrong";
-  else if(source==="shuf") q="?deck=shuffle";
+  if(source==="wrong") q="?deck=wrong"+(wrongDate?"&date="+wrongDate:"");
+  else if(source==="shuf") q="?deck=shuffle"+(shufGroup?"&group="+shufGroup:"");
   else if(source.indexOf("cat-")===0) q="?cat="+encodeURIComponent(source.slice(4));
   else if(/^\d{4}-\d{2}-\d{2}$/.test(source)) q="?deck="+source;
   return base+q;
 }
 function syncURL(){try{var u=deckURL();var m=QS.mode?(u.indexOf("?")<0?"?":"&")+"mode="+encodeURIComponent(QS.mode):"";history.replaceState(null,"",u+(u.indexOf("?")<0?"":m)+location.hash)}catch(e){}}
-$("deckSel").addEventListener("change",function(){source=this.value;QS.mode=null;syncURL();renderDeckSel();reload()});
+$("deckSel").addEventListener("change",function(){source=this.value;wrongDate="";QS.mode=null;syncURL();renderDeckSel();reload()});
 $("shareCat").onclick=function(){copy(deckURL())};
 $("goShuf").onclick=function(){
   if(source==="shuf"){source="latest";syncURL();renderDeckSel();reload();return}
-  source="shuf";QS.deck=null;QS.mode=null;$("shufList").hidden=true;syncURL();renderDeckSel();reload();
+  source="shuf";shufGroup=0;QS.deck=null;QS.mode=null;$("shufList").hidden=true;syncURL();renderDeckSel();reload();
 };
 var slHide="";
 function renderShufList(re){
   var box=$("shufList");
   var go=function(){
-    var L=box._list; if(!L||re){L=box._list=shuffle(box._all||[])}
+    var L=box._list; if(!L||re){L=box._list=shufGroups(box._all||[])}
     box.className="card"+(slHide?" h"+slHide:"");
-    box.innerHTML='<b>📝 全部已学词 · 打乱词表（'+L.length+' 词）</b><div class="tools"><button type="button" data-s="">韩+中</button><button type="button" data-s="k">遮韩语（看中文写韩语）</button><button type="button" data-s="z">遮中文</button><button type="button" data-s="re">🔀 再打乱</button><button type="button" data-s="pr">🖨️ 打印</button><button type="button" data-s="x">关闭</button></div><ol>'+
-      L.map(function(c){return '<li><span class="k" lang="ko">'+esc(c.ko)+'</span><span class="z">'+esc(c.zh)+"</span></li>"}).join("")+"</ol>";
+    var tot=L.reduce(function(s,g){return s+g.cards.length},0);
+    box.innerHTML='<b>📝 全部已学词 · 打乱词表（'+tot+' 词 · '+L.length+' 组，和打乱复习同一分组）</b><div class="tools"><button type="button" data-s="">韩+中</button><button type="button" data-s="k">遮韩语（看中文写韩语）</button><button type="button" data-s="z">遮中文</button><button type="button" data-s="re">🔀 重新打乱分组</button><button type="button" data-s="pr">🖨️ 打印</button><button type="button" data-s="x">关闭</button></div>'+
+      L.map(function(g){return '<h4>第'+g.n+"组（"+g.from+"–"+g.to+'）<button type="button" data-s="g'+g.n+'" style="margin-left:6px;min-height:32px;border-radius:8px">练这组</button></h4><ol start="'+g.from+'">'+g.cards.map(function(c){return '<li><span class="k" lang="ko">'+esc(c.ko)+'</span><span class="z">'+esc(c.zh)+"</span></li>"}).join("")+"</ol>"}).join("");
     box.onclick=function(e){var b=e.target.closest("button[data-s]");if(!b)return;var v=b.getAttribute("data-s");
       if(v==="x"){box.hidden=true;try{history.replaceState(null,"",deckURL()+location.hash)}catch(_){}return}
-      if(v==="pr"){window.print();return} if(v==="re"){renderShufList(true);return} slHide=v;box.className="card"+(v?" h"+v:"")};
+      if(v==="pr"){window.print();return} if(v==="re"){if(confirm("重新打乱全部已学词并重新分组？各组进度会清零（错词本不受影响）。"))shufReset();return}
+      if(/^g\d+$/.test(v)){box.hidden=true;source="shuf";shufGroup=+v.slice(1);syncURL();renderDeckSel();reload();return} slHide=v;box.className="card"+(v?" h"+v:"")};
   };
   box.hidden=false;
   if(box._all){go();return}
   box.innerHTML="加载中…";
-  var src=source; source="all"; var p=getPool(); source=src;
-  p.then(function(a){box._all=a;go()});
+  allLearned().then(function(a){box._all=a;go()});
 }
 $("goShufList").onclick=function(){var b=$("shufList");if(!b.hidden){b.hidden=true;return}renderShufList(false)};
 if(QS.list==="shuffle"||QS.list==="1") setTimeout(function(){if(QS.hide==="ko")slHide="k";if(QS.hide==="zh")slHide="z";renderShufList(false)},0);
@@ -739,11 +830,11 @@ $("answer").addEventListener("keydown",function(e){
 document.addEventListener("keydown",function(e){
   if(e.key==="Enter"&&state!=="ask"&&!$("flash").hidden&&document.activeElement.tagName!=="BUTTON"){var b=$("actions").querySelector("button");if(b&&!$("quiz").hidden){e.preventDefault();b.click()}}
 });
-$("clearWrong").onclick=function(){if(confirm("确定清空所有错词记录？")){saveWrong({});renderDeckSel();if(source==="wrong")reload();toast("已清空")}};
+$("clearWrong").onclick=function(){if(confirm("确定清空所有错词记录？")){saveWrong({});wrongDate="";renderDeckSel();if(source==="wrong")reload();toast("已清空")}};
 $("goWrong").onclick=function(){
-  if(source==="wrong"){source="latest";QS.deck=null;syncURL();renderDeckSel();reload();return}
+  if(source==="wrong"){source="latest";wrongDate="";QS.deck=null;syncURL();renderDeckSel();reload();return}
   if(!wrongCards(mode).length){toast("错词本是空的，去练新卡吧");updateWrongEntry();return}
-  source="wrong";QS.deck=null;syncURL();renderDeckSel();reload();
+  source="wrong";wrongDate="";QS.deck=null;syncURL();renderDeckSel();reload();
 };
 $("reload").onclick=function(){cache={};Promise.all([loadIndex(),loadWI(),ACC.load(true)]).then(reload)};
 

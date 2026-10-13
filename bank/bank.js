@@ -74,10 +74,14 @@ function mark(w,ok){
   if(!ok) wrongAdd(w,mk); else if(S&&(S.review||S.wrongBook)) wrongDel(w,mk);
 }
 function loadWrong(){try{return JSON.parse(localStorage.getItem(LS_WRONG))||{}}catch(e){return {}}}
+function wrongDay(e){   // 记下哪天错的（Asia/Shanghai），格式同闪卡 e.d={"2026-10-13":n}；旧记录先按 last 迁移
+  if(!e.d||typeof e.d!=="object"){var o={},tot=0;Object.keys(e.m||{}).forEach(function(k){tot+=+e.m[k]||0});if(tot){if(e.last){o[new Date(e.last+288e5).toISOString().slice(0,10)]=1;if(tot>1)o.early=tot-1}else o.early=tot}e.d=o}
+  var t=new Date(Date.now()+288e5).toISOString().slice(0,10); e.d[t]=(e.d[t]||0)+1;
+}
 function wrongAdd(w,mk){   // 和闪卡错题本同一格式：键 "v|韩语"，m[模式]=次数
   var all=loadWrong(),k="v|"+w.ko,c=card(w),e=all[k]||{t:"v",ko:w.ko,m:{}};
   e.zh=w.zh; e.date=e.date||"词库"; ["ex","exzh","pos","hanja","mem","tip","syn","ant","voice","pair"].forEach(function(f){if(c[f]!=null)e[f]=c[f]});
-  e.m=e.m||{}; e.m[mk]=(e.m[mk]||0)+1; e.last=Date.now(); all[k]=e;
+  e.m=e.m||{}; wrongDay(e); e.m[mk]=(e.m[mk]||0)+1; e.last=Date.now(); all[k]=e;
   try{localStorage.setItem(LS_WRONG,JSON.stringify(all))}catch(x){}
 }
 function wrongDel(w,mk){   // 词库每日复习只清 date=词库；错词本重练清任意来源
