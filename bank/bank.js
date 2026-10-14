@@ -60,6 +60,7 @@ function isDue(ko,t){var r=st.w[ko];return !!r&&r.d<=t}
 function dayRec(t){t=t||today();return st.days[t]||(st.days[t]={nw:[],done:[],src:st.opt.src})}
 function mark(w,ok){
   var mk=S&&S.mode==="ko2zh"?"v_ko_zh":"v_zh_ko";
+  if(window.TopikWStat) try{TopikWStat.rec(card(w),mk,ok)}catch(e){}   // 📊 错误统计：每次作答都记
   if(w.i<0){   // 阅读生词等不在词库：错词本重练时只动 wrong，不写词库 SRS
     if(!ok) wrongAdd(w,mk); else if(S&&S.wrongBook) wrongDel(w,mk);
     return;
@@ -141,12 +142,12 @@ function plan(regen){
 function shell(){
   var b=$("bank"); if(!b) return;
   if(!$("bkTabs")){
-    b.innerHTML='<div class="mtabs bk-tabs n5" id="bkTabs"><button type="button" data-tab="hf">⭐ 高频</button><button type="button" data-tab="cat">🗂 分类</button><button type="button" data-tab="daily">📅 每日'+esc(st.opt.n)+'</button><button type="button" data-tab="wrong">📕 错词</button><button type="button" data-tab="prog">📈 进度</button></div><div id="bkBody"><div class="card empty">加载中…</div></div><footer id="bkFoot"></footer>';
+    b.innerHTML='<div class="mtabs bk-tabs n6" id="bkTabs"><button type="button" data-tab="hf">⭐ 高频</button><button type="button" data-tab="cat">🗂 分类</button><button type="button" data-tab="daily">📅 每日'+esc(st.opt.n)+'</button><button type="button" data-tab="wrong">📕 错词</button><button type="button" data-tab="stats">📊 统计</button><button type="button" data-tab="prog">📈 进度</button></div><div id="bkBody"><div class="card empty">加载中…</div></div><footer id="bkFoot"></footer>';
     $("bkTabs").addEventListener("click",function(e){var x=e.target.closest("button[data-tab]");if(!x)return;if(S&&S.active&&!confirm("正在练习，确定离开？（已答的记录会保留）"))return;S=null;view.cat=null;view.grp=0;setTab(x.getAttribute("data-tab"))});
   }
 }
 function setTab(t){
-  if(["hf","cat","daily","prog","wrong"].indexOf(t)<0) t="daily";
+  if(["hf","cat","daily","prog","wrong","stats"].indexOf(t)<0) t="daily";
   view.tab=t; st.opt.tab=t; save();
   Array.prototype.forEach.call(document.querySelectorAll("#bkTabs button"),function(b){b.classList.toggle("active",b.getAttribute("data-tab")===t)});
   var db=document.querySelector('#bkTabs button[data-tab="daily"]'); if(db) db.textContent="📅 每日"+st.opt.n;
@@ -156,7 +157,7 @@ function setTab(t){
 }
 function syncURL(){
   try{
-    var q=view.tab==="cat"&&view.cat?"?bank=cat&c="+encodeURIComponent(view.cat):"?bank="+(view.tab==="daily"?"daily":view.tab==="hf"?"hf":view.tab==="prog"?"progress":view.tab==="wrong"?"wrong":"cat");
+    var q=view.tab==="cat"&&view.cat?"?bank=cat&c="+encodeURIComponent(view.cat):"?bank="+(view.tab==="daily"?"daily":view.tab==="hf"?"hf":view.tab==="prog"?"progress":view.tab==="wrong"?"wrong":view.tab==="stats"?"stats":"cat");
     if(location.search.indexOf("bank=")>=0||location.search==="") history.replaceState(null,"",location.pathname+q);
   }catch(e){}
 }
@@ -168,6 +169,7 @@ function render(){
   else if(view.tab==="cat") {if(view.cat) renderList("cat:"+view.cat); else renderCats();}
   else if(view.tab==="daily") renderDaily();
   else if(view.tab==="wrong") renderWrong();
+  else if(view.tab==="stats") renderStats();
   else renderProg();
   $("bkFoot").innerHTML='<div>词表：国立国语院《한국어 학습용 어휘 목록》(2003) 中级B '+M.counts.B+' + 高级C '+M.counts.C+' 词；中文对译·汉字·例句·语义分类参考国立国语院《한국어기초사전》。</div>';
 }
@@ -270,9 +272,10 @@ function renderWrong(){
   var h='<div class="card bk-intro"><div class="bk-h">📕 错词本 <span class="sub">当前模式 '+list.length+' 词 · 两个方向共 '+allN+'</span></div>';
   h+='<div class="sub">闪卡、词库、阅读生词答错的单词都记在这里。选中→韩打字或韩→中自评重练；本模式答对会从错词本移出（再答错会重新记入）。</div>';
   h+=modeSeg();
+  h+='<button type="button" class="b-ghost small full" id="bkToStats" style="margin-top:8px">📊 错误统计：每个词错了几遍 · 哪类词错得多 → 单独练</button>';
   if(!list.length){
     h+='<div class="empty" style="margin-top:12px">这个模式的错词本是空的 🎉<br>去「每日」或「高频」练新词吧；答错的词会出现在这里。</div></div>';
-    $("bkBody").innerHTML=h; bindMode(); return;
+    $("bkBody").innerHTML=h; bindMode(); $("bkToStats").onclick=function(){setTab("stats")}; return;
   }
   h+='<div class="actions" style="margin-top:10px"><button type="button" class="b-primary full" id="bkWrongGo">▶ 重练错词（'+list.length+'）</button></div></div>';
   h+='<div class="card" style="margin-top:10px"><div class="bk-h">错词列表</div><ul class="list bk-list" id="bkUl">'+list.map(function(w){
@@ -281,7 +284,7 @@ function renderWrong(){
   }).join("")+"</ul>";
   h+='<div class="actions"><button type="button" class="b-ghost small full" id="bkWrongClear">清空当前模式的错词</button></div></div>';
   $("bkBody").innerHTML=h;
-  bindMode(); bindList($("bkUl"));
+  bindMode(); bindList($("bkUl")); $("bkToStats").onclick=function(){setTab("stats")};
   $("bkWrongGo").onclick=function(){startQuiz(list,{label:"📕 错词本",review:true,wrongBook:true})};
   $("bkWrongClear").onclick=function(){
     if(!confirm("确定清空「"+(st.opt.mode==="ko2zh"?"韩→中":"中→韩")+"」方向的错词？另一个方向不受影响。")) return;
@@ -290,6 +293,48 @@ function renderWrong(){
     try{localStorage.setItem(LS_WRONG,JSON.stringify(all))}catch(x){}
     toast("已清空 "+n+" 个"); setTab("wrong");
   };
+}
+
+/* ---------- 📊 错误统计（topik.wstat.v1，闪卡+词库共用） ---------- */
+function flashURL(q){return location.pathname+"?deck=wrong"+q+"&mode="+(st.opt.mode==="ko2zh"?"ko2zh":"zh2ko")}
+function pct(x){return x==null?"—":Math.round(x*100)+"%"}
+function dirText(r){var a=(r.b||{}),o=[];if(a.zk)o.push("中→韩×"+a.zk);if(a.kz)o.push("韩→中×"+a.kz);if(a.x)o.push("旧记录×"+a.x);return o.join(" · ")}
+function renderStats(){
+  var WS=window.TopikWStat, body=$("bkBody");
+  if(!WS){body.innerHTML='<div class="card empty">统计模块没加载，刷新一下</div>';return}
+  body.innerHTML='<div class="card empty">统计中…</div>';
+  WS.ctx().then(function(X){
+    if(view.tab!=="stats"||(S&&S.active)) return;
+    var min=view.smin||1, dim=view.sdim==null?"theme":view.sdim, rows=WS.rows(X), sm=WS.summary(X,dim);
+    var tot=rows.reduce(function(a,x){return a+x.n},0), ws=WS.load(), tr=0, tb=0;
+    Object.keys(ws.w).forEach(function(k){var r=ws.w[k],a=WS.tries(r);if(a){tr+=a;tb+=Math.min(+r.tb||0,a)}});
+    var h='<div class="card bk-intro"><div class="bk-h">📊 错误统计</div>';
+    h+='<div class="bk-stats"><div><b>'+rows.length+'</b><span>错过的词</span></div><div><b>'+tot+'</b><span>共错几次</span></div><div><b>'+rows.filter(function(x){return x.n>=2}).length+'</b><span>错≥2次</span></div><div><b>'+(tr>=5?pct(tb/tr):"—")+'</b><span>错误率</span></div></div>';
+    h+='<div class="sub" style="margin-top:6px">闪卡和词库里答错的词都算（两个方向合计）。错误率＝答错÷作答，作答次数从今天起记录（词库旧记录已并入）。</div>';
+    h+=modeSeg();
+    h+='<div class="seg bk-f" id="bkSMin">'+[1,2,3].map(function(n){return '<button type="button" data-n="'+n+'" class="'+(min===n?"active":"")+'">错 ×'+n+'+</button>'}).join("")+'</div>';
+    h+='<div class="actions"><a class="b-bad full bk-a" href="'+flashURL("&top=50")+'">🔥 高频错词 Top 50（闪卡练）</a>'+(min>1?'<a class="full bk-a" href="'+flashURL("&min="+min)+'">全部错 ×'+min+'+ 的词（'+rows.filter(function(x){return x.n>=min}).length+'）</a>':"")+'</div></div>';
+    h+='<div class="card" style="margin-top:10px"><div class="bk-h">按类别 <span class="sub">错得多的在前</span></div><div class="seg bk-f bk-dims" id="bkSDim">'+[["","全部"]].concat(X.dims.map(function(d){return [d[0],d[1].split(" ").slice(1).join(" ").replace(" / 分类卡组","").replace("动词 ","")]})).map(function(d){return '<button type="button" data-d="'+d[0]+'" class="'+(dim===d[0]?"active":"")+'">'+esc(d[1])+"</button>"}).join("")+'</div>';
+    if(!sm.length) h+='<div class="empty">还没有错词记录 🎉</div>';
+    h+='<ul class="list bk-sum">'+sm.map(function(g){
+      var k=rows.filter(function(x){return x.n>=min&&x.cats.indexOf(g.id)>=0}).length;
+      return '<li class="'+(view.scat===g.id?"cur":"")+'"><button type="button" class="bk-sc" data-c="'+esc(g.id)+'"><b>'+esc(g.label)+'</b>'+(g.sub?' <small>'+esc(g.sub)+'</small>':"")+'<br><span class="sub">错词 '+g.words+' · 共错 <b class="bad">'+g.miss+'</b> 次 · 错≥2次 '+g.m2+' · 错误率 '+pct(g.rate)+(g.tries?'（作答 '+g.tries+'）':"")+'</span></button>'+
+        (k?'<a class="bk-a small" href="'+flashURL("&cat="+encodeURIComponent(g.id)+"&min="+min)+'">练这类高频错词（错×'+min+'+ · '+k+'）</a>':'<span class="sub">没有错 ×'+min+'+ 的词</span>')+"</li>"}).join("")+"</ul></div>";
+    var sc=view.scat&&X.meta[view.scat]?view.scat:"";
+    var L=rows.filter(function(x){return x.n>=min&&(!sc||x.cats.indexOf(sc)>=0)});
+    h+='<div class="card" style="margin-top:10px"><div class="bk-h">每个词错了几遍 <span class="sub">'+(sc?esc(X.meta[sc].label)+' · ':"")+L.length+' 词</span></div>';
+    if(sc) h+='<button type="button" class="b-ghost small" id="bkSAll">× 不筛类别</button>';
+    h+='<ul class="list bk-list bk-wsl" id="bkSUl">'+(L.length?L.slice(0,400).map(function(x){
+      var tags=x.cats.filter(function(id){return X.meta[id]&&id!=="lvl:0"}).map(function(id){return '<span class="chip">'+esc(X.meta[id].label.replace(/／.*/,""))+"</span>"}).join("");
+      var lt=x.last==="early"?"早期":x.last?x.last.slice(5).replace("-","/"):"";
+      return '<li data-ko="'+esc(x.ko)+'"><div class="bk-li"><span class="ko" lang="ko">'+esc(x.ko)+'</span> <span class="bk-st bad">×'+x.n+'</span> <span class="sub">最后错 '+esc(lt)+'</span><br><span class="zh">'+esc(x.zh)+'</span><div class="sub">'+esc(dirText(x.r))+(WS.tries(x.r)?" · 作答 "+WS.tries(x.r):"")+'</div><div class="chips">'+tags+"</div></div></li>"}).join(""):'<li class="empty">没有符合条件的词</li>')+"</ul>"+(L.length>400?'<div class="sub">只显示前 400 个</div>':"")+"</div>";
+    body.innerHTML=h;
+    bindMode();
+    $("bkSMin").onclick=function(e){var b=e.target.closest("button[data-n]");if(b){view.smin=+b.getAttribute("data-n");render()}};
+    $("bkSDim").onclick=function(e){var b=e.target.closest("button[data-d]");if(b){view.sdim=b.getAttribute("data-d");view.scat="";render()}};
+    body.querySelector(".bk-sum").onclick=function(e){var b=e.target.closest("button[data-c]");if(!b)return;var c=b.getAttribute("data-c");view.scat=view.scat===c?"":c;render();if(view.scat)try{$("bkSUl").scrollIntoView({block:"start",behavior:"smooth"})}catch(_){}};
+    if($("bkSAll")) $("bkSAll").onclick=function(){view.scat="";render()};
+  }).catch(function(e){body.innerHTML='<div class="card empty">统计加载失败：'+esc(e.message)+"</div>"});
 }
 
 /* ---------- 每日 ---------- */

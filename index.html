@@ -38,6 +38,7 @@ select{font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(
 .wdays .ggrid button.cur{border-color:#9b3340;box-shadow:inset 0 0 0 2px #9b3340}.wwl{margin:8px 0 0;padding:0;list-style:none;font-size:14px}.wwl li{border-bottom:1px solid var(--border);padding:5px 0}.wwl .n{color:var(--bad);font-weight:700}.wwl .d{color:var(--muted);font-size:12px}
 #shufList h4{margin:12px 0 4px;color:#b8d0ff}
 @media print{body *{visibility:hidden}#shufList,#shufList *{visibility:visible}#shufList{position:absolute;left:0;top:0;color:#000}#shufList .tools{display:none}#shufList .z{color:#333}}
+.ws-link{display:block;margin-top:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--fg,#e8e8e8);text-decoration:none;font-weight:700;font-size:14.5px}
 .wrong-entry.on{background:#9b3340;border-color:#9b3340;color:#fff}
 .wrong-entry:disabled{opacity:.55;border-color:var(--border);background:var(--card);color:var(--muted)}
 .bar{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:15px;margin:4px 2px 8px}
@@ -253,7 +254,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261012s">
+<link rel="stylesheet" href="assets/modules.css?v=20261014a">
 </head>
 <body>
 <div class="wrap">
@@ -339,7 +340,8 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="assets/sync.js?v=20261012b"></script>
+<script src="assets/sync.js?v=20261014a"></script>
+<script src="assets/wstat.js?v=20261014a"></script>
 <script src="assets/accepted.js?v=20261007a"></script>
 <script src="reading/reading.js?v=20261012b"></script>
 <script src="listening/listening.js?v=20261010a"></script>
@@ -351,7 +353,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="writing/tpl54types.js?v=20261012a"></script>
 <script src="writing/w5354.js?v=20261012b"></script>
 <script src="assets/voice.js?v=20261009a"></script>
-<script src="bank/bank.js?v=20261010a"></script>
+<script src="bank/bank.js?v=20261014a"></script>
 <script>
 (function(){
 "use strict";
@@ -369,10 +371,13 @@ var QS=(function(){var o={};location.search.replace(/^\?/,"").split("&").forEach
 var MODE_ALIAS={zh2ko:"v_zh_ko",ko2zh:"v_ko_zh",gko2zh:"v_zh_ko",gzh2ko:"v_zh_ko",v_zh_ko:"v_zh_ko",v_ko_zh:"v_ko_zh",g_ko_zh:"v_zh_ko",g_zh_ko:"v_zh_ko"};
 if(/^(writing-grammar|writing-5354|grammar-core)$/.test(String(QS.cat||"").toLowerCase())||/^grammar-/.test(String(QS.cat||"").toLowerCase())||QS.reading||QS.listening||QS.grammar||QS.writing||QS.bank){QS.cat=null;QS.mode=null}   // 写作语法闪卡：交给写作模块处理
 if(QS.mode&&MODE_ALIAS[QS.mode]){mode=MODE_ALIAS[QS.mode];try{localStorage.setItem(LS_MODE,mode)}catch(e){}}
+var wsF=(/^wrong$/i.test(QS.deck||"")&&(QS.cat||QS.min||QS.top))?{cat:QS.cat||"",min:Math.max(1,parseInt(QS.min,10)||1),top:parseInt(QS.top,10)||0}:null;   // 📊 错误统计：?deck=wrong&cat=动词&min=2 / &top=50
+if(wsF){QS.cat=null}
+var WS=window.TopikWStat||null;
 if(QS.cat) source="cat-"+String(QS.cat).toLowerCase().replace(/[^a-z0-9-]/g,"");
 else if(QS.deck) source=(/^(shuffle|shuf|all-shuffled)$/i.test(QS.deck)?"shuf":QS.deck);
 var shufGroup=Math.max(0,parseInt(QS.group,10)||0);   // 0 = 自动选（上次/第一个没做完的组）
-var wrongDate=(source==="wrong"&&QS.date&&/^(\d{4}-\d{2}-\d{2}|early)$/.test(QS.date))?QS.date:"";   // 错词本按日期练：""=全部错词
+var wrongDate=(source==="wrong"&&!wsF&&QS.date&&/^(\d{4}-\d{2}-\d{2}|early)$/.test(QS.date))?QS.date:"";   // 错词本按日期练：""=全部错词
 if(QS.cat||QS.deck||QS.list){try{localStorage.setItem("topik.view","flash")}catch(e){}}
 var wantSource=source;
 var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
@@ -507,6 +512,9 @@ function wrongDayGroups(){   // [{d,n}]，新的在前，「早期」最后
 function renderWrongPanel(){
   var p=$("wrongPanel"); if(!p) return;
   if(source!=="wrong"){p.hidden=true;return}
+  var stl='<a class="ws-link" href="?bank=stats">📊 错误统计 · 哪类词错得多 → 单独练</a>';
+  if(wsF){p.innerHTML='<div class="gh"><span>'+esc(wsFLabel())+'（按错的次数从多到少）</span></div><div class="ggrid"><button type="button" class="wide" data-wd="x"><b>‹ 退出筛选，回到全部错词</b><small>两个方向都可以练：上面切换 中→韩 / 韩→中</small></button></div>'+stl;p.hidden=false;
+    p.onclick=function(e){if(e.target.closest("button[data-wd]")){wsF=null;wrongDate="";syncURL();renderDeckSel();reload()}};return}
   var G=wrongDayGroups(), all=wrongCards(mode).length, w=loadWrong();
   var h='<div class="gh"><span>📅 按日期练错词</span></div><div class="ggrid">'+
     '<button type="button" class="wide'+(wrongDate?"":" cur")+'" data-wd=""><b>📕 全部错词（'+all+'）</b><small>当前方向：'+(mode==="v_ko_zh"?"韩→中":"中→韩")+'</small></button>'+
@@ -515,7 +523,7 @@ function renderWrongPanel(){
   words.forEach(function(e){var d=wrongDays(e);e._n=Object.keys(d).reduce(function(s,k){return s+(+d[k]||0)},0)});
   words.sort(function(a,b){return b._n-a._n||(b.last||0)-(a.last||0)});
   h+='<details style="margin-top:8px"><summary>📋 每个词错了几次（'+words.length+'）</summary><ul class="wwl">'+words.map(function(e){var d=wrongDays(e);
-    return '<li><b lang="ko">'+esc(e.ko)+"</b> "+esc(e.zh||"")+' <span class="n">×'+e._n+'</span><div class="d">'+Object.keys(d).sort(function(a,b){return a==="early"?1:b==="early"?-1:a<b?1:-1}).map(function(k){return dayLabel(k)+(d[k]>1?"×"+d[k]:"")}).join("、")+" · "+Object.keys(e.m).map(function(m){return (m==="v_ko_zh"?"韩→中":"中→韩")}).join("/")+"</div></li>"}).join("")+"</ul></details>";
+    return '<li><b lang="ko">'+esc(e.ko)+"</b> "+esc(e.zh||"")+' <span class="n">×'+e._n+'</span><div class="d">'+Object.keys(d).sort(function(a,b){return a==="early"?1:b==="early"?-1:a<b?1:-1}).map(function(k){return dayLabel(k)+(d[k]>1?"×"+d[k]:"")}).join("、")+" · "+Object.keys(e.m).map(function(m){return (m==="v_ko_zh"?"韩→中":"中→韩")}).join("/")+"</div></li>"}).join("")+"</ul></details>"+stl;
   p.innerHTML=h; p.hidden=false;
   p.onclick=function(e){var b=e.target.closest("button[data-wd]");if(!b)return;wrongDate=b.getAttribute("data-wd");syncURL();renderDeckSel();reload()};
 }
@@ -530,6 +538,7 @@ function updateWrongEntry(){
 }
 function getPool(){
   var type=MODE_INFO[mode].type;
+  if(source==="wrong"&&wsF&&WS) return WS.ctx().then(function(X){var p=WS.pick(X,wsF);wsF.label=p.label;if(wsF.cat&&!p.cat)toast("找不到类别「"+wsF.cat+"」，改为全部错词");renderWrongPanel();return p.cards});
   if(source==="wrong") return Promise.resolve(wrongCards(mode,wrongDate));
   if(!index.length&&!CATS.length) return Promise.resolve([]);
   if(source==="shuf") return allLearned().then(function(all){var G=shufGroups(all);if(!shufGroup||shufGroup>G.length){shufGroup=shufDefault(G);syncURL()}renderShufPanel(G);return G.length?G[shufGroup-1].cards:[]});
@@ -625,7 +634,8 @@ function reload(){
   return getPool().then(function(p){pool=p;start(pool);info.textContent=deckLabel()+" · "+pool.length+" 张"})
     .catch(function(e){info.textContent="加载失败："+e.message+"（下拉刷新重试）"});
 }
-function deckLabel(){var o=$("deckSel").selectedOptions[0];return (o?o.textContent:"")+(source==="shuf"&&shufGroup?" · 第"+shufGroup+"组":"")+(source==="wrong"&&wrongDate?" · "+dayLabel(wrongDate):"")}
+function wsFLabel(){return wsF?"📊 "+(wsF.top?"高频错词 Top "+wsF.top:(wsF.label||"全部")+" · 错×"+wsF.min+"+"):""}
+function deckLabel(){if(source==="wrong"&&wsF)return wsFLabel();var o=$("deckSel").selectedOptions[0];return (o?o.textContent:"")+(source==="shuf"&&shufGroup?" · 第"+shufGroup+"组":"")+(source==="wrong"&&wrongDate?" · "+dayLabel(wrongDate):"")}
 function updateBar(){
   var n=queue.length,i=Math.min(pos+(state==="done"?0:1),n);
   $("prog").textContent=(n?i:0)+"/"+n; $("okN").textContent=ok; $("badN").textContent=bad;
@@ -708,7 +718,7 @@ function check(){
   fb.innerHTML=h;
   var acts=[{text:"✓ 对",cls:"b-ok",fn:function(){grade(true)}},{text:"✗ 不对",cls:"b-bad",fn:function(){
     if(cur.t==="v"&&$("wi")){ // show the info panel prominently before moving on
-      bad++;missed.push(cur);recordWrong(cur);if(source==="wrong")updateWrongEntry();state="wrong2";updateBar();openInfo();
+      bad++;missed.push(cur);recordWrong(cur);if(WS)WS.rec(cur,mode,false);if(source==="wrong")updateWrongEntry();state="wrong2";updateBar();openInfo();
       setActions([{text:"记住了，下一张",cls:"b-primary full",fn:next}]);
     } else grade(false);
   }}];
@@ -736,6 +746,7 @@ function askTeacher(user){
 }
 function grade(right,auto,alt){
   if(right){ok++;recordRight(cur)} else {bad++;missed.push(cur);recordWrong(cur)}
+  if(WS) WS.rec(cur,mode,!!right);
   if(source==="wrong") updateWrongEntry();
   if(auto){
     state="right"; var fb=$("fb"); fb.className="feedback ok";
@@ -789,14 +800,15 @@ function setMode(m){
 $("modes").addEventListener("click",function(e){var b=e.target.closest("button[data-mode]");if(b)setMode(b.getAttribute("data-mode"))});
 function deckURL(){
   var base=location.origin+location.pathname, q="";
-  if(source==="wrong") q="?deck=wrong"+(wrongDate?"&date="+wrongDate:"");
+  if(source==="wrong"&&wsF) q="?deck=wrong"+(wsF.cat?"&cat="+encodeURIComponent(wsF.cat):"")+(wsF.min>1?"&min="+wsF.min:"")+(wsF.top?"&top="+wsF.top:"");
+  else if(source==="wrong") q="?deck=wrong"+(wrongDate?"&date="+wrongDate:"");
   else if(source==="shuf") q="?deck=shuffle"+(shufGroup?"&group="+shufGroup:"");
   else if(source.indexOf("cat-")===0) q="?cat="+encodeURIComponent(source.slice(4));
   else if(/^\d{4}-\d{2}-\d{2}$/.test(source)) q="?deck="+source;
   return base+q;
 }
 function syncURL(){try{var u=deckURL();var m=QS.mode?(u.indexOf("?")<0?"?":"&")+"mode="+encodeURIComponent(QS.mode):"";history.replaceState(null,"",u+(u.indexOf("?")<0?"":m)+location.hash)}catch(e){}}
-$("deckSel").addEventListener("change",function(){source=this.value;wrongDate="";QS.mode=null;syncURL();renderDeckSel();reload()});
+$("deckSel").addEventListener("change",function(){source=this.value;wrongDate="";wsF=null;QS.mode=null;syncURL();renderDeckSel();reload()});
 $("shareCat").onclick=function(){copy(deckURL())};
 $("goShuf").onclick=function(){
   if(source==="shuf"){source="latest";syncURL();renderDeckSel();reload();return}
@@ -832,9 +844,9 @@ document.addEventListener("keydown",function(e){
 });
 $("clearWrong").onclick=function(){if(confirm("确定清空所有错词记录？")){saveWrong({});wrongDate="";renderDeckSel();if(source==="wrong")reload();toast("已清空")}};
 $("goWrong").onclick=function(){
-  if(source==="wrong"){source="latest";wrongDate="";QS.deck=null;syncURL();renderDeckSel();reload();return}
+  if(source==="wrong"){source="latest";wrongDate="";wsF=null;QS.deck=null;syncURL();renderDeckSel();reload();return}
   if(!wrongCards(mode).length){toast("错词本是空的，去练新卡吧");updateWrongEntry();return}
-  source="wrong";wrongDate="";QS.deck=null;syncURL();renderDeckSel();reload();
+  source="wrong";wrongDate="";wsF=null;QS.deck=null;syncURL();renderDeckSel();reload();
 };
 $("reload").onclick=function(){cache={};Promise.all([loadIndex(),loadWI(),ACC.load(true)]).then(reload)};
 
@@ -1389,7 +1401,7 @@ if(window.TopikListening) TopikListening.init();
 if(window.TopikGrammar) TopikGrammar.init();
 var o0={}, catL=String(WQS.cat||"").toLowerCase(), hash=location.hash.replace("#","");
 var v0;
-if(WQS.bank||hash==="bank"){v0="bank";var bk=String(WQS.bank||"");o0={tab:{hf:"hf",daily:"daily",cat:"cat",progress:"prog",prog:"prog",wrong:"wrong"}[bk]||(bk==="1"||!bk?null:"daily"),c:WQS.c}}   // 📚 词库：?bank=1|hf|daily|cat&c=<id>|progress
+if(WQS.bank||hash==="bank"){v0="bank";var bk=String(WQS.bank||"");o0={tab:{hf:"hf",daily:"daily",cat:"cat",progress:"prog",prog:"prog",wrong:"wrong",stats:"stats"}[bk]||(bk==="1"||!bk?null:"daily"),c:WQS.c}}   // 📚 词库：?bank=1|hf|daily|cat&c=<id>|progress
 else if(WQS.listening||hash==="listening"){v0="listening";o0={tab:WQS.tab||({guide:"guide",prac:"prac",type:"type",wrong:"wrong"})[WQS.listening],round:WQS.round,type:WQS.type,q:WQS.q}}   // 🎧 听力：?listening=1|guide|prac|type|wrong[&round=96][&type=idea][&q=96-14]
 else if(WQS.reading||hash==="reading"){v0="reading";o0={type:WQS.type,round:WQS.round,tab:WQS.tab,wrong:WQS.wrong==="1",undone:WQS.undone==="1"}}
 else if(WQS.grammar||catL==="grammar-core"||/^grammar-/.test(catL)||hash==="grammar"||hash==="grammar-core"||hash==="grammar-drill"){

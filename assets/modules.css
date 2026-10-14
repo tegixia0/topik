@@ -442,3 +442,18 @@ span.ltag{padding:1px 7px;font-size:12.5px}
 .t54 mark.dm{background:#6b2f35;color:#ffd0d0;border-radius:3px}
 .t54 mark.dx{background:#6b5a1f;color:#fff3c4;border-radius:3px}
 #t54Full{min-height:260px;font-size:16px;line-height:1.7}
+
+.bk-tabs.n6{grid-template-columns:repeat(6,1fr);gap:3px}
+.bk-tabs.n6 button{font-size:12px;padding:0 1px;min-height:40px;letter-spacing:-.3px}
+.bk-a{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:inherit;text-decoration:none;font-weight:700;padding:0 10px;text-align:center}
+.bk-a.b-bad{background:#9b3340;border-color:#9b3340;color:#fff}
+.bk-a.full{width:100%;box-sizing:border-box;grid-column:1/-1}
+.bk-a.small{min-height:38px;font-size:14px;margin-top:6px}
+.bk-dims{flex-wrap:wrap}
+.bk-sum li{display:block;padding:10px 4px}
+.bk-sum li.cur{background:rgba(155,51,64,.15);border-radius:10px}
+.bk-sc{display:block;width:100%;text-align:left;background:none;border:0;color:inherit;padding:0;min-height:0;font-size:15px}
+.bk-sc small{color:var(--muted)}
+.bk-sc .bad{color:var(--bad)}
+.bk-wsl .chips{margin-top:4px}
+.bk-wsl .chip{font-size:12px;display:inline-block;margin:2px 4px 0 0;padding:1px 7px;border:1px solid var(--border);border-radius:999px;color:var(--muted)}
