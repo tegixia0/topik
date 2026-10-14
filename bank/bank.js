@@ -45,9 +45,9 @@ function fetchPart(name){
   LOADED[name].catch(function(){delete LOADED[name]});
   return LOADED[name];
 }
-function details(list,prefer){   // 确保这些词的详情已加载
+function details(list,prefer){   // 确保这些词的详情已加载（阅读生词等 i<0 只用已有 DET/错词字段）
   var need={};
-  list.forEach(function(w){if(!DET[w.ko]) need[prefer&&w.cat===prefer?"c-"+prefer:chunkOf(w)]=1});
+  list.forEach(function(w){if(!w||DET[w.ko]||w.i<0)return;need[prefer&&w.cat===prefer?"c-"+prefer:chunkOf(w)]=1});
   return Promise.all(Object.keys(need).map(fetchPart));
 }
 function card(w){var d=DET[w.ko]||{},c={t:"v",ko:w.ko,zh:w.zh,date:"词库"};for(var k in d)c[k]=d[k];return c}
@@ -61,8 +61,8 @@ function dayRec(t){t=t||today();return st.days[t]||(st.days[t]={nw:[],done:[],sr
 function mark(w,ok){
   var mk=S&&S.mode==="ko2zh"?"v_ko_zh":"v_zh_ko";
   if(window.TopikWStat) try{TopikWStat.rec(card(w),mk,ok)}catch(e){}   // 📊 错误统计：每次作答都记
-  if(w.i<0){   // 阅读生词等不在词库：错词本重练时只动 wrong，不写词库 SRS
-    if(!ok) wrongAdd(w,mk); else if(S&&S.wrongBook) wrongDel(w,mk);
+  if(w.i<0){   // 阅读生词等不在词库：只动错词本
+    if(!ok) wrongAdd(w,mk); else wrongRight(w,mk);
     return;
   }
   var t=today(), r=st.w[w.ko]||{s:0,n:0,ok:0,bad:0,f:t};
@@ -72,40 +72,52 @@ function mark(w,ok){
   st.w[w.ko]=r;
   var dr=dayRec(t); if(dr.done.indexOf(w.ko)<0) dr.done.push(w.ko);
   save();
-  if(!ok) wrongAdd(w,mk); else if(S&&(S.review||S.wrongBook)) wrongDel(w,mk);
+  if(!ok) wrongAdd(w,mk); else wrongRight(w,mk);   // 答对累计连对；满 3 次才移出错词本
 }
 function loadWrong(){try{return JSON.parse(localStorage.getItem(LS_WRONG))||{}}catch(e){return {}}}
 function wrongDay(e){   // 记下哪天错的（Asia/Shanghai），格式同闪卡 e.d={"2026-10-13":n}；旧记录先按 last 迁移
   if(!e.d||typeof e.d!=="object"){var o={},tot=0;Object.keys(e.m||{}).forEach(function(k){tot+=+e.m[k]||0});if(tot){if(e.last){o[new Date(e.last+288e5).toISOString().slice(0,10)]=1;if(tot>1)o.early=tot-1}else o.early=tot}e.d=o}
   var t=new Date(Date.now()+288e5).toISOString().slice(0,10); e.d[t]=(e.d[t]||0)+1;
 }
-function wrongAdd(w,mk){   // 和闪卡错题本同一格式：键 "v|韩语"，m[模式]=次数
+var MASTER_N=3;   // 同一方向连续答对 N 次才移出错词本
+function wrongStreak(e,mk){return (e&&e.s&&e.s[mk])||0}
+function wrongActive(e,mk){return !!(e&&e.m&&e.m[mk]&&wrongStreak(e,mk)<MASTER_N)}
+function wrongActiveAny(e){if(!e||!e.m)return false;return Object.keys(e.m).some(function(k){return wrongActive(e,k)})}
+function wrongAdd(w,mk){   // 和闪卡错题本同一格式：键 "v|韩语"，m[模式]=累计错次（不因答对减少）
   var all=loadWrong(),k="v|"+w.ko,c=card(w),e=all[k]||{t:"v",ko:w.ko,m:{}};
   e.zh=w.zh; e.date=e.date||"词库"; ["ex","exzh","pos","hanja","mem","tip","syn","ant","voice","pair"].forEach(function(f){if(c[f]!=null)e[f]=c[f]});
-  e.m=e.m||{}; wrongDay(e); e.m[mk]=(e.m[mk]||0)+1; e.last=Date.now(); all[k]=e;
+  e.m=e.m||{}; wrongDay(e); e.m[mk]=(e.m[mk]||0)+1; e.s=e.s||{}; e.s[mk]=0; e.last=Date.now(); all[k]=e;
   try{localStorage.setItem(LS_WRONG,JSON.stringify(all))}catch(x){}
 }
-function wrongDel(w,mk){   // 词库每日复习只清 date=词库；错词本重练清任意来源
-  var all=loadWrong(),k="v|"+w.ko,e=all[k]; if(!e||!e.m) return;
-  if(!(S&&S.wrongBook)&&e.date!=="词库") return;
-  delete e.m[mk]; if(!Object.keys(e.m).length) delete all[k];
+function wrongRight(w,mk){   // 答对：该方向连对 +1；满 MASTER_N 视为记熟（保留 e.m 历史错次）
+  var all=loadWrong(),k="v|"+w.ko,e=all[k]; if(!wrongActive(e,mk)) return 0;
+  e.s=e.s||{}; e.s[mk]=(e.s[mk]||0)+1;
   try{localStorage.setItem(LS_WRONG,JSON.stringify(all))}catch(x){}
+  return e.s[mk];
 }
+function wrongDel(w,mk){ wrongRight(w,mk); }   // 兼容旧调用名
 function wrongMk(){return st.opt.mode==="ko2zh"?"v_ko_zh":"v_zh_ko"}
-function wrongWords(mk){   // 闪卡/词库/阅读生词共用 topik.wrong.v1
+function wrongWords(mk,filter){   // 闪卡/词库/阅读生词共用 topik.wrong.v1；filter(w,e) 可选
   mk=mk||wrongMk(); var all=loadWrong(),out=[],seen={};
   Object.keys(all).forEach(function(k){
-    var e=all[k]; if(!e||e.t!=="v"||!e.m||!e.m[mk]||!e.ko||seen[e.ko]) return;
+    var e=all[k]; if(!e||e.t!=="v"||!wrongActive(e,mk)||!e.ko||seen[e.ko]) return;
     seen[e.ko]=1;
     var w=BY[e.ko];
     if(!w) w={ko:e.ko,zh:e.zh||"",cat:"",lvl:0,hf:0,pos:e.pos||"",e:0,i:-1};
     if(!DET[e.ko]){var d={};["ex","exzh","pos","hanja","mem","tip","syn","ant","voice","pair"].forEach(function(f){if(e[f]!=null)d[f]=e[f]});if(Object.keys(d).length)DET[e.ko]=d}
+    if(filter&&!filter(w,e)) return;
     out.push(w);
   });
   out.sort(function(a,b){var ea=all["v|"+a.ko],eb=all["v|"+b.ko];return ((eb&&eb.last)||0)-((ea&&ea.last)||0)});
   return out;
 }
-function wrongCountBoth(){var all=loadWrong(),n=0;Object.keys(all).forEach(function(k){var e=all[k];if(e&&e.t==="v"&&e.m&&(e.m.v_zh_ko||e.m.v_ko_zh))n++});return n}
+function wrongCountBoth(){var all=loadWrong(),n=0;Object.keys(all).forEach(function(k){var e=all[k];if(e&&e.t==="v"&&wrongActiveAny(e))n++});return n}
+function seedDetFromWrong(ko){
+  if(DET[ko]) return;
+  var e=loadWrong()["v|"+ko]; if(!e) return;
+  var d={};["ex","exzh","pos","hanja","mem","tip","syn","ant","voice","pair"].forEach(function(f){if(e[f]!=null)d[f]=e[f]});
+  if(Object.keys(d).length) DET[ko]=d;
+}
 function streak(){
   var t=today(), n=0, d=t;
   if(!(st.days[d]&&st.days[d].done.length)) d=addDays(t,-1);
@@ -143,7 +155,7 @@ function shell(){
   var b=$("bank"); if(!b) return;
   if(!$("bkTabs")){
     b.innerHTML='<div class="mtabs bk-tabs n6" id="bkTabs"><button type="button" data-tab="hf">⭐ 高频</button><button type="button" data-tab="cat">🗂 分类</button><button type="button" data-tab="daily">📅 每日'+esc(st.opt.n)+'</button><button type="button" data-tab="wrong">📕 错词</button><button type="button" data-tab="stats">📊 统计</button><button type="button" data-tab="prog">📈 进度</button></div><div id="bkBody"><div class="card empty">加载中…</div></div><footer id="bkFoot"></footer>';
-    $("bkTabs").addEventListener("click",function(e){var x=e.target.closest("button[data-tab]");if(!x)return;if(S&&S.active&&!confirm("正在练习，确定离开？（已答的记录会保留）"))return;S=null;view.cat=null;view.grp=0;setTab(x.getAttribute("data-tab"))});
+    $("bkTabs").addEventListener("click",function(e){var x=e.target.closest("button[data-tab]");if(!x)return;if(S&&S.active&&!confirm("正在练习，确定离开？（已答的记录会保留）"))return;S=null;view.cat=null;view.grp=0;if(x.getAttribute("data-tab")!=="wrong")view.wcat="";setTab(x.getAttribute("data-tab"))});
   }
 }
 function setTab(t){
@@ -187,8 +199,14 @@ function bindList(ul,prefer){
   ul.onclick=function(e){
     var li=e.target.closest("li[data-ko]"); if(!li||e.target.closest(".bk-det .speak")) return;
     var box=li.querySelector(".bk-det"); if(box.innerHTML){box.innerHTML="";return}
-    var w=BY[li.getAttribute("data-ko")]; box.innerHTML='<div class="sub">加载中…</div>';
-    details([w],prefer).then(function(){box.innerHTML=detailHTML(card(w))}).catch(function(err){box.innerHTML='<div class="sub">加载失败：'+esc(err.message)+"</div>"});
+    var ko=li.getAttribute("data-ko"), w=BY[ko];
+    if(!w){
+      var we=loadWrong()["v|"+ko]||{};
+      w={ko:ko,zh:we.zh||"",cat:"",lvl:0,hf:0,pos:we.pos||"",e:0,i:-1};
+      seedDetFromWrong(ko);
+    }
+    box.innerHTML='<div class="sub">加载中…</div>';
+    details([w],prefer).then(function(){if(w.i<0)seedDetFromWrong(ko);box.innerHTML=detailHTML(card(w))}).catch(function(err){seedDetFromWrong(ko);box.innerHTML=DET[ko]?detailHTML(card(w)):'<div class="sub">加载失败：'+esc(err.message)+"</div>"});
   };
 }
 function detailHTML(c){
@@ -246,7 +264,9 @@ function renderList(src){
   var g=list.slice(view.grp*GRP,(view.grp+1)*GRP), gl=g.filter(function(w){return learned(w.ko)}).length;
   h+='<div class="card" style="margin-top:10px"><div class="wrow"><select id="bkGrp" aria-label="选择分组">'+Array.apply(null,{length:ng}).map(function(_,i){var s=list.slice(i*GRP,(i+1)*GRP),l=s.filter(function(w){return learned(w.ko)}).length;return '<option value="'+i+'"'+(i===view.grp?" selected":"")+">第 "+(i+1)+" 组 · "+(i*GRP+1)+"–"+(i*GRP+s.length)+(l?"（会 "+l+"）":"")+"</option>"}).join("")+"</select></div>";
   h+=modeSeg();
-  h+='<div class="actions"><button type="button" class="b-primary" id="bkGo">练这一组（'+g.length+'）</button><button type="button" id="bkGoNew"'+(g.length-gl?"":" disabled")+'>只练没学会的（'+(g.length-gl)+'）</button></div>';
+  var mk=wrongMk(), allW=loadWrong(), gWrong=g.filter(function(w){return wrongActive(allW["v|"+w.ko],mk)});
+  h+='<div class="actions"><button type="button" class="b-primary" id="bkGo">练这一组（'+g.length+'）</button><button type="button" id="bkGoNew"'+(g.length-gl?"":" disabled")+'>只练没学会的（'+(g.length-gl)+'）</button><button type="button" class="b-bad" id="bkGoWrong"'+(gWrong.length?"":" disabled")+'>📕 练本组错词（'+gWrong.length+'）</button></div>';
+  h+='<div class="sub" style="margin-top:6px">答对不会马上移出；同一方向连续对 '+MASTER_N+' 次才算记熟</div>';
   h+='<ul class="list bk-list" id="bkUl">'+(g.length?g.map(wordLi).join(""):'<li class="empty">没有符合条件的词</li>')+"</ul></div>";
   $("bkBody").innerHTML=h;
   var pref=c?cid:null;
@@ -258,6 +278,7 @@ function renderList(src){
   var label=(isHF?"⭐ 高频":(c?c.emoji+" "+c.name:"全部词"))+" · 第"+(view.grp+1)+"组";
   $("bkGo").onclick=function(){startQuiz(g,{label:label,prefer:pref})};
   $("bkGoNew").onclick=function(){startQuiz(g.filter(function(w){return !learned(w.ko)}),{label:label+"（没学会的）",prefer:pref})};
+  $("bkGoWrong").onclick=function(){startQuiz(gWrong,{label:label+" · 📕 本组错词",prefer:pref,wrongBook:true,review:true})};
 }
 
 /* ---------- 📕 错词本（与闪卡共用 topik.wrong.v1） ---------- */
@@ -268,28 +289,48 @@ function srcLabel(date){
   return date;
 }
 function renderWrong(){
-  var mk=wrongMk(), list=wrongWords(mk), allN=wrongCountBoth();
-  var h='<div class="card bk-intro"><div class="bk-h">📕 错词本 <span class="sub">当前模式 '+list.length+' 词 · 两个方向共 '+allN+'</span></div>';
-  h+='<div class="sub">闪卡、词库、阅读生词答错的单词都记在这里。选中→韩打字或韩→中自评重练；本模式答对会从错词本移出（再答错会重新记入）。</div>';
+  var mk=wrongMk(), allWrong=wrongWords(mk), allN=wrongCountBoth();
+  var wcat=view.wcat||"";
+  var catOpts=[];
+  M.cats.forEach(function(c){var n=allWrong.filter(function(w){return w.cat===c.id}).length;if(n)catOpts.push({id:c.id,emoji:c.emoji,name:c.name,n:n})});
+  var otherN=allWrong.filter(function(w){return !w.cat||!CAT[w.cat]}).length;
+  if(otherN) catOpts.push({id:"_other",emoji:"📎",name:"其他/阅读",n:otherN});
+  var list=wcat?allWrong.filter(function(w){return wcat==="_other"?(!w.cat||!CAT[w.cat]):w.cat===wcat}):allWrong;
+  var h='<div class="card bk-intro"><div class="bk-h">📕 错词本 <span class="sub">当前模式 '+allWrong.length+' 词 · 两个方向共 '+allN+'</span></div>';
+  h+='<div class="sub">闪卡、词库、阅读生词答错的单词都记在这里。答对不会马上移出；同一方向连续对 '+MASTER_N+' 次才算记熟（历史错次保留）。</div>';
   h+=modeSeg();
+  if(catOpts.length){
+    h+='<div class="seg bk-f" id="bkWCat" style="margin-top:8px"><button type="button" data-c="" class="'+(wcat?"":"active")+'">全部分类 '+allWrong.length+'</button>';
+    catOpts.forEach(function(c){h+='<button type="button" data-c="'+c.id+'" class="'+(wcat===c.id?"active":"")+'">'+c.emoji+" "+esc(c.name)+" "+c.n+"</button>"});
+    h+="</div>";
+  }
   h+='<button type="button" class="b-ghost small full" id="bkToStats" style="margin-top:8px">📊 错误统计：每个词错了几遍 · 哪类词错得多 → 单独练</button>';
-  if(!list.length){
+  if(!allWrong.length){
     h+='<div class="empty" style="margin-top:12px">这个模式的错词本是空的 🎉<br>去「每日」或「高频」练新词吧；答错的词会出现在这里。</div></div>';
     $("bkBody").innerHTML=h; bindMode(); $("bkToStats").onclick=function(){setTab("stats")}; return;
   }
-  h+='<div class="actions" style="margin-top:10px"><button type="button" class="b-primary full" id="bkWrongGo">▶ 重练错词（'+list.length+'）</button></div></div>';
-  h+='<div class="card" style="margin-top:10px"><div class="bk-h">错词列表</div><ul class="list bk-list" id="bkUl">'+list.map(function(w){
-    var e=loadWrong()["v|"+w.ko]||{}, times=(e.m&&e.m[mk])||0;
-    return '<li data-ko="'+esc(w.ko)+'"><div class="bk-li"><span class="ko" lang="ko">'+esc(w.ko)+'</span> <span class="posb">'+esc(w.pos||(e.pos||""))+'</span>'+(w.hf?' <span class="bk-hf">⭐</span>':"")+' <span class="bk-st bad">错'+times+'</span><br><span class="zh">'+esc(w.zh||e.zh||"")+'</span><div class="sub">来源：'+esc(srcLabel(e.date))+'</div></div><div class="bk-det"></div></li>';
+  if(!list.length){
+    h+='<div class="empty" style="margin-top:12px">这个分类下没有当前方向的错词。</div></div>';
+    $("bkBody").innerHTML=h; bindMode();
+    if($("bkWCat")) $("bkWCat").onclick=function(e){var b=e.target.closest("button[data-c]");if(b){view.wcat=b.getAttribute("data-c");render()}};
+    $("bkToStats").onclick=function(){setTab("stats")}; return;
+  }
+  var goLabel=wcat?(catOpts.filter(function(c){return c.id===wcat})[0]||{}):null;
+  h+='<div class="actions" style="margin-top:10px"><button type="button" class="b-primary full" id="bkWrongGo">▶ 重练'+(wcat&&goLabel?"「"+goLabel.emoji+" "+goLabel.name+"」":"错词")+'（'+list.length+'）</button></div></div>';
+  h+='<div class="card" style="margin-top:10px"><div class="bk-h">错词列表 · 点开看详情</div><ul class="list bk-list" id="bkUl">'+list.map(function(w){
+    var e=loadWrong()["v|"+w.ko]||{}, times=(e.m&&e.m[mk])||0, sk=wrongStreak(e,mk);
+    var catL=w.cat&&CAT[w.cat]?CAT[w.cat].emoji+" "+CAT[w.cat].name:srcLabel(e.date);
+    return '<li data-ko="'+esc(w.ko)+'"><div class="bk-li"><span class="ko" lang="ko">'+esc(w.ko)+'</span> <span class="posb">'+esc(w.pos||(e.pos||""))+'</span>'+(w.hf?' <span class="bk-hf">⭐</span>':"")+' <span class="bk-st bad">错'+times+'</span> <span class="bk-st ok">连续对 '+sk+'/'+MASTER_N+'</span><br><span class="zh">'+esc(w.zh||e.zh||"")+'</span><div class="sub">'+esc(catL)+'</div></div><div class="bk-det"></div></li>';
   }).join("")+"</ul>";
   h+='<div class="actions"><button type="button" class="b-ghost small full" id="bkWrongClear">清空当前模式的错词</button></div></div>';
   $("bkBody").innerHTML=h;
   bindMode(); bindList($("bkUl")); $("bkToStats").onclick=function(){setTab("stats")};
-  $("bkWrongGo").onclick=function(){startQuiz(list,{label:"📕 错词本",review:true,wrongBook:true})};
+  if($("bkWCat")) $("bkWCat").onclick=function(e){var b=e.target.closest("button[data-c]");if(b){view.wcat=b.getAttribute("data-c");render()}};
+  $("bkWrongGo").onclick=function(){startQuiz(list,{label:"📕 错词本"+(wcat&&goLabel?" · "+goLabel.emoji+" "+goLabel.name:""),review:true,wrongBook:true})};
   $("bkWrongClear").onclick=function(){
     if(!confirm("确定清空「"+(st.opt.mode==="ko2zh"?"韩→中":"中→韩")+"」方向的错词？另一个方向不受影响。")) return;
     var all=loadWrong(),n=0;
-    Object.keys(all).forEach(function(k){var e=all[k];if(!e||!e.m||!e.m[mk])return;delete e.m[mk];n++;if(!Object.keys(e.m).length)delete all[k]});
+    Object.keys(all).forEach(function(k){var e=all[k];if(!e||!e.m||!e.m[mk])return;delete e.m[mk];if(e.s)delete e.s[mk];n++;if(!Object.keys(e.m).length)delete all[k]});
     try{localStorage.setItem(LS_WRONG,JSON.stringify(all))}catch(x){}
     toast("已清空 "+n+" 个"); setTab("wrong");
   };
@@ -477,10 +518,14 @@ function requeue(w){if(!S.requeued[w.ko]){S.requeued[w.ko]=1;S.q.push(w)}}   // 
 function wrong(){var w=cur();mark(w,false);S.bad++;S.missed.push(w);requeue(w);next()}
 function right(auto,alt){
   var w=cur(), c=card(w), again=S.requeued[w.ko]&&S.q.indexOf(w)!==S.i;
+  var mk=S.mode==="ko2zh"?"v_ko_zh":"v_zh_ko", e0=loadWrong()["v|"+w.ko], was=wrongActive(e0,mk);
   if(!again) mark(w,true); S.ok++;
+  var stN=(!again&&was)?wrongStreak(loadWrong()["v|"+w.ko],mk):0;
   if(auto){
     S.st="right"; var fb=$("bkFb"); fb.className="feedback ok";
-    var rm=S.wrongBook?'<div class="sub">已从错词本移除（再答错会重新记入）</div>':"";
+    var rm="";
+    if(stN>=MASTER_N) rm='<div class="sub">已记熟，移出错词本（再答错会重新记入）</div>';
+    else if(stN>0) rm='<div class="sub">连续对 '+stN+'/'+MASTER_N+' · 再对 '+(MASTER_N-stN)+' 次才移出</div>';
     fb.innerHTML=(alt?ACC.okHTML(alt,w.ko)+'<div class="sub">你写的：<span lang="ko">'+esc($("bkAns").value.trim())+"</span></div>":'<div class="title">✓ 正确！</div><div class="big" lang="ko">'+esc(w.ko)+"</div>")+rm+exLine(c)+infoHTML(c,false);
     acts([{t:"下一张",c:"b-primary full",f:next}]);
     var b=$("bkActs").querySelector("button"); if(b) b.focus();
