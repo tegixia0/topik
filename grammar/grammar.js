@@ -1,6 +1,7 @@
 /* TOPIK 中高级语法（中国人视角）—— 数据：grammar/grammar.json（由 tools/build_grammar.py 生成）
    分类针对性练习：整句中→韩打字 / 韩→中自评（不提示语法名），深链接 ?grammar=drill&cat=<id>
-   认意思：看韩语语法形式选中文意思（四选一），深链接 ?grammar=meaning[&cat=<id>] */
+   认意思：看韩语语法形式选中文意思（四选一），深链接 ?grammar=meaning[&cat=<id>]
+   选择题：TOPIK 读1-4式句子四选一（mcq.json），深链接 ?grammar=mcq[&cat=<id>|wrong] */
 (function(){
 "use strict";
 var $=function(id){return document.getElementById(id)};
@@ -218,6 +219,10 @@ function open(o){
   $("gBody").innerHTML='<div class="card empty">加载中…</div>';
   ensure().then(function(){
     if(o.g&&byId[o.g]){opt.tab="list";search=byId[o.g].f}
+    if(o.grammar==="mcq"||o.tab==="mcq"){
+      var mc=o.cat||o.scope; opt.mscope=mc==="wrong"||mc==="mwrong"?"mwrong":(mc&&CAT[mc]?mc:"all");
+      MQ=null; save(LS_OPT,opt); setTab("mcq"); return;
+    }
     if(o.grammar==="meaning"||o.tab==="meaning"){
       if(o.cat&&CAT[o.cat]) opt.scope=o.cat;
       else if(o.scope&&(o.scope==="all"||o.scope==="wrong"||CAT[o.scope])) opt.scope=o.scope;
@@ -236,10 +241,10 @@ function open(o){
   }).catch(function(e){$("gBody").innerHTML='<div class="card empty">语法数据加载失败：'+esc(e.message)+"</div>"});
 }
 function setTab(t,focus){
-  if(["list","cmp","drill","cards","wrong","meaning"].indexOf(t)<0)t="list";
+  if(["list","cmp","drill","cards","wrong","meaning","mcq"].indexOf(t)<0)t="list";
   opt.tab=t; save(LS_OPT,opt);
   Array.prototype.forEach.call(document.querySelectorAll("#gtabs button"),function(b){b.classList.toggle("active",b.getAttribute("data-tab")===t)});
-  if(t==="list") renderList(focus); else if(t==="cmp") renderCmp(); else if(t==="drill") renderDrillIndex(); else if(t==="cards"){if(!R)newRound();renderCard()} else if(t==="meaning"){if(!MR)newMeaningRound();renderMeaning()} else renderWrong();
+  if(t==="list") renderList(focus); else if(t==="cmp") renderCmp(); else if(t==="drill") renderDrillIndex(); else if(t==="cards"){if(!R)newRound();renderCard()} else if(t==="meaning"){if(!MR)newMeaningRound();renderMeaning()} else if(t==="mcq") renderMcq(); else renderWrong();
 }
 /* ---------- 语法卡片 ---------- */
 function exHTML(e){var real=/^真题/.test(e.src);return '<div class="gex"><div class="ko">'+esc(e.ko)+(e.src?'<span class="src'+(real?"":" self")+'">'+esc(e.src)+'</span>':"")+'</div><div class="zh">'+esc(e.zh)+'</div></div>'}
@@ -626,6 +631,81 @@ function meaningPick(i){
 }
 function meaningNext(){if(!MR)return; MR.i++;MR.st="ask";MR.picked=null;renderMeaning();window.scrollTo(0,0)}
 
+/* ---------- 选择题：TOPIK 读 1-4 式句子语法四选一（grammar/mcq.json） ---------- */
+var LS_MW="topik.grammar.mcqwrong.v1", MW=load(LS_MW,{}), MQ=null, MQD=null;
+window.addEventListener("topik-sync",function(){MW=load(LS_MW,{})});
+function mcqEnsure(){
+  if(MQD) return Promise.resolve();
+  return fetch("grammar/mcq.json?v="+Date.now().toString(36).slice(0,6),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(d){MQD=d.filter(function(q){return byId[q.g]})});
+}
+function mcqScope(){var s=opt.mscope||"all";return s==="all"||s==="mwrong"||CAT[s]?s:"all"}
+function mcqPool(){
+  var s=mcqScope();
+  return MQD.filter(function(q){return s==="all"?true:s==="mwrong"?!!MW[q.id]:q.cat===s});
+}
+function newMcqRound(list){
+  var qs=list||shuffle(mcqPool().slice());
+  var cap=mcqScope()==="all"?20:Math.min(30,qs.length);
+  MQ={q:qs.slice(0,cap),i:0,ok:0,bad:0,missed:[],st:"ask",picked:null};
+}
+function mcqSent(q,fill){
+  var parts=String(q.ko).split("( )");
+  var mid=fill==null?'<span class="gblank">(　　　)</span>':'<span class="gblank on">'+esc(fill)+'</span>';
+  return parts.map(esc).join(mid);
+}
+function renderMcq(){
+  if(!MQD){$("gBody").innerHTML='<div class="card empty">加载题库…</div>';mcqEnsure().then(function(){if(!MQ)newMcqRound();renderMcq()}).catch(function(e){$("gBody").innerHTML='<div class="card empty">选择题加载失败：'+esc(e.message)+'</div>'});return}
+  if(!MQ) newMcqRound();
+  var sc=mcqScope(), nW=MQD.filter(function(q){return MW[q.id]}).length;
+  var scopes='<option value="all">全部（'+MQD.length+'）</option><option value="mwrong"'+(sc==="mwrong"?" selected":"")+'>选择题错题本（'+nW+'）</option>'+D.cats.map(function(c){var n=MQD.filter(function(q){return q.cat===c.id}).length;return '<option value="'+c.id+'"'+(sc===c.id?" selected":"")+'>'+esc(c.label)+'（'+n+'）</option>'}).join("");
+  var h='<div class="fbar"><select id="gQScope" aria-label="范围">'+scopes+'</select><button type="button" class="chip" id="gQLink">🔗 链接</button><button type="button" class="chip" data-a="qagain">再来一轮</button></div>';
+  h+='<div class="minfo">TOPIK 读 1–4 题型：选出最适合填入（　）的语法。错的记入语法错题本。</div>';
+  if(!MQ.q.length){$("gBody").innerHTML=h+'<div class="card empty">'+(sc==="mwrong"?"选择题错题本是空的 🎉":"这个范围没有题")+'</div>';bindMcq();return}
+  if(MQ.i>=MQ.q.length){$("gBody").innerHTML=h+mcqSummaryHTML();bindMcq();return}
+  var q=MQ.q[MQ.i], it=byId[q.g];
+  h+='<div class="bar"><span>进度 <b>'+(MQ.i+1)+'/'+MQ.q.length+'</b></span><span class="sp"></span><span>对 <b style="color:var(--ok)">'+MQ.ok+'</b></span><span>错 <b style="color:var(--bad)">'+MQ.bad+'</b></span></div>';
+  h+='<div class="card"><div class="minfo">'+esc(CAT[q.cat]||"")+' · 选择题</div>';
+  h+='<div class="gq ko gmcq-sent" lang="ko">'+mcqSent(q,MQ.st==="ask"?null:q.opts[q.ans])+'</div>';
+  var lab=["①","②","③","④"];
+  if(MQ.st==="ask"){
+    h+='<div class="gmcq">'+q.opts.map(function(o,i){return '<button type="button" class="gmcq-opt" lang="ko" data-a="qpick" data-i="'+i+'">'+lab[i]+' '+esc(o)+'</button>'}).join("")+'</div>';
+  }else{
+    var good=MQ.st==="ok";
+    h+='<div class="gmcq">'+q.opts.map(function(o,i){var cls="gmcq-opt"+(i===q.ans?" ok":MQ.picked===i?" bad":" dim");return '<button type="button" class="'+cls+'" lang="ko" disabled>'+lab[i]+' '+esc(o)+'</button>'}).join("")+'</div>';
+    h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 对了":"✘ 不对，正确答案 "+lab[q.ans])+'</div>';
+    h+='<div class="zh" style="margin-top:4px">'+esc(q.zh)+'</div></div>';
+    h+='<div class="g-reveal"><div class="row"><span class="k mem">解析</span>'+esc(q.why)+'</div>';
+    if(it) h+='<div class="row"><span class="k">语法</span><button type="button" class="chip" data-go="'+esc(it.id)+'">'+esc(it.f)+' · '+esc(it.zh)+' ›</button></div>';
+    h+='</div>';
+    h+='<div class="racts gmcq-acts"><button type="button" class="gbtn pri" data-a="qnext">下一题 ▶</button></div>';
+  }
+  h+='</div>';
+  $("gBody").innerHTML=h; bindMcq();
+}
+function mcqSummaryHTML(){
+  var h='<div class="card"><div class="score">'+MQ.ok+' <small>/ '+MQ.q.length+'</small></div><div class="minfo">选择题本轮完成</div>';
+  if(MQ.missed.length){
+    h+='<div class="minfo">这轮错的：</div>'+MQ.missed.map(function(q){return '<div class="gex"><div class="ko">'+mcqSent(q,q.opts[q.ans])+'</div><div class="zh">'+esc(q.zh)+'</div></div>'}).join("");
+  }
+  h+='<div class="racts gmcq-acts">'+(MQ.missed.length?'<button type="button" class="gbtn pri" data-a="qredo">重练错的（'+MQ.missed.length+'）</button>':"")+'<button type="button" class="gbtn'+(MQ.missed.length?"":" pri")+'" data-a="qagain">再来一轮</button><button type="button" class="gbtn" data-a="qwrong">练选择题错题本</button></div></div>';
+  return h;
+}
+function bindMcq(){
+  var s=$("gQScope"); if(s) s.onchange=function(){opt.mscope=s.value;save(LS_OPT,opt);newMcqRound();renderMcq()};
+  var l=$("gQLink"); if(l) l.onclick=function(){
+    var u=location.origin+location.pathname+"?grammar=mcq", sc=mcqScope();
+    if(sc!=="all") u+="&cat="+encodeURIComponent(sc==="mwrong"?"wrong":sc);
+    if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(u).then(function(){toast("链接已复制")});else prompt("复制链接：",u);
+  };
+}
+function mcqPick(i){
+  if(!MQ||MQ.st!=="ask") return;
+  var q=MQ.q[MQ.i]; MQ.picked=i;
+  if(i===q.ans){MQ.st="ok";MQ.ok++;if(mcqScope()==="mwrong"&&MW[q.id]){delete MW[q.id];save(LS_MW,MW)}}
+  else{MQ.st="bad";MQ.bad++;MQ.missed.push(q);var w=MW[q.id]||{n:0};w.n++;w.last=Date.now();MW[q.id]=w;save(LS_MW,MW);markW(q.g,true)}
+  renderMcq();
+}
+
 function renderWrong(){
   var ids=Object.keys(W).filter(function(id){return byId[id]}).sort(function(a,b){return W[b].n-W[a].n});
   var h='<div class="card"><h3 style="margin:0 0 4px">语法错题本（'+ids.length+'）</h3><p class="minfo">闪卡 / 整句练习答错自动加入；在“错题本”范围里答对就移出。</p>';
@@ -641,6 +721,11 @@ function bind(){
     var drill=b.getAttribute("data-drill"); if(drill){startCatDrill(drill,b.getAttribute("data-drill-mode")||"sent");return}
     var m=b.getAttribute("data-mode"); if(m){opt.mode=m;save(LS_OPT,opt);newRound();renderCard();return}
     var a=b.getAttribute("data-a"); if(!a) return;
+    if(a==="qpick"){mcqPick(+b.getAttribute("data-i"));return}
+    if(a==="qnext"){MQ.i++;MQ.st="ask";MQ.picked=null;renderMcq();window.scrollTo(0,0);return}
+    if(a==="qagain"){newMcqRound();renderMcq();return}
+    if(a==="qredo"){newMcqRound(shuffle(MQ.missed.slice()));renderMcq();return}
+    if(a==="qwrong"){opt.mscope="mwrong";save(LS_OPT,opt);newMcqRound();renderMcq();return}
     if(a==="mpick"){meaningPick(+b.getAttribute("data-i"));return}
     if(a==="mnext"){meaningNext();return}
     if(a==="magain"){newMeaningRound();renderMeaning();return}
