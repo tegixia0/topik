@@ -72,6 +72,21 @@ textarea.answer:disabled{opacity:.75}
 .bar .focus-chip{display:inline-block;background:#2a4a28;color:#b6f0a8;border:1px solid #3d6b3a;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.02em}
 .bar .focus-chip[hidden]{display:none}
 body.focus-quiz .toast{bottom:calc(90px + env(safe-area-inset-bottom))}
+/* 错词本专注：整页只留进度条+卡片+操作，隐藏上方 chrome */
+body.wrong-focus #topnav,
+body.wrong-focus #syncBar,
+body.wrong-focus #bkTabs,
+body.wrong-focus #flash > header,
+body.wrong-focus #modes,
+body.wrong-focus .shuf-entry,
+body.wrong-focus #shufList,
+body.wrong-focus #shufPanel,
+body.wrong-focus #goWrong,
+body.wrong-focus #wrongPanel,
+body.wrong-focus #flash > footer{display:none!important}
+.wrong-exit{display:none;width:100%;min-height:44px;margin:0 0 10px;border:1px solid #9b3340;background:#2a1518;color:#ffb4bc;border-radius:14px;font-size:15px;font-weight:800}
+body.wrong-focus .wrong-exit{display:block}
+body.wrong-focus .wrong-exit[hidden]{display:none}
 .b-primary{background:var(--accent)!important}
 .b-ok{background:#1f7a47!important}
 .b-bad{background:#9b3340!important}
@@ -286,6 +301,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
   <div class="card gpanel" id="shufPanel" hidden></div>
   <button type="button" class="wrong-entry" id="goWrong" aria-label="重练错词">📕 错词本（0）</button>
   <div class="card gpanel wdays" id="wrongPanel" hidden></div>
+  <button type="button" class="wrong-exit" id="wrongExit" hidden aria-label="退出错词本">‹ 退出错词本</button>
   <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="focus-chip" id="focusChip" hidden>专注</span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
   <div class="progress"><i id="progBar"></i></div>
 
@@ -358,7 +374,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="writing/tpl54types.js?v=20261015g"></script>
 <script src="writing/w5354.js?v=20261012b"></script>
 <script src="assets/voice.js?v=20261009a"></script>
-<script src="bank/bank.js?v=20261015n"></script>
+<script src="bank/bank.js?v=20261015o"></script>
 <script>
 (function(){
 "use strict";
@@ -386,16 +402,27 @@ var wrongDate=(source==="wrong"&&!wsF&&QS.date&&/^(\d{4}-\d{2}-\d{2}|early)$/.te
 if(QS.cat||QS.deck||QS.list){try{localStorage.setItem("topik.view","flash")}catch(e){}}
 var wantSource=source;
 var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
-var autoNextT=null, AUTO_NEXT_MS=1000;
-window.addEventListener("topik-leave-flash",function(){clearAutoNext()});   // 错词本专注：答对后自动下一张
+var autoNextT=null, AUTO_NEXT_MS=1000, prevSource="";
+window.addEventListener("topik-leave-flash",function(){clearAutoNext();document.body.classList.remove("wrong-focus","focus-quiz")});   // 错词本专注：答对后自动下一张
+window.addEventListener("topik-enter-flash",function(){updateFocusUI()});
 function focusOn(){return source==="wrong"}
 function clearAutoNext(){if(autoNextT){clearTimeout(autoNextT);autoNextT=null}}
 function scheduleAutoNext(){clearAutoNext();if(!focusOn())return;autoNextT=setTimeout(function(){autoNextT=null;next()},AUTO_NEXT_MS)}
 function updateFocusUI(){
-  var on=focusOn()&&state!=="done"&&!$("quiz").hidden;
+  var wrong=focusOn();
+  document.body.classList.toggle("wrong-focus",wrong);
+  var on=wrong&&state!=="done"&&!$("quiz").hidden;
   document.body.classList.toggle("focus-quiz",on);
   var box=$("actions"); if(box) box.classList.toggle("focus-sticky",on);
   var chip=$("focusChip"); if(chip) chip.hidden=!on;
+  var ex=$("wrongExit"); if(ex) ex.hidden=!wrong;
+}
+function rememberPrev(){if(source!=="wrong") prevSource=source}
+function exitWrong(){
+  clearAutoNext();
+  var back=(prevSource&&prevSource!=="wrong")?prevSource:"latest";
+  prevSource=""; source=back; wrongDate=""; wsF=null; QS.deck=null;
+  syncURL(); renderDeckSel(); reload();
 }
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -658,7 +685,7 @@ function start(cards,redo,fresh){
   $("summary").hidden=true; $("quiz").hidden=false;
   if(!queue.length){
     $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
-    s.innerHTML='<div class="empty">'+(source==="wrong"?"错词本是空的 🎉<br>闪卡或词库答错的单词会出现在这里，可以单独重练。":"这个题库里没有单词卡。")+"</div>";
+    s.innerHTML='<div class="empty">'+(source==="wrong"?"错词本是空的 🎉<br>闪卡或词库答错的单词会出现在这里，可以单独重练。<br><span class=\"sub\">点上方「退出错词本」回到普通练习</span>":"这个题库里没有单词卡。")+"</div>";
     updateBar(); updateFocusUI(); return;
   }
   show();
@@ -822,7 +849,8 @@ function finish(){
   if(SG&&!isRedo) renderShufPanel();
   if(SG&&shufGroup<shufG.length) acts.push({text:"下一组 → 第"+(shufGroup+1)+"组",cls:"b-primary full",fn:function(){shufGroup++;syncURL();renderDeckSel();reload()}});
   acts.push({text:SG?"🔀 本组再来一轮":"再来一轮",cls:SG?"":"b-primary",fn:function(){start(pool,false,true)}});
-  acts.push({text:"📕 错词本（"+wrongCards(mode).length+"）",cls:"b-bad"+(missed.length?"":" full"),fn:function(){source="wrong";wrongDate="";syncURL();renderDeckSel();reload()}});
+  if(source==="wrong") acts.push({text:"‹ 退出错词本",cls:"b-primary full",fn:exitWrong});
+  else acts.push({text:"📕 错词本（"+wrongCards(mode).length+"）",cls:"b-bad"+(missed.length?"":" full"),fn:function(){rememberPrev();source="wrong";wrongDate="";syncURL();renderDeckSel();reload()}});
   if(mode==="g_zh_ko"&&written.length) acts.push({text:"复制本轮句子",cls:"b-ghost full",fn:function(){
     copy(written.map(function(w,i){return (i+1)+". "+w.zh+(w.point?"（"+w.point+"）":"")+"\n我写的："+w.mine}).join("\n\n"))}});
   var box=$("sumActs");
@@ -848,7 +876,7 @@ function deckURL(){
   return base+q;
 }
 function syncURL(){try{var u=deckURL();var m=QS.mode?(u.indexOf("?")<0?"?":"&")+"mode="+encodeURIComponent(QS.mode):"";history.replaceState(null,"",u+(u.indexOf("?")<0?"":m)+location.hash)}catch(e){}}
-$("deckSel").addEventListener("change",function(){source=this.value;wrongDate="";wsF=null;QS.mode=null;syncURL();renderDeckSel();reload()});
+$("deckSel").addEventListener("change",function(){var v=this.value;if(v==="wrong")rememberPrev();source=v;wrongDate="";wsF=null;QS.mode=null;syncURL();renderDeckSel();reload()});
 $("shareCat").onclick=function(){copy(deckURL())};
 $("goShuf").onclick=function(){
   if(source==="shuf"){source="latest";syncURL();renderDeckSel();reload();return}
@@ -884,10 +912,11 @@ document.addEventListener("keydown",function(e){
 });
 $("clearWrong").onclick=function(){if(confirm("确定清空所有错词记录？")){saveWrong({});wrongDate="";renderDeckSel();if(source==="wrong")reload();toast("已清空")}};
 $("goWrong").onclick=function(){
-  if(source==="wrong"){source="latest";wrongDate="";wsF=null;QS.deck=null;syncURL();renderDeckSel();reload();return}
+  if(source==="wrong"){exitWrong();return}
   if(!wrongCards(mode).length){toast("错词本是空的，去练新卡吧");updateWrongEntry();return}
-  source="wrong";wrongDate="";wsF=null;QS.deck=null;syncURL();renderDeckSel();reload();
+  rememberPrev();source="wrong";wrongDate="";wsF=null;QS.deck=null;syncURL();renderDeckSel();reload();
 };
+$("wrongExit").onclick=function(){exitWrong()};
 $("reload").onclick=function(){cache={};Promise.all([loadIndex(),loadWI(),ACC.load(true)]).then(reload)};
 
 Array.prototype.forEach.call(document.querySelectorAll("#modes button"),function(b){b.classList.toggle("active",b.getAttribute("data-mode")===mode)});
@@ -938,8 +967,8 @@ function mkBadges(id){var m=st.marks[id];if(!m)return "";var h="";["a","b"].forE
 /* 视图切换 */
 function setView(v,o){
   if(["writing","reading","listening","grammar","bank"].indexOf(v)<0)v="flash";
-  if(v!=="flash"){try{window.dispatchEvent(new Event("topik-leave-flash"))}catch(e){}document.body.classList.remove("focus-quiz");var chip=$("focusChip");if(chip)chip.hidden=true;var box=$("actions");if(box)box.classList.remove("focus-sticky")}
-  $("flash").hidden=v!=="flash"; $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("listening").hidden=v!=="listening"; $("grammar").hidden=v!=="grammar"; $("bank").hidden=v!=="bank";
+  if(v!=="flash"){try{window.dispatchEvent(new Event("topik-leave-flash"))}catch(e){}document.body.classList.remove("focus-quiz","wrong-focus");var chip=$("focusChip");if(chip)chip.hidden=true;var ex=$("wrongExit");if(ex)ex.hidden=true;var box=$("actions");if(box)box.classList.remove("focus-sticky")}
+  $("flash").hidden=v!=="flash"; if(v==="flash"){try{window.dispatchEvent(new Event("topik-enter-flash"))}catch(e){}} $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("listening").hidden=v!=="listening"; $("grammar").hidden=v!=="grammar"; $("bank").hidden=v!=="bank";
   Array.prototype.forEach.call(document.querySelectorAll("#topnav button"),function(b){b.classList.toggle("active",b.getAttribute("data-view")===v)});
   try{localStorage.setItem(LS_VIEW,v)}catch(e){}
   document.title={writing:opts.part==="5354"?"TOPIK 写作 53·54":"TOPIK 写作 51·52",reading:"TOPIK 阅读真题",listening:"TOPIK 听力",grammar:"TOPIK 语法",bank:"TOPIK 词库"}[v]||"TOPIK 闪卡";
