@@ -1,10 +1,11 @@
 /* TOPIK 中高级语法（中国人视角）—— 数据：grammar/grammar.json（由 tools/build_grammar.py 生成）
-   分类针对性练习：整句中→韩打字 / 韩→中自评（不提示语法名），深链接 ?grammar=drill&cat=<id> */
+   分类针对性练习：整句中→韩打字 / 韩→中自评（不提示语法名），深链接 ?grammar=drill&cat=<id>
+   认意思：看韩语语法形式选中文意思（四选一），深链接 ?grammar=meaning[&cat=<id>] */
 (function(){
 "use strict";
 var $=function(id){return document.getElementById(id)};
 var LS_OPT="topik.grammar.opt.v1", LS_W="topik.grammar.wrong.v1", LS_DRILL="topik.grammar.drill.v1", LS_HINT="topik.grammar.hintsOn.v1";
-var D=null, byId={}, CAT={}, opt=load(LS_OPT,{tab:"list",mode:"fill",scope:"all"}), W=load(LS_W,{}), PROG=load(LS_DRILL,{}), R=null, search="";
+var D=null, byId={}, CAT={}, opt=load(LS_OPT,{tab:"list",mode:"fill",scope:"all"}), W=load(LS_W,{}), PROG=load(LS_DRILL,{}), R=null, MR=null, search="";
 var hintsOn=(function(){try{var v=localStorage.getItem(LS_HINT); if(v===null||v===undefined) return true; return v==="1"||v==="true"}catch(e){return true}})();
 var MODES={zh2ko:"中→韩（写语法）",fill:"句子填空（写形式）",ko2zh:"韩→中（自评）",sent:"整句 中→韩",sentzh:"整句 韩→中"};
 var SENT_MODES={sent:1,sentzh:1};
@@ -217,6 +218,11 @@ function open(o){
   $("gBody").innerHTML='<div class="card empty">加载中…</div>';
   ensure().then(function(){
     if(o.g&&byId[o.g]){opt.tab="list";search=byId[o.g].f}
+    if(o.grammar==="meaning"||o.tab==="meaning"){
+      if(o.cat&&CAT[o.cat]) opt.scope=o.cat;
+      else if(o.scope&&(o.scope==="all"||o.scope==="wrong"||CAT[o.scope])) opt.scope=o.scope;
+      save(LS_OPT,opt); setTab("meaning"); return;
+    }
     var drillCat=o.drillCat||(o.grammar==="drill"&&o.cat)||null;
     if(drillCat&&CAT[drillCat]){
       opt.tab="cards"; opt.scope=drillCat;
@@ -230,10 +236,10 @@ function open(o){
   }).catch(function(e){$("gBody").innerHTML='<div class="card empty">语法数据加载失败：'+esc(e.message)+"</div>"});
 }
 function setTab(t,focus){
-  if(["list","cmp","drill","cards","wrong"].indexOf(t)<0)t="list";
+  if(["list","cmp","drill","cards","wrong","meaning"].indexOf(t)<0)t="list";
   opt.tab=t; save(LS_OPT,opt);
   Array.prototype.forEach.call(document.querySelectorAll("#gtabs button"),function(b){b.classList.toggle("active",b.getAttribute("data-tab")===t)});
-  if(t==="list") renderList(focus); else if(t==="cmp") renderCmp(); else if(t==="drill") renderDrillIndex(); else if(t==="cards"){if(!R)newRound();renderCard()} else renderWrong();
+  if(t==="list") renderList(focus); else if(t==="cmp") renderCmp(); else if(t==="drill") renderDrillIndex(); else if(t==="cards"){if(!R)newRound();renderCard()} else if(t==="meaning"){if(!MR)newMeaningRound();renderMeaning()} else renderWrong();
 }
 /* ---------- 语法卡片 ---------- */
 function exHTML(e){var real=/^真题/.test(e.src);return '<div class="gex"><div class="ko">'+esc(e.ko)+(e.src?'<span class="src'+(real?"":" self")+'">'+esc(e.src)+'</span>':"")+'</div><div class="zh">'+esc(e.zh)+'</div></div>'}
@@ -521,6 +527,105 @@ function bindCard(){
     if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(u).then(function(){toast("链接已复制")});else prompt("复制链接：",u);
   };
 }
+
+/* ---------- 认意思：看语法形式 → 选中文意思（四选一） ---------- */
+function meaningPool(){
+  var its=D.items.slice();
+  if(opt.scope==="wrong") its=its.filter(function(it){return W[it.id]});
+  else if(opt.scope!=="all") its=its.filter(function(it){return it.cat===opt.scope});
+  return its.filter(function(it){return it.f&&it.zh});
+}
+function meaningDistractors(it,n){
+  n=n||3; var out=[], seen={}; seen[it.zh]=1;
+  function take(list){
+    shuffle(list);
+    for(var i=0;i<list.length&&out.length<n;i++){
+      var z=list[i].zh; if(!z||seen[z]) continue; seen[z]=1; out.push(z);
+    }
+  }
+  take(D.items.filter(function(x){return x.id!==it.id&&x.cat===it.cat}));
+  if(out.length<n) take(D.items.filter(function(x){return x.id!==it.id&&x.cat!==it.cat&&!seen[x.zh]}));
+  return out;
+}
+function buildMeaningQ(it){
+  var ds=meaningDistractors(it,3);
+  while(ds.length<3){
+    var f=D.items.find(function(x){return x.zh&&x.zh!==it.zh&&ds.indexOf(x.zh)<0});
+    if(!f) break; ds.push(f.zh);
+  }
+  return {id:it.id, opts:shuffle([it.zh].concat(ds.slice(0,3))), ans:it.zh};
+}
+function newMeaningRound(list){
+  var its=list||shuffle(meaningPool());
+  var cap=opt.scope==="all"?20:Math.min(30,its.length);
+  var q=its.slice(0,Math.min(cap,its.length)).map(buildMeaningQ);
+  MR={q:q,i:0,ok:0,bad:0,missed:[],st:"ask",picked:null};
+}
+function meaningTipHTML(it){
+  var h="";
+  if(it.mem) h+='<div class="row"><span class="k mem">记法</span>'+esc(it.mem)+'</div>';
+  if(it.use) h+='<div class="row"><span class="k warn">语感</span>'+esc(it.use)+'</div>';
+  if(it.err) h+='<div class="row"><span class="k err">易错</span>'+esc(it.err)+'</div>';
+  return h;
+}
+function renderMeaning(){
+  var scopes='<option value="all">全部（'+D.items.length+'）</option><option value="wrong"'+(opt.scope==="wrong"?" selected":"")+'>语法错题本（'+Object.keys(W).length+'）</option>'+D.cats.map(function(c){var n=catCount(c.id);return '<option value="'+c.id+'"'+(opt.scope===c.id?" selected":"")+'>'+esc(c.label)+'（'+n+'）</option>'}).join("");
+  var h='<div class="fbar"><select id="gMScope" aria-label="范围">'+scopes+'</select><button type="button" class="chip" id="gMLink">🔗 链接</button><button type="button" class="chip" data-a="magain">再来一轮</button></div>';
+  h+='<div class="minfo">看韩语语法形式，马上选出正确的中文意思（四选一）。错的会记入语法错题本。</div>';
+  if(!MR||!MR.q.length){$("gBody").innerHTML=h+'<div class="card empty">'+(opt.scope==="wrong"?"语法错题本是空的 🎉":"这个范围没有题")+'</div>';bindMeaning();return}
+  if(MR.i>=MR.q.length){$("gBody").innerHTML=h+meaningSummaryHTML();bindMeaning();return}
+  var c=MR.q[MR.i], it=byId[c.id];
+  h+='<div class="bar"><span>进度 <b>'+(MR.i+1)+'/'+MR.q.length+'</b></span><span class="sp"></span><span>对 <b style="color:var(--ok)">'+MR.ok+'</b></span><span>错 <b style="color:var(--bad)">'+MR.bad+'</b></span></div>';
+  h+='<div class="card">';
+  h+='<div class="minfo">'+esc(CAT[it.cat]||"")+' · 认意思</div>';
+  h+='<div class="gq big ko" lang="ko">'+esc(it.f)+'</div>';
+  if(MR.st==="ask"){
+    h+='<div class="gmcq">'+c.opts.map(function(z,i){return '<button type="button" class="gmcq-opt" data-a="mpick" data-i="'+i+'">'+esc(z)+'</button>'}).join("")+'</div>';
+  }else{
+    var good=MR.st==="ok";
+    h+='<div class="gmcq">'+c.opts.map(function(z,i){
+      var cls="gmcq-opt";
+      if(z===c.ans) cls+=" ok";
+      else if(MR.picked===i) cls+=" bad";
+      else cls+=" dim";
+      return '<button type="button" class="'+cls+'" disabled>'+esc(z)+'</button>';
+    }).join("")+'</div>';
+    h+='<div class="gfb '+(good?"ok":"bad")+'"><div class="t">'+(good?"✔ 对了":"✘ 不对")+'</div>';
+    h+='<div class="gans" style="font-size:16px;color:var(--ink)">'+esc(c.ans)+'</div></div>';
+    h+='<div class="g-reveal">'+meaningTipHTML(it)+'</div>';
+    h+='<div class="racts"><button type="button" class="gbtn pri" data-a="mnext">下一题 ▶</button></div>';
+  }
+  h+='</div>';
+  $("gBody").innerHTML=h; bindMeaning();
+}
+function meaningSummaryHTML(){
+  var h='<div class="card"><div class="score">'+MR.ok+' <small>/ '+MR.q.length+'</small></div>';
+  h+='<div class="minfo">认意思本轮完成</div>';
+  if(MR.missed.length){
+    var uniq=[]; MR.missed.forEach(function(id){if(uniq.indexOf(id)<0)uniq.push(id)});
+    h+='<div class="minfo">这轮错的：</div>'+uniq.map(function(id){return itemHTML(byId[id],false)}).join("");
+  }
+  h+='<div class="racts">'+(MR.missed.length?'<button type="button" class="gbtn pri" data-a="mredo">重练错的（'+MR.missed.length+'）</button>':"")+'<button type="button" class="gbtn'+(MR.missed.length?"":" pri")+'" data-a="magain">再来一轮</button><button type="button" class="gbtn" data-a="mwrong">练语法错题本</button></div></div>';
+  return h;
+}
+function bindMeaning(){
+  var s=$("gMScope"); if(s) s.onchange=function(){opt.scope=s.value;save(LS_OPT,opt);newMeaningRound();renderMeaning()};
+  var l=$("gMLink"); if(l) l.onclick=function(){
+    var u=location.origin+location.pathname+"?grammar=meaning";
+    if(opt.scope&&opt.scope!=="all"&&opt.scope!=="wrong") u+="&cat="+encodeURIComponent(opt.scope);
+    if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(u).then(function(){toast("链接已复制")});else prompt("复制链接：",u);
+  };
+}
+function meaningPick(i){
+  if(!MR||MR.st!=="ask") return;
+  var c=MR.q[MR.i], it=byId[c.id], z=c.opts[i];
+  MR.picked=i;
+  var ok=z===c.ans; MR.st=ok?"ok":"bad";
+  if(ok){MR.ok++;markW(c.id,false)}else{MR.bad++;MR.missed.push(c.id);markW(c.id,true)}
+  renderMeaning();
+}
+function meaningNext(){if(!MR)return; MR.i++;MR.st="ask";MR.picked=null;renderMeaning();window.scrollTo(0,0)}
+
 function renderWrong(){
   var ids=Object.keys(W).filter(function(id){return byId[id]}).sort(function(a,b){return W[b].n-W[a].n});
   var h='<div class="card"><h3 style="margin:0 0 4px">语法错题本（'+ids.length+'）</h3><p class="minfo">闪卡 / 整句练习答错自动加入；在“错题本”范围里答对就移出。</p>';
@@ -535,7 +640,18 @@ function bind(){
     var go=b.getAttribute("data-go"); if(go){search="";setTab("list",go);return}
     var drill=b.getAttribute("data-drill"); if(drill){startCatDrill(drill,b.getAttribute("data-drill-mode")||"sent");return}
     var m=b.getAttribute("data-mode"); if(m){opt.mode=m;save(LS_OPT,opt);newRound();renderCard();return}
-    var a=b.getAttribute("data-a"); if(!a) return; var c=R&&R.q[R.i];
+    var a=b.getAttribute("data-a"); if(!a) return;
+    if(a==="mpick"){meaningPick(+b.getAttribute("data-i"));return}
+    if(a==="mnext"){meaningNext();return}
+    if(a==="magain"){newMeaningRound();renderMeaning();return}
+    if(a==="mredo"){
+      var miss=MR?MR.missed.slice():[];
+      var uniq=[]; miss.forEach(function(id){if(uniq.indexOf(id)<0)uniq.push(id)});
+      newMeaningRound(shuffle(uniq.map(function(id){return byId[id]}).filter(Boolean)));
+      renderMeaning(); return;
+    }
+    if(a==="mwrong"){opt.scope="wrong";save(LS_OPT,opt);newMeaningRound();renderMeaning();return}
+    var c=R&&R.q[R.i];
     if(a==="showhints"){setHintsOn(true);renderCard();return}
     if(a==="check") submit();
     else if(a==="aiset"){var A0=AI();if(A0)A0.openSettings(function(){if(opt.tab==="cards")renderCard();else if(opt.tab==="drill")renderDrillIndex()});return}

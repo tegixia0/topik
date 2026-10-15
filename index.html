@@ -254,7 +254,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 .wg .mine{color:var(--muted);font-size:14.5px}
 .wg details.wi .body{padding-top:4px}
 </style>
-<link rel="stylesheet" href="assets/modules.css?v=20261014a">
+<link rel="stylesheet" href="assets/modules.css?v=20261015m">
 </head>
 <body>
 <div class="wrap">
@@ -335,7 +335,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
   </div>
   <div id="bank" hidden></div>
   <div id="grammar" hidden>
-    <div class="mtabs n5" id="gtabs"><button type="button" data-tab="list">语法表</button><button type="button" data-tab="cmp">易混组</button><button type="button" data-tab="drill">分类练</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="wrong">错题本</button></div>
+    <div class="mtabs n6" id="gtabs"><button type="button" data-tab="list">语法表</button><button type="button" data-tab="cmp">易混组</button><button type="button" data-tab="drill">分类练</button><button type="button" data-tab="meaning">认意思</button><button type="button" data-tab="cards">闪卡</button><button type="button" data-tab="wrong">错题本</button></div>
     <div id="gBody"></div>
   </div>
 </div>
@@ -347,7 +347,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="listening/listening.js?v=20261010a"></script>
 <script src="assets/ai.js?v=20261015g"></script>
 <script src="writing/wai.js?v=20261015g"></script>
-<script src="grammar/grammar.js?v=20261015g"></script>
+<script src="grammar/grammar.js?v=20261015m"></script>
 <script src="assets/wsplit.js?v=20261015g"></script>
 <script src="writing/tpl54cause.js?v=20261015g"></script>
 <script src="writing/tpl54types.js?v=20261015g"></script>
@@ -1429,7 +1429,8 @@ else if(WQS.grammar||catL==="grammar-core"||/^grammar-/.test(catL)||hash==="gram
   v0="grammar";
   var gCat=null;
   if(/^grammar-/.test(catL)&&catL!=="grammar-core") gCat=catL.slice(8);
-  if(String(WQS.grammar)==="drill"){o0={grammar:"drill",cat:WQS.cat||gCat||WQS.scope,mode:WQS.mode,g:WQS.g}}
+  if(String(WQS.grammar)==="meaning"||WQS.tab==="meaning"){o0={grammar:"meaning",cat:WQS.cat||gCat||WQS.scope,scope:WQS.scope}}
+  else if(String(WQS.grammar)==="drill"){o0={grammar:"drill",cat:WQS.cat||gCat||WQS.scope,mode:WQS.mode,g:WQS.g}}
   else if(gCat){o0={grammar:"drill",cat:gCat,mode:WQS.mode||"sent",g:WQS.g}}
   else {o0={tab:catL==="grammar-core"||hash==="grammar-core"?"cards":(WQS.tab||"list"),mode:WQS.mode,g:WQS.g,scope:WQS.scope}}
 }

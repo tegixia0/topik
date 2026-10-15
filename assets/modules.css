@@ -457,3 +457,13 @@ span.ltag{padding:1px 7px;font-size:12.5px}
 .bk-sc .bad{color:var(--bad)}
 .bk-wsl .chips{margin-top:4px}
 .bk-wsl .chip{font-size:12px;display:inline-block;margin:2px 4px 0 0;padding:1px 7px;border:1px solid var(--border);border-radius:999px;color:var(--muted)}
+
+/* 语法 · 认意思（四选一） */
+.gq.big{font-size:28px;text-align:center;padding:18px 8px;color:#ffd98a;letter-spacing:.5px}
+.gmcq{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.gmcq-opt{min-height:48px;width:100%;box-sizing:border-box;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--ink);font-size:15.5px;font-weight:600;line-height:1.45;touch-action:manipulation;white-space:normal;word-break:break-word}
+.gmcq-opt:active{background:#1d3150}
+.gmcq-opt.ok{border-color:var(--ok);background:#163024;color:#7fe0a6}
+.gmcq-opt.bad{border-color:var(--bad);background:#3a1a1e;color:#ffb0b0}
+.gmcq-opt.dim{opacity:.5}
+.gmcq-opt:disabled{cursor:default}
