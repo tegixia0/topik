@@ -67,6 +67,11 @@ textarea.answer:disabled{opacity:.75}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .actions button,.btn{min-height:54px;border:none;border-radius:14px;font-size:18px;font-weight:700;color:#fff;background:var(--card2)}
 .actions button.full{grid-column:1/-1}
+/* 错词本「专注练习」：操作栏贴底，答对后短暂显示 ✓ 再自动下一张 */
+.actions.focus-sticky{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:25;margin-top:14px;padding:10px 8px 8px;background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 -10px 28px rgba(0,0,0,.45)}
+.bar .focus-chip{display:inline-block;background:#2a4a28;color:#b6f0a8;border:1px solid #3d6b3a;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.02em}
+.bar .focus-chip[hidden]{display:none}
+body.focus-quiz .toast{bottom:calc(90px + env(safe-area-inset-bottom))}
 .b-primary{background:var(--accent)!important}
 .b-ok{background:#1f7a47!important}
 .b-bad{background:#9b3340!important}
@@ -281,7 +286,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
   <div class="card gpanel" id="shufPanel" hidden></div>
   <button type="button" class="wrong-entry" id="goWrong" aria-label="重练错词">📕 错词本（0）</button>
   <div class="card gpanel wdays" id="wrongPanel" hidden></div>
-  <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
+  <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="focus-chip" id="focusChip" hidden>专注</span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
   <div class="progress"><i id="progBar"></i></div>
 
   <div class="card" id="quiz">
@@ -353,7 +358,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="writing/tpl54types.js?v=20261015g"></script>
 <script src="writing/w5354.js?v=20261012b"></script>
 <script src="assets/voice.js?v=20261009a"></script>
-<script src="bank/bank.js?v=20261014a"></script>
+<script src="bank/bank.js?v=20261015n"></script>
 <script>
 (function(){
 "use strict";
@@ -381,6 +386,16 @@ var wrongDate=(source==="wrong"&&!wsF&&QS.date&&/^(\d{4}-\d{2}-\d{2}|early)$/.te
 if(QS.cat||QS.deck||QS.list){try{localStorage.setItem("topik.view","flash")}catch(e){}}
 var wantSource=source;
 var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
+var autoNextT=null, AUTO_NEXT_MS=1000;   // 错词本专注：答对后自动下一张
+function focusOn(){return source==="wrong"}
+function clearAutoNext(){if(autoNextT){clearTimeout(autoNextT);autoNextT=null}}
+function scheduleAutoNext(){clearAutoNext();if(!focusOn())return;autoNextT=setTimeout(function(){autoNextT=null;next()},AUTO_NEXT_MS)}
+function updateFocusUI(){
+  var on=focusOn()&&state!=="done"&&!$("quiz").hidden;
+  document.body.classList.toggle("focus-quiz",on);
+  var box=$("actions"); if(box) box.classList.toggle("focus-sticky",on);
+  var chip=$("focusChip"); if(chip) chip.hidden=!on;
+}
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
@@ -626,7 +641,7 @@ function shufSave(){
   shufPut(o);
 }
 function start(cards,redo,fresh){
-  isRedo=!!redo; queue=shuffle(cards); pos=0; ok=0; bad=0; missed=[]; written=[];
+  clearAutoNext(); isRedo=!!redo; queue=shuffle(cards); pos=0; ok=0; bad=0; missed=[]; written=[];
   if(source==="shuf"&&!redo){
     var sv=gProg(shufGroup), by={}; cards.forEach(function(c){by[cardKey(c)]=c});
     if(sv&&!fresh&&!sv.done&&sv.order&&sv.pos<sv.order.length){
@@ -643,7 +658,7 @@ function start(cards,redo,fresh){
   if(!queue.length){
     $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
     s.innerHTML='<div class="empty">'+(source==="wrong"?"错词本是空的 🎉<br>闪卡或词库答错的单词会出现在这里，可以单独重练。":"这个题库里没有单词卡。")+"</div>";
-    updateBar(); return;
+    updateBar(); updateFocusUI(); return;
   }
   show();
 }
@@ -660,6 +675,7 @@ function updateBar(){
   $("progBar").style.width=(n?(pos/n*100):0)+"%";
 }
 function setActions(list){
+  updateFocusUI();
   $("actions").innerHTML=list.map(function(b,i){return '<button type="button" data-i="'+i+'" class="'+(b.cls||"")+'">'+b.text+"</button>"}).join("");
   $("actions").onclick=function(e){var el=e.target.closest("button[data-i]");if(el) list[+el.getAttribute("data-i")].fn()};
 }
@@ -693,7 +709,7 @@ function show(){
   $("fb").className="feedback"; $("fb").innerHTML="";
   if(mode==="v_zh_ko") setActions([{text:"核对",cls:"b-primary",fn:check},{text:"不会 · 看答案",cls:"b-ghost",fn:giveUp}]);
   else setActions([{text:"看参考答案",cls:"b-primary full",fn:check}]);
-  updateBar();
+  updateBar(); updateFocusUI();
   try{a.focus({preventScroll:true})}catch(e){a.focus()}
 }
 function exLine(){
@@ -774,19 +790,21 @@ function grade(right,auto,alt){
     else if(stN>0) rm='<div class="sub">连续对 '+stN+'/'+MASTER_N+' · 再对 '+(MASTER_N-stN)+' 次才移出</div>';
     fb.innerHTML=(alt?ACC.okHTML(alt,cur.ko)+'<div class="sub">你写的：<span lang="ko">'+esc($("answer").value.trim())+"</span></div>":'<div class="title">✓ 正确！</div>'+refHTML())+rm+exLine()+infoHTML(cur,false);
     setActions([{text:"下一张",cls:"b-primary full",fn:next}]);
-    updateBar(); focusNextBtn(); return;
+    updateBar(); focusNextBtn();
+    if(focusOn()) scheduleAutoNext();
+    return;
   }
   next();
 }
 function focusNextBtn(){var b=$("actions").querySelector("button");if(b)b.focus()}
-function next(){pos++;show()}
+function next(){clearAutoNext();pos++;show()}
 function copy(t){
   var done=function(){toast("已复制")};
   if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(done,function(){fallback()})}else fallback();
   function fallback(){var ta=document.createElement("textarea");ta.value=t;ta.setAttribute("readonly","");ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done()}catch(e){toast("复制失败，请长按手动复制")}document.body.removeChild(ta)}
 }
 function finish(){
-  state="done"; updateBar(); $("progBar").style.width="100%";
+  clearAutoNext(); state="done"; updateBar(); updateFocusUI(); $("progBar").style.width="100%";
   $("quiz").hidden=true; var s=$("summary"); s.hidden=false;
   var n=queue.length, pct=n?Math.round(ok/n*100):0;
   var h='<h2>'+(source==="shuf"?"第"+shufGroup+"组 · ":"")+(isRedo?"错题重练结束":"本轮结束")+'</h2><div class="nums">共 '+n+' 张 · <span style="color:var(--ok)">对 '+ok+'</span> · <span style="color:var(--bad)">错 '+bad+"</span> · 正确率 "+pct+"%</div>";
@@ -919,6 +937,7 @@ function mkBadges(id){var m=st.marks[id];if(!m)return "";var h="";["a","b"].forE
 /* 视图切换 */
 function setView(v,o){
   if(["writing","reading","listening","grammar","bank"].indexOf(v)<0)v="flash";
+  if(v!=="flash"){clearAutoNext();document.body.classList.remove("focus-quiz");var chip=$("focusChip");if(chip)chip.hidden=true;var box=$("actions");if(box)box.classList.remove("focus-sticky")}
   $("flash").hidden=v!=="flash"; $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("listening").hidden=v!=="listening"; $("grammar").hidden=v!=="grammar"; $("bank").hidden=v!=="bank";
   Array.prototype.forEach.call(document.querySelectorAll("#topnav button"),function(b){b.classList.toggle("active",b.getAttribute("data-view")===v)});
   try{localStorage.setItem(LS_VIEW,v)}catch(e){}

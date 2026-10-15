@@ -155,7 +155,7 @@ function shell(){
   var b=$("bank"); if(!b) return;
   if(!$("bkTabs")){
     b.innerHTML='<div class="mtabs bk-tabs n6" id="bkTabs"><button type="button" data-tab="hf">⭐ 高频</button><button type="button" data-tab="cat">🗂 分类</button><button type="button" data-tab="daily">📅 每日'+esc(st.opt.n)+'</button><button type="button" data-tab="wrong">📕 错词</button><button type="button" data-tab="stats">📊 统计</button><button type="button" data-tab="prog">📈 进度</button></div><div id="bkBody"><div class="card empty">加载中…</div></div><footer id="bkFoot"></footer>';
-    $("bkTabs").addEventListener("click",function(e){var x=e.target.closest("button[data-tab]");if(!x)return;if(S&&S.active&&!confirm("正在练习，确定离开？（已答的记录会保留）"))return;S=null;view.cat=null;view.grp=0;if(x.getAttribute("data-tab")!=="wrong")view.wcat="";setTab(x.getAttribute("data-tab"))});
+    $("bkTabs").addEventListener("click",function(e){var x=e.target.closest("button[data-tab]");if(!x)return;if(S&&S.active&&!confirm("正在练习，确定离开？（已答的记录会保留）"))return;clearAutoNext();document.body.classList.remove("focus-quiz");S=null;view.cat=null;view.grp=0;if(x.getAttribute("data-tab")!=="wrong")view.wcat="";setTab(x.getAttribute("data-tab"))});
   }
 }
 function setTab(t){
@@ -436,8 +436,13 @@ function renderProg(){
 }
 
 /* ---------- 练习 ---------- */
+var autoNextT=null, AUTO_NEXT_MS=1000;   // 错词本专注：答对后自动下一张
+function focusOn(){return !!(S&&S.wrongBook)}
+function clearAutoNext(){if(autoNextT){clearTimeout(autoNextT);autoNextT=null}}
+function scheduleAutoNext(){clearAutoNext();if(!focusOn())return;autoNextT=setTimeout(function(){autoNextT=null;next()},AUTO_NEXT_MS)}
 function startQuiz(list,o){
   if(!list.length){toast("没有可练的词");return}
+  clearAutoNext();
   o=o||{};
   S={active:true,q:o.keepOrder?list.slice():shuffle(list),i:0,ok:0,bad:0,missed:[],mode:st.opt.mode,label:o.label||"",review:!!o.review,wrongBook:!!o.wrongBook,prefer:o.prefer,requeued:{},st:"load",o:o};
   if(o.keepOrder&&o.review){ // 今日学习：复习词打乱放前面，新词按顺序
@@ -452,7 +457,7 @@ function hintOf(ko){var s=ko.replace(/\s+/g,"");return s.charAt(0)+Array(s.lengt
 function renderQuiz(){
   if(S.i>=S.q.length) return summary();
   var w=cur(), c=card(w), z=S.mode==="zh2ko", n=S.q.length;
-  var h='<div class="bar"><span>'+esc(S.label)+'</span><span class="sp"></span><span><b>'+(S.i+1)+"/"+n+'</b></span><span>对 <b style="color:var(--ok)">'+S.ok+'</b></span><span>错 <b style="color:var(--bad)">'+S.bad+'</b></span></div><div class="progress"><i style="width:'+(S.i/n*100)+'%"></i></div>';
+  var h='<div class="bar"><span>'+esc(S.label)+'</span>'+(S.wrongBook?'<span class="focus-chip">专注</span>':'')+'<span class="sp"></span><span><b>'+(S.i+1)+"/"+n+'</b></span><span>对 <b style="color:var(--ok)">'+S.ok+'</b></span><span>错 <b style="color:var(--bad)">'+S.bad+'</b></span></div><div class="progress"><i style="width:'+(S.i/n*100)+'%"></i></div>';
   h+='<div class="card" id="bkQuiz"><div class="label"><span>'+(z?"中文 → 写韩语单词":"韩语 → 想中文意思")+'</span><span class="tag pos'+(VOICE.of(c)?" vc":"")+'"'+(VOICE.of(c)?' title="'+esc(VOICE.LONG[VOICE.of(c).voice])+'"':"")+'>'+esc(VOICE.of(c)?VOICE.tagText(c):w.pos)+" · "+lvlName(w.lvl)+(w.hf?" · ⭐":"")+'</span></div>';
   h+='<div class="prompt" lang="'+(z?"zh-CN":"ko")+'">'+esc(z?w.zh:w.ko)+(!z&&canSpeak()?' <button class="speak" id="bkSpk" aria-label="朗读">🔊</button>':"")+"</div>";
   h+='<div class="hintline" id="bkHint">'+(z?'<button type="button" id="bkHintBtn">显示提示</button>':"")+"</div>";
@@ -468,10 +473,14 @@ function renderQuiz(){
   $("bkQuit").onclick=function(){if(S.i>0||confirm("结束这次练习？"))summary()};
   acts(z?[{t:"核对",c:"b-primary",f:check},{t:"不会 · 看答案",c:"b-ghost",f:giveUp}]:[{t:"看答案",c:"b-primary full",f:check}]);
   S.st="ask";
+  document.body.classList.toggle("focus-quiz",focusOn());
   try{a.focus({preventScroll:true})}catch(e){}
 }
 function acts(list){
-  var box=$("bkActs"); box.innerHTML=list.map(function(b,i){return '<button type="button" data-i="'+i+'" class="'+(b.c||"")+'">'+b.t+"</button>"}).join("");
+  var box=$("bkActs");
+  if(box) box.classList.toggle("focus-sticky",focusOn());
+  document.body.classList.toggle("focus-quiz",focusOn());
+  box.innerHTML=list.map(function(b,i){return '<button type="button" data-i="'+i+'" class="'+(b.c||"")+'">'+b.t+"</button>"}).join("");
   box.onclick=function(e){var el=e.target.closest("button[data-i]");if(el)list[+el.getAttribute("data-i")].f()};
 }
 function exLine(c){return c.ex?'<div class="sub" lang="ko">例句：'+esc(c.ex)+"</div>"+(c.exzh?'<div class="sub">　　　'+esc(c.exzh)+"</div>":""):""}
@@ -529,12 +538,14 @@ function right(auto,alt){
     fb.innerHTML=(alt?ACC.okHTML(alt,w.ko)+'<div class="sub">你写的：<span lang="ko">'+esc($("bkAns").value.trim())+"</span></div>":'<div class="title">✓ 正确！</div><div class="big" lang="ko">'+esc(w.ko)+"</div>")+rm+exLine(c)+infoHTML(c,false);
     acts([{t:"下一张",c:"b-primary full",f:next}]);
     var b=$("bkActs").querySelector("button"); if(b) b.focus();
+    if(focusOn()) scheduleAutoNext();
     return;
   }
   next();
 }
-function next(){S.i++;S.st="ask";renderQuiz();try{$("bkQuiz").scrollIntoView({block:"nearest"})}catch(e){}}
+function next(){clearAutoNext();S.i++;S.st="ask";renderQuiz();try{$("bkQuiz").scrollIntoView({block:"nearest"})}catch(e){}}
 function summary(){
+  clearAutoNext(); document.body.classList.remove("focus-quiz");
   var miss=[],seenK={}; S.missed.forEach(function(w){if(!seenK[w.ko]){seenK[w.ko]=1;miss.push(w)}});
   var n=S.i, o=S.o; S.active=false;
   var h='<div class="card summary"><h2>本轮结束</h2><div class="nums">答了 '+n+' 张 · <span style="color:var(--ok)">对 '+S.ok+'</span> · <span style="color:var(--bad)">错 '+S.bad+"</span></div>";
@@ -553,7 +564,7 @@ function summary(){
 /* ---------- 入口 ---------- */
 function open(o){
   o=o||{}; shell();
-  if(o.tab){S=null; if(o.tab==="cat"){view.cat=o.c||null;view.grp=0;view.pos="";view.lvl=""} }
+  if(o.tab){clearAutoNext();document.body.classList.remove("focus-quiz");S=null; if(o.tab==="cat"){view.cat=o.c||null;view.grp=0;view.pos="";view.lvl=""} }
   var t=o.tab||view.tab;
   Promise.all([ensure(),ACC.load()]).then(function(){
     if(o.c&&!CAT[o.c]&&o.c!=="all"){toast("找不到这个分类");view.cat=null}
@@ -564,5 +575,5 @@ document.addEventListener("keydown",function(e){
   var b=$("bank"); if(!b||b.hidden||!S||!S.active||S.st==="ask") return;
   if(e.key==="Enter"&&document.activeElement.tagName!=="BUTTON"){var x=$("bkActs")&&$("bkActs").querySelector("button");if(x){e.preventDefault();x.click()}}
 });
-window.TopikBank={open:open,leaveOK:function(){return !(S&&S.active&&S.i>0)||confirm("正在练习，确定离开？（已答的记录会保留）")}};
+window.TopikBank={open:open,leaveOK:function(){var ok=!(S&&S.active&&S.i>0)||confirm("正在练习，确定离开？（已答的记录会保留）");if(ok){clearAutoNext();document.body.classList.remove("focus-quiz")}return ok}};
 })();
