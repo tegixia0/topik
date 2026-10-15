@@ -112,6 +112,18 @@ function wrongWords(mk,filter){   // 闪卡/词库/阅读生词共用 topik.wron
   return out;
 }
 function wrongCountBoth(){var all=loadWrong(),n=0;Object.keys(all).forEach(function(k){var e=all[k];if(e&&e.t==="v"&&wrongActiveAny(e))n++});return n}
+function wrongDaysOf(e){   // 读 e.d；旧记录无日期时按 last / early 迁移（与闪卡 wrongDays 一致）
+  if(e&&e.d&&typeof e.d==="object"&&Object.keys(e.d).length) return e.d;
+  var tot=0,o={}; Object.keys((e&&e.m)||{}).forEach(function(k){tot+=+e.m[k]||0}); tot=tot||1;
+  if(e&&e.last){o[new Date(e.last+288e5).toISOString().slice(0,10)]=1;if(tot>1)o.early=tot-1}else o.early=tot;
+  return o;
+}
+function dayLabel(d){if(d==="early")return "早期";var p=String(d||"").split("-");return p.length<3?String(d||""):(+p[1])+"/"+(+p[2])}
+function wrongDayGroups(list){   // [{d,n}] 新的在前，「早期」最后；list 为当前方向错词
+  var all=loadWrong(),c={};
+  (list||[]).forEach(function(w){var e=all["v|"+w.ko];if(!e)return;Object.keys(wrongDaysOf(e)).forEach(function(d){c[d]=(c[d]||0)+1})});
+  return Object.keys(c).sort(function(a,b){return a==="early"?1:b==="early"?-1:a<b?1:-1}).map(function(d){return {d:d,n:c[d]}});
+}
 function seedDetFromWrong(ko){
   if(DET[ko]) return;
   var e=loadWrong()["v|"+ko]; if(!e) return;
@@ -155,7 +167,7 @@ function shell(){
   var b=$("bank"); if(!b) return;
   if(!$("bkTabs")){
     b.innerHTML='<div class="mtabs bk-tabs n6" id="bkTabs"><button type="button" data-tab="hf">⭐ 高频</button><button type="button" data-tab="cat">🗂 分类</button><button type="button" data-tab="daily">📅 每日'+esc(st.opt.n)+'</button><button type="button" data-tab="wrong">📕 错词</button><button type="button" data-tab="stats">📊 统计</button><button type="button" data-tab="prog">📈 进度</button></div><div id="bkBody"><div class="card empty">加载中…</div></div><footer id="bkFoot"></footer>';
-    $("bkTabs").addEventListener("click",function(e){var x=e.target.closest("button[data-tab]");if(!x)return;if(S&&S.active&&!confirm("正在练习，确定离开？（已答的记录会保留）"))return;clearAutoNext();document.body.classList.remove("focus-quiz","wrong-focus");S=null;view.cat=null;view.grp=0;if(x.getAttribute("data-tab")!=="wrong")view.wcat="";setTab(x.getAttribute("data-tab"))});
+    $("bkTabs").addEventListener("click",function(e){var x=e.target.closest("button[data-tab]");if(!x)return;if(S&&S.active&&!confirm("正在练习，确定离开？（已答的记录会保留）"))return;clearAutoNext();document.body.classList.remove("focus-quiz","wrong-focus");S=null;view.cat=null;view.grp=0;if(x.getAttribute("data-tab")!=="wrong"){view.wcat="";view.wday=""}setTab(x.getAttribute("data-tab"))});
   }
 }
 function setTab(t){
@@ -290,12 +302,16 @@ function srcLabel(date){
 }
 function renderWrong(){
   var mk=wrongMk(), allWrong=wrongWords(mk), allN=wrongCountBoth();
-  var wcat=view.wcat||"";
+  var wcat=view.wcat||"", wday=view.wday||"";
   var catOpts=[];
   M.cats.forEach(function(c){var n=allWrong.filter(function(w){return w.cat===c.id}).length;if(n)catOpts.push({id:c.id,emoji:c.emoji,name:c.name,n:n})});
   var otherN=allWrong.filter(function(w){return !w.cat||!CAT[w.cat]}).length;
   if(otherN) catOpts.push({id:"_other",emoji:"📎",name:"其他/阅读",n:otherN});
-  var list=wcat?allWrong.filter(function(w){return wcat==="_other"?(!w.cat||!CAT[w.cat]):w.cat===wcat}):allWrong;
+  var dayGroups=wrongDayGroups(allWrong);
+  if(wday&&!dayGroups.some(function(g){return g.d===wday})) wday=view.wday="";
+  var byCat=wcat?allWrong.filter(function(w){return wcat==="_other"?(!w.cat||!CAT[w.cat]):w.cat===wcat}):allWrong;
+  var allW=loadWrong();
+  var list=wday?byCat.filter(function(w){var e=allW["v|"+w.ko];return e&&wrongDaysOf(e)[wday]}):byCat;
   var h='<div class="card bk-intro"><div class="bk-h">📕 错词本 <span class="sub">当前模式 '+allWrong.length+' 词 · 两个方向共 '+allN+'</span></div>';
   h+='<div class="sub">闪卡、词库、阅读生词答错的单词都记在这里。答对不会马上移出；同一方向连续对 '+MASTER_N+' 次才算记熟（历史错次保留）。</div>';
   h+=modeSeg();
@@ -304,20 +320,27 @@ function renderWrong(){
     catOpts.forEach(function(c){h+='<button type="button" data-c="'+c.id+'" class="'+(wcat===c.id?"active":"")+'">'+c.emoji+" "+esc(c.name)+" "+c.n+"</button>"});
     h+="</div>";
   }
+  if(dayGroups.length){
+    h+='<div class="seg bk-f" id="bkWDay" style="margin-top:8px"><button type="button" data-d="" class="'+(wday?"":"active")+'">全部 '+allWrong.length+'</button>';
+    dayGroups.forEach(function(g){h+='<button type="button" data-d="'+g.d+'" class="'+(wday===g.d?"active":"")+'">'+dayLabel(g.d)+" · "+g.n+"</button>"});
+    h+="</div>";
+  }
   h+='<button type="button" class="b-ghost small full" id="bkToStats" style="margin-top:8px">📊 错误统计：每个词错了几遍 · 哪类词错得多 → 单独练</button>';
   if(!allWrong.length){
     h+='<div class="empty" style="margin-top:12px">这个模式的错词本是空的 🎉<br>去「每日」或「高频」练新词吧；答错的词会出现在这里。</div></div>';
     $("bkBody").innerHTML=h; bindMode(); $("bkToStats").onclick=function(){setTab("stats")}; return;
   }
   if(!list.length){
-    h+='<div class="empty" style="margin-top:12px">这个分类下没有当前方向的错词。</div></div>';
+    h+='<div class="empty" style="margin-top:12px">'+(wday?"这一天没有当前筛选下的错词。":"这个分类下没有当前方向的错词。")+'</div></div>';
     $("bkBody").innerHTML=h; bindMode();
     if($("bkWCat")) $("bkWCat").onclick=function(e){var b=e.target.closest("button[data-c]");if(b){view.wcat=b.getAttribute("data-c");render()}};
+    if($("bkWDay")) $("bkWDay").onclick=function(e){var b=e.target.closest("button[data-d]");if(b){view.wday=b.getAttribute("data-d");render()}};
     $("bkToStats").onclick=function(){setTab("stats")}; return;
   }
   var goLabel=wcat?(catOpts.filter(function(c){return c.id===wcat})[0]||{}):null;
-  h+='<div class="actions" style="margin-top:10px"><button type="button" class="b-primary full" id="bkWrongGo">▶ 重练'+(wcat&&goLabel?"「"+goLabel.emoji+" "+goLabel.name+"」":"错词")+'（'+list.length+'）</button></div></div>';
-  h+='<div class="card" style="margin-top:10px"><div class="bk-h">错词列表 · 点开看详情</div><ul class="list bk-list" id="bkUl">'+list.map(function(w){
+  var goTxt=(wcat&&goLabel?"「"+goLabel.emoji+" "+goLabel.name+"」":"错词")+(wday?" · "+dayLabel(wday):"");
+  h+='<div class="actions" style="margin-top:10px"><button type="button" class="b-primary full" id="bkWrongGo">▶ 重练'+goTxt+'（'+list.length+'）</button></div></div>';
+  h+='<div class="card" style="margin-top:10px"><div class="bk-h">错词列表 · 点开看详情'+(wday?' <span class="sub">'+dayLabel(wday)+'</span>':'')+'</div><ul class="list bk-list" id="bkUl">'+list.map(function(w){
     var e=loadWrong()["v|"+w.ko]||{}, times=(e.m&&e.m[mk])||0, sk=wrongStreak(e,mk);
     var catL=w.cat&&CAT[w.cat]?CAT[w.cat].emoji+" "+CAT[w.cat].name:srcLabel(e.date);
     return '<li data-ko="'+esc(w.ko)+'"><div class="bk-li"><span class="ko" lang="ko">'+esc(w.ko)+'</span> <span class="posb">'+esc(w.pos||(e.pos||""))+'</span>'+(w.hf?' <span class="bk-hf">⭐</span>':"")+' <span class="bk-st bad">错'+times+'</span> <span class="bk-st ok">连续对 '+sk+'/'+MASTER_N+'</span><br><span class="zh">'+esc(w.zh||e.zh||"")+'</span><div class="sub">'+esc(catL)+'</div></div><div class="bk-det"></div></li>';
@@ -326,7 +349,8 @@ function renderWrong(){
   $("bkBody").innerHTML=h;
   bindMode(); bindList($("bkUl")); $("bkToStats").onclick=function(){setTab("stats")};
   if($("bkWCat")) $("bkWCat").onclick=function(e){var b=e.target.closest("button[data-c]");if(b){view.wcat=b.getAttribute("data-c");render()}};
-  $("bkWrongGo").onclick=function(){startQuiz(list,{label:"📕 错词本"+(wcat&&goLabel?" · "+goLabel.emoji+" "+goLabel.name:""),review:true,wrongBook:true})};
+  if($("bkWDay")) $("bkWDay").onclick=function(e){var b=e.target.closest("button[data-d]");if(b){view.wday=b.getAttribute("data-d");render()}};
+  $("bkWrongGo").onclick=function(){startQuiz(list,{label:"📕 错词本"+(wcat&&goLabel?" · "+goLabel.emoji+" "+goLabel.name:"")+(wday?" · "+dayLabel(wday):""),review:true,wrongBook:true})};
   $("bkWrongClear").onclick=function(){
     if(!confirm("确定清空「"+(st.opt.mode==="ko2zh"?"韩→中":"中→韩")+"」方向的错词？另一个方向不受影响。")) return;
     var all=loadWrong(),n=0;

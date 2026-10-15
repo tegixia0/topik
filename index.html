@@ -87,6 +87,13 @@ body.wrong-focus #flash > footer{display:none!important}
 .wrong-exit{display:none;width:100%;min-height:44px;margin:0 0 10px;border:1px solid #9b3340;background:#2a1518;color:#ffb4bc;border-radius:14px;font-size:15px;font-weight:800}
 body.wrong-focus .wrong-exit{display:block}
 body.wrong-focus .wrong-exit[hidden]{display:none}
+/* 错词本专注：顶部一行日期芯片，按天切换练习（不占 #wrongPanel） */
+.wrong-fdays{display:none;margin:0 0 8px;padding:0 0 2px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;scrollbar-width:none;-ms-overflow-style:none}
+.wrong-fdays::-webkit-scrollbar{display:none}
+body.wrong-focus .wrong-fdays{display:block}
+body.wrong-focus .wrong-fdays[hidden]{display:none}
+.wrong-fdays button{display:inline-block;vertical-align:middle;margin:0 5px 0 0;padding:5px 11px;min-height:32px;border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap}
+.wrong-fdays button.cur{border-color:#9b3340;color:#ffb4bc;background:#2a1518;box-shadow:inset 0 0 0 1px #9b334055}
 .b-primary{background:var(--accent)!important}
 .b-ok{background:#1f7a47!important}
 .b-bad{background:#9b3340!important}
@@ -302,6 +309,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
   <button type="button" class="wrong-entry" id="goWrong" aria-label="重练错词">📕 错词本（0）</button>
   <div class="card gpanel wdays" id="wrongPanel" hidden></div>
   <button type="button" class="wrong-exit" id="wrongExit" hidden aria-label="退出错词本">‹ 退出错词本</button>
+  <div class="wrong-fdays" id="wrongFocusDays" hidden aria-label="按日期练错词"></div>
   <div class="bar"><span>进度 <b id="prog">0/0</b></span><span class="focus-chip" id="focusChip" hidden>专注</span><span class="sp"></span><span>对 <b id="okN" style="color:var(--ok)">0</b></span><span>错 <b id="badN" style="color:var(--bad)">0</b></span></div>
   <div class="progress"><i id="progBar"></i></div>
 
@@ -374,7 +382,7 @@ details.pc[open]>summary .pk{color:#ffd98a}
 <script src="writing/tpl54types.js?v=20261015g"></script>
 <script src="writing/w5354.js?v=20261012b"></script>
 <script src="assets/voice.js?v=20261009a"></script>
-<script src="bank/bank.js?v=20261015o"></script>
+<script src="bank/bank.js?v=20261016a"></script>
 <script>
 (function(){
 "use strict";
@@ -403,7 +411,7 @@ if(QS.cat||QS.deck||QS.list){try{localStorage.setItem("topik.view","flash")}catc
 var wantSource=source;
 var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
 var autoNextT=null, AUTO_NEXT_MS=1000, prevSource="";
-window.addEventListener("topik-leave-flash",function(){clearAutoNext();document.body.classList.remove("wrong-focus","focus-quiz")});   // 错词本专注：答对后自动下一张
+window.addEventListener("topik-leave-flash",function(){clearAutoNext();document.body.classList.remove("wrong-focus","focus-quiz");var fd=$("wrongFocusDays");if(fd){fd.hidden=true;fd.innerHTML=""}});   // 错词本专注：答对后自动下一张
 window.addEventListener("topik-enter-flash",function(){updateFocusUI()});
 function focusOn(){return source==="wrong"}
 function clearAutoNext(){if(autoNextT){clearTimeout(autoNextT);autoNextT=null}}
@@ -416,6 +424,7 @@ function updateFocusUI(){
   var box=$("actions"); if(box) box.classList.toggle("focus-sticky",on);
   var chip=$("focusChip"); if(chip) chip.hidden=!on;
   var ex=$("wrongExit"); if(ex) ex.hidden=!wrong;
+  renderWrongFocusDays();
 }
 function rememberPrev(){if(source!=="wrong") prevSource=source}
 function exitWrong(){
@@ -556,6 +565,16 @@ function wrongDayGroups(){   // [{d,n}]，新的在前，「早期」最后（�
   var w=loadWrong(),c={};
   Object.keys(w).forEach(function(k){var e=w[k];if(!wrongActiveAny(e)||e.t!=="v")return;Object.keys(wrongDays(e)).forEach(function(d){c[d]=(c[d]||0)+1})});
   return Object.keys(c).sort(function(a,b){return a==="early"?1:b==="early"?-1:a<b?1:-1}).map(function(d){return {d:d,n:c[d]}});
+}
+function renderWrongFocusDays(){   // 专注模式顶部一行：全部 + 各日期芯片（复用 wrongDayGroups）
+  var el=$("wrongFocusDays"); if(!el) return;
+  if(source!=="wrong"||wsF){el.hidden=true;el.innerHTML="";return}
+  var G=wrongDayGroups(), all=wrongCards(mode).length;
+  if(!all&&!G.length){el.hidden=true;el.innerHTML="";return}
+  el.innerHTML='<button type="button" data-wd="" class="'+(wrongDate?"":"cur")+'">全部 '+all+'</button>'+
+    G.map(function(g){return '<button type="button" data-wd="'+g.d+'" class="'+(wrongDate===g.d?"cur":"")+'">'+dayLabel(g.d)+" · "+g.n+"</button>"}).join("");
+  el.hidden=false;
+  el.onclick=function(e){var b=e.target.closest("button[data-wd]");if(!b)return;var d=b.getAttribute("data-wd")||"";if(d===wrongDate)return;wrongDate=d;syncURL();renderDeckSel();reload()};
 }
 function wrongDetHTML(e){   // 错词列表展开：词性/汉字/记忆法/易错/近反义词
   var c={t:"v",ko:e.ko,zh:e.zh}; INFO_KEYS.forEach(function(f){if(e[f]!=null)c[f]=e[f]});
@@ -699,7 +718,8 @@ function wsFLabel(){return wsF?"📊 "+(wsF.top?"高频错词 Top "+wsF.top:(wsF
 function deckLabel(){if(source==="wrong"&&wsF)return wsFLabel();var o=$("deckSel").selectedOptions[0];return (o?o.textContent:"")+(source==="shuf"&&shufGroup?" · 第"+shufGroup+"组":"")+(source==="wrong"&&wrongDate?" · "+dayLabel(wrongDate):"")}
 function updateBar(){
   var n=queue.length,i=Math.min(pos+(state==="done"?0:1),n);
-  $("prog").textContent=(n?i:0)+"/"+n; $("okN").textContent=ok; $("badN").textContent=bad;
+  var day=(source==="wrong"&&!wsF)?(" · "+(wrongDate?dayLabel(wrongDate):"全部")):"";
+  $("prog").textContent=(n?i:0)+"/"+n+day; $("okN").textContent=ok; $("badN").textContent=bad;
   $("progBar").style.width=(n?(pos/n*100):0)+"%";
 }
 function setActions(list){
@@ -967,7 +987,7 @@ function mkBadges(id){var m=st.marks[id];if(!m)return "";var h="";["a","b"].forE
 /* 视图切换 */
 function setView(v,o){
   if(["writing","reading","listening","grammar","bank"].indexOf(v)<0)v="flash";
-  if(v!=="flash"){try{window.dispatchEvent(new Event("topik-leave-flash"))}catch(e){}document.body.classList.remove("focus-quiz","wrong-focus");var chip=$("focusChip");if(chip)chip.hidden=true;var ex=$("wrongExit");if(ex)ex.hidden=true;var box=$("actions");if(box)box.classList.remove("focus-sticky")}
+  if(v!=="flash"){try{window.dispatchEvent(new Event("topik-leave-flash"))}catch(e){}document.body.classList.remove("focus-quiz","wrong-focus");var chip=$("focusChip");if(chip)chip.hidden=true;var ex=$("wrongExit");if(ex)ex.hidden=true;var fd=$("wrongFocusDays");if(fd){fd.hidden=true;fd.innerHTML=""}var box=$("actions");if(box)box.classList.remove("focus-sticky")}
   $("flash").hidden=v!=="flash"; if(v==="flash"){try{window.dispatchEvent(new Event("topik-enter-flash"))}catch(e){}} $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("listening").hidden=v!=="listening"; $("grammar").hidden=v!=="grammar"; $("bank").hidden=v!=="bank";
   Array.prototype.forEach.call(document.querySelectorAll("#topnav button"),function(b){b.classList.toggle("active",b.getAttribute("data-view")===v)});
   try{localStorage.setItem(LS_VIEW,v)}catch(e){}
