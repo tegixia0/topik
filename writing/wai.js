@@ -12,6 +12,7 @@ var CAT={content:"内容及任务完成",structure:"文章结构",language:"语�
 var CFG={to51:45000,to54:90000};   // 超时（毫秒）：51·52 两句 45 秒，53·54 作文 90 秒
 
 function AI(){return window.TopikAI||null}
+function A0(){return window.TopikAI||{}}
 function active(){var A=AI();return !!(A&&A.active())}
 function hasKey(){var A=AI();return !!(A&&A.hasKey())}
 function isOn(){var A=AI();return !!(A&&A.isOn())}
@@ -114,7 +115,7 @@ function html5152(res,types){
 }
 function copy5152(res,types){
   var tn=function(t){return ((types||{})[t]||{}).name||t};
-  var t="\n🤖 AI 评分（DeepSeek，仅供参考）："+res.total+"/10";
+  var t="\n🤖 AI 评分（"+(A0().name?A0().name():"AI")+"，仅供参考）："+res.total+"/10";
   ["a","b"].forEach(function(k){var r=res[k];
     t+="\n"+(k==="a"?"㉠":"㉡")+" "+r.score+"/5"+(r.correct?" ✓":"");
     r.errors.forEach(function(e){t+="\n  · "+e.wrong+" → "+e.right+(e.why?"（"+e.why+"）":"")});
@@ -212,7 +213,7 @@ function html5354(res){
   return h+'<div class="wai-note">AI 评分仅供参考 · 已记入「📚 我之前的作文」（🤖 AI，只存在本机）</div></div>';
 }
 function copy5354(res){
-  var t="\n\n🤖 AI 评分（DeepSeek，仅供参考）："+res.score+"/"+res.total+(res.level?"（预估 "+res.level+"）":"");
+  var t="\n\n🤖 AI 评分（"+(A0().name?A0().name():"AI")+"，仅供参考）："+res.score+"/"+res.total+(res.level?"（预估 "+res.level+"）":"");
   if(res.breakdown) t+="\n"+Object.keys(CAT).map(function(k){return CAT[k]+" "+res.breakdown[k]+"/"+SPLIT[res.no][k]}).join(" · ");
   if(res.summary) t+="\nAI 总评："+res.summary;
   if(res.errors.length) t+="\nAI 指出的错误：\n"+res.errors.map(function(e){return "· "+e.wrong+" → "+e.right+(e.cause?"（"+e.cause+"）":"")}).join("\n");
@@ -228,7 +229,7 @@ function errHTML(e){
 }
 function hintHTML(){
   if(!AI()) return "";
-  if(!hasKey()) return '<div class="gai-hint wai-hint">设置 DeepSeek Key 可开启 AI 评分 <button type="button" class="gbtn" data-wai="set">⚙️ 设置</button></div>';
+  if(!hasKey()) return '<div class="gai-hint wai-hint">设置 AI Key（DeepSeek / Grok）可开启 AI 评分 <button type="button" class="gbtn" data-wai="set">⚙️ 设置</button></div>';
   if(!isOn()) return '<div class="gai-hint wai-hint">AI 评分已关闭 <button type="button" class="gbtn" data-wai="set">⚙️ 开启</button></div>';
   return "";
 }

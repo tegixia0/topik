@@ -1,17 +1,31 @@
-/* 🤖 AI 判题（DeepSeek）共用模块 —— Key/开关/设置面板/请求/超时/错误处理。
+/* 🤖 AI 判题（DeepSeek / Grok xAI 可选）共用模块 —— Key/开关/设置面板/请求/超时/错误处理。
    使用者：语法整句 gd: / 语法闪卡 gc:（本文件里的 judge），写作 51·52 / 53·54（writing/wai.js，经由 chatJSON）。
    安全：API Key 只保存在用户自己浏览器的 localStorage（topik.ai.deepseek.key），浏览器直连 api.deepseek.com；
    仓库、代码、日志里都没有、也不能放任何 Key。 */
 (function(){
 "use strict";
-var LS_KEY="topik.ai.deepseek.key", LS_ON="topik.ai.on", LS_ACC="topik.grammar.aiAccepted.v1";
-var CFG={api:"https://api.deepseek.com/chat/completions",model:"deepseek-chat",timeout:20000};
+var LS_ON="topik.ai.on", LS_ACC="topik.grammar.aiAccepted.v1", LS_PROV="topik.ai.provider";
+/* 提供方：每家 Key / 模型分别存 localStorage（topik.ai.<id>.key / topik.ai.<id>.model），绝不进仓库 */
+var PROV={
+  deepseek:{id:"deepseek",name:"DeepSeek",api:"https://api.deepseek.com/chat/completions",model:"deepseek-chat",site:"platform.deepseek.com"},
+  grok:{id:"grok",name:"Grok (xAI)",api:"https://api.x.ai/v1/chat/completions",model:"grok-4.20-0309-non-reasoning",site:"console.x.ai"}
+};
+var CFG={timeout:20000};
 function ls(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function provider(){var p=ls(LS_PROV);return PROV[p]?p:"deepseek"}
+function setProvider(p){if(PROV[p])lset(LS_PROV,p)}
+function P(id){return PROV[id||provider()]}
+function getModel(id){return String(ls("topik.ai."+(id||provider())+".model")||"").trim()||P(id).model}
+function setModel(m,id){m=String(m||"").trim();lset("topik.ai."+(id||provider())+".model",m||null)}
+Object.defineProperty(CFG,"api",{get:function(){return P().api},enumerable:true});
+Object.defineProperty(CFG,"model",{get:function(){return getModel()},enumerable:true});
+Object.defineProperty(CFG,"provider",{get:function(){return provider()},enumerable:true});
+Object.defineProperty(CFG,"name",{get:function(){return P().name},enumerable:true});
 function lset(k,v){try{if(v===null||v===undefined)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){}}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function getKey(){return String(ls(LS_KEY)||"").trim()}
-function setKey(k){k=String(k||"").replace(/\s+/g,""); lset(LS_KEY,k||null)}
-function hasKey(){return !!getKey()}
+function getKey(id){return String(ls("topik.ai."+(id||provider())+".key")||"").trim()}
+function setKey(k,id){k=String(k||"").replace(/\s+/g,""); lset("topik.ai."+(id||provider())+".key",k||null)}
+function hasKey(id){return !!getKey(id)}
 function isOn(){var v=ls(LS_ON); return v===null?true:v==="1"}
 function setOn(v){lset(LS_ON,v?"1":"0")}
 function active(){return hasKey()&&isOn()}
@@ -19,28 +33,43 @@ function mask(k){return k?"••••"+k.slice(-4):""}
 function err(code,msg){var e=new Error(msg);e.code=code;return e}
 
 /* ---- 请求（带 20 秒超时；错误统一成简短中文） ---- */
-function call(body,key,timeout){
-  key=String(key||getKey()).trim(); var TO=timeout||CFG.timeout;
-  if(!key) return Promise.reject(err("nokey","还没有设置 DeepSeek Key"));
+/* 选中的提供方；若不支持 response_format（400/422），自动去掉再试一次，再从文本里解析 JSON */
+function call(body,key,timeout,pid){
+  var pv=P(pid);
+  return call1(body,key,timeout,pv).catch(function(e){
+    if(e&&e.code==="http"&&(e.status===400||e.status===422)&&body.response_format){
+      var b={};Object.keys(body).forEach(function(k){if(k!=="response_format")b[k]=body[k]});
+      return call1(b,key,timeout,pv);
+    }
+    throw e;
+  });
+}
+function call1(body,key,timeout,pv){
+  key=String(key||getKey(pv.id)).trim(); var TO=timeout||CFG.timeout;
+  if(!key) return Promise.reject(err("nokey","还没有设置 "+pv.name+" Key"));
   var ctl=typeof AbortController!=="undefined"?new AbortController():null, timer=null, timedOut=false;
   return new Promise(function(resolve,reject){
     timer=setTimeout(function(){timedOut=true;if(ctl)try{ctl.abort()}catch(e){}reject(err("timeout","AI 超时（"+Math.round(TO/1000)+" 秒）"))},TO);
-    fetch(CFG.api,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body),signal:ctl?ctl.signal:undefined})
+    fetch(pv.api,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body),signal:ctl?ctl.signal:undefined})
       .then(function(r){
         if(r.status===401) throw err("auth","Key 无效（401）");
-        if(r.status===402) throw err("balance","DeepSeek 余额不足（402）");
+        if(r.status===402) throw err("balance",pv.name+" 余额不足（402）");
         if(r.status===429) throw err("rate","请求太频繁，稍后再试（429）");
-        if(!r.ok) throw err("http","AI 服务出错（"+r.status+"）");
+        if(r.status===403) throw err("auth","Key 无权限或额度不足（403）");
+        if(!r.ok){var e2=err("http","AI 服务出错（"+r.status+"）");e2.status=r.status;throw e2}
         return r.json().catch(function(){throw err("json","AI 返回格式错误")});
       })
-      .then(resolve,function(e){reject(e&&e.code?e:err("net","网络错误，连不上 DeepSeek"))});
+      .then(resolve,function(e){reject(e&&e.code?e:err("net","网络错误，连不上 "+pv.name))});
   }).then(function(d){clearTimeout(timer);return d},function(e){clearTimeout(timer);throw timedOut?err("timeout","AI 超时（"+Math.round(TO/1000)+" 秒）"):e});
 }
 function contentOf(d){
   var t=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content;
   if(typeof t!=="string"||!t.trim()) throw err("json","AI 返回格式错误");
   t=t.trim().replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"");
-  try{return JSON.parse(t)}catch(e){throw err("json","AI 返回格式错误")}
+  try{return JSON.parse(t)}catch(e){}
+  var i=t.indexOf("{"), j=t.lastIndexOf("}");
+  if(i>=0&&j>i){try{return JSON.parse(t.slice(i,j+1))}catch(e){}}
+  throw err("json","AI 返回格式错误");
 }
 function str(x){return typeof x==="string"?x.trim():(x==null?"":String(x))}
 
@@ -107,9 +136,10 @@ function judge(p,same){
     return verify({correct:o.correct,minor:o.minor===true,errors:errors,corrected:str(o.corrected),tip:str(o.tip)},p,same);
   });
 }
-function test(key){
-  return call({model:CFG.model,temperature:0,max_tokens:20,stream:false,response_format:{type:"json_object"},
-    messages:[{role:"user",content:'Reply with the JSON object {"ok": true} only.'}]},key).then(function(d){
+function test(key,pid){return testWith(key,pid,getModel(pid))}
+function testWith(key,pid,model){
+  return call({model:model,temperature:0,max_tokens:20,stream:false,response_format:{type:"json_object"},
+    messages:[{role:"user",content:'Reply with the JSON object {"ok": true} only.'}]},key,null,pid).then(function(d){
     if(!d||!d.choices) throw err("json","AI 返回格式错误"); return true;
   });
 }
@@ -131,36 +161,51 @@ function openSettings(onClose){
   closeSettings();
   var back=document.createElement("div"); back.className="ai-back"; back.id="aiBack";
   var el=document.createElement("div"); el.className="ai-sheet"; el.id="aiSheet"; el.setAttribute("role","dialog"); el.setAttribute("aria-label","AI 判题设置");
-  function state(){var k=getKey();return k?"已保存 Key："+mask(k)+(isOn()?" · AI 判题已开启":" · AI 判题已关闭"):"还没有保存 Key（不设置也能正常练习）"}
-  el.innerHTML='<h3>⚙️ AI 判题设置（DeepSeek）</h3>'+
-    '<p class="minfo">语法练习本地判错时自动请 DeepSeek 再判一次；写作 51·52 / 53·54 交卷后请 DeepSeek 按 TOPIK 标准评分。一个 Key 全站通用。<b>Key 只保存在这台设备的浏览器里</b>（localStorage），不会上传到网站或仓库；请求直接从浏览器发到 api.deepseek.com，费用记在你的 DeepSeek 账户。</p>'+
-    '<label class="lb" for="aiKey">DeepSeek API Key</label>'+
-    '<input id="aiKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="'+(hasKey()?"已保存（留空 = 不修改）":"粘贴 DeepSeek API Key")+'">'+
-    '<div class="minfo" id="aiState">'+esc(state())+'</div>'+
+  var sel=provider();   /* 面板里正在编辑的提供方 */
+  function state(){var k=getKey(sel);return "当前使用："+P().name+" · 模型 "+getModel()+" ｜ "+P(sel).name+(k?" 已保存 Key："+mask(k):" 还没有保存 Key（不设置也能正常练习）")+(isOn()?" · AI 判题已开启":" · AI 判题已关闭")}
+  el.innerHTML='<h3>⚙️ AI 判题设置</h3>'+
+    '<p class="minfo">语法练习本地判错时自动请 AI 再判一次；写作 51·52 / 53·54 交卷后请 AI 按 TOPIK 标准评分。可选 DeepSeek 或 Grok (xAI)，每家 Key 分开保存，全站通用。<b>Key 只保存在这台设备的浏览器里</b>（localStorage），不会上传到网站或仓库；请求直接从浏览器发到所选服务商，费用记在你自己的账户。</p>'+
+    '<label class="lb" for="aiProv">AI 服务商</label>'+
+    '<select id="aiProv">'+Object.keys(PROV).map(function(k){return '<option value="'+k+'"'+(k===sel?" selected":"")+'>'+esc(PROV[k].name)+'</option>'}).join("")+'</select>'+
+    '<label class="lb" for="aiKey" id="aiKeyLb"></label>'+
+    '<input id="aiKey" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">'+
+    '<label class="lb" for="aiModel">模型（可选，留空 = 默认）</label>'+
+    '<input id="aiModel" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">'+
+    '<div class="minfo" id="aiState"></div>'+
     '<label class="ai-tog"><input type="checkbox" id="aiOn"'+(isOn()?" checked":"")+'> 开启 AI 判题</label>'+
-    '<div class="racts"><button type="button" class="gbtn pri" data-ai="save">保存</button><button type="button" class="gbtn" data-ai="test">测试</button><button type="button" class="gbtn" data-ai="clear">清除 Key</button><button type="button" class="gbtn" data-ai="close">关闭</button></div>'+
+    '<div class="racts"><button type="button" class="gbtn pri" data-ai="save">保存并使用</button><button type="button" class="gbtn" data-ai="test">测试</button><button type="button" class="gbtn" data-ai="clear">清除 Key</button><button type="button" class="gbtn" data-ai="close">关闭</button></div>'+
     '<div class="ai-msg" id="aiMsg" aria-live="polite"></div>'+
     '<div class="minfo ai-acc">语法练习里 AI 判对后本机记住的写法：<b id="aiAccN">'+accCount()+'</b> 条 <button type="button" class="gbtn ai-mini" data-ai="clearacc">清空</button></div>'+
-    '<div class="minfo">没有 Key：在 platform.deepseek.com 创建一个，粘贴到上面，保存后点「测试」。</div>'+
+    '<div class="minfo" id="aiHelp"></div>'+
     (window.TopikSync?'<div class="minfo sy-link">☁️ 手机 ⇄ 电脑同步学习进度：<button type="button" class="gbtn ai-mini" data-ai="sync">进度同步设置</button></div>':'');
   document.body.appendChild(back); document.body.appendChild(el);
-  var inp=el.querySelector("#aiKey"), msg=el.querySelector("#aiMsg");
+  var inp=el.querySelector("#aiKey"), mdl=el.querySelector("#aiModel"), msg=el.querySelector("#aiMsg");
   function say(t,cls){msg.textContent=t;msg.className="ai-msg"+(cls?" "+cls:"")}
-  function refresh(){el.querySelector("#aiState").textContent=state();inp.placeholder=hasKey()?"已保存（留空 = 不修改）":"粘贴 DeepSeek API Key"}
+  function refresh(){
+    var pv=P(sel);
+    el.querySelector("#aiState").textContent=state();
+    el.querySelector("#aiKeyLb").textContent=pv.name+" API Key";
+    inp.placeholder=hasKey(sel)?"已保存（留空 = 不修改）":"粘贴 "+pv.name+" API Key";
+    mdl.placeholder="默认 "+pv.model; mdl.value=String(ls("topik.ai."+sel+".model")||"");
+    el.querySelector("#aiHelp").textContent="没有 Key：在 "+pv.site+" 创建一个，粘贴到上面，点「保存并使用」后点「测试」。";
+  }
+  refresh();
   function close(){closeSettings(); if(onClose) onClose(); try{window.dispatchEvent(new Event("topik-ai-change"))}catch(x){}}
   back.onclick=close;
+  el.querySelector("#aiProv").onchange=function(){sel=this.value;inp.value="";refresh();say("")};
   el.querySelector("#aiOn").onchange=function(){setOn(this.checked);refresh();say(this.checked?"已开启 AI 判题":"已关闭 AI 判题","ok")};
   el.onclick=function(e){
     var b=e.target.closest("button[data-ai]"); if(!b) return; var a=b.getAttribute("data-ai");
     if(a==="close") close();
     else if(a==="sync"){closeSettings();if(window.TopikSync)TopikSync.open()}
-    else if(a==="save"){var v=inp.value.trim(); if(v) setKey(v); setOn(el.querySelector("#aiOn").checked); inp.value=""; refresh(); say(hasKey()?"已保存（只存在本机）":"还没有输入 Key",hasKey()?"ok":"bad")}
-    else if(a==="clear"){setKey(""); inp.value=""; refresh(); say("已清除本机保存的 Key","ok")}
+    else if(a==="save"){var v=inp.value.trim(); if(v) setKey(v,sel); setModel(mdl.value,sel); setProvider(sel); setOn(el.querySelector("#aiOn").checked); inp.value=""; refresh(); say(hasKey(sel)?"已保存，正在使用 "+P(sel).name+"（只存在本机）":"已切换到 "+P(sel).name+"，但还没有输入 Key",hasKey(sel)?"ok":"bad")}
+    else if(a==="clear"){setKey("",sel); inp.value=""; refresh(); say("已清除本机保存的 "+P(sel).name+" Key","ok")}
     else if(a==="clearacc"){if(confirm("清空 AI 判对后记住的写法？")){accClear();el.querySelector("#aiAccN").textContent="0";say("已清空","ok")}}
     else if(a==="test"){
-      var k=inp.value.trim()||getKey(); if(!k){say("先输入 Key","bad");return}
+      var k=inp.value.trim()||getKey(sel); if(!k){say("先输入 Key","bad");return}
+      var m=mdl.value.trim()||P(sel).model;
       b.disabled=true; say("测试中…","");
-      test(k).then(function(){say("✅ 连接成功（"+CFG.model+"）"+(inp.value.trim()?" · 记得点「保存」":""),"ok")},function(e){say("❌ "+(e&&e.message||"测试失败"),"bad")}).then(function(){b.disabled=false});
+      testWith(k,sel,m).then(function(){say("✅ 连接成功（"+P(sel).name+" · "+m+"）"+(inp.value.trim()||sel!==provider()?" · 记得点「保存并使用」":""),"ok")},function(e){say("❌ "+(e&&e.message||"测试失败"),"bad")}).then(function(){b.disabled=false});
     }
   };
   el._esc=function(e){if(e.key==="Escape")close()}; document.addEventListener("keydown",el._esc);
@@ -171,7 +216,7 @@ function closeSettings(){
   if(el){if(el._esc)document.removeEventListener("keydown",el._esc);el.remove()} if(back) back.remove();
 }
 
-window.TopikAI={CFG:CFG,getKey:getKey,setKey:setKey,hasKey:hasKey,isOn:isOn,setOn:setOn,active:active,
+window.TopikAI={CFG:CFG,PROV:PROV,provider:provider,setProvider:setProvider,getModel:getModel,setModel:setModel,name:function(){return P().name},getKey:getKey,setKey:setKey,hasKey:hasKey,isOn:isOn,setOn:setOn,active:active,
   judge:judge,verify:verify,test:test,chatJSON:chatJSON,squash:squash,err:err,accList:accList,accAdd:accAdd,accCount:accCount,accClear:accClear,
   openSettings:openSettings,closeSettings:closeSettings};
 })();

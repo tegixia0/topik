@@ -252,7 +252,7 @@ function aiBox(key){
 function cleanErr(L,text){return (Array.isArray(L)?L:[]).filter(function(e){return e&&typeof e==="object"&&e.wrong&&sq(text).indexOf(sq(e.wrong))>=0}).slice(0,12).map(function(e){return {wrong:String(e.wrong),right:String(e.right||""),why:String(e.why||"")}})}
 function runAI(key,kind,sys,user,text,max,after){
   var A=AI(); if(!A){toast("AI 模块未加载");return}
-  if(!A.active()){A.openSettings(function(){paint()});toast(A.hasKey()?"AI 判题已关闭，请开启":"先设置 DeepSeek Key");return}
+  if(!A.active()){A.openSettings(function(){paint()});toast(A.hasKey()?"AI 判题已关闭，请开启":"先设置 AI Key");return}
   ai[key]={st:"wait",kind:kind}; paint();
   A.chatJSON(sys,user,{maxTokens:max||800,timeout:max>1000?60000:25000}).then(function(r){
     r.errors=cleanErr(r.errors,text);

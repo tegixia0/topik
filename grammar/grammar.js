@@ -43,7 +43,7 @@ function aiHTML(good){
   var A=AI(), x=R&&R.ai; if(!A||!aiMode()) return "";
   if(good&&R.aimem) return '<div class="gai ok"><div class="gai-t">🤖 AI 判定过：正确（本机记住的写法）</div></div>';
   if(!x){
-    if(!good&&R.typed&&!A.hasKey()) return '<div class="gai-hint"><span>设置 DeepSeek Key 可开启 AI 判题</span><button type="button" class="gbtn" data-a="aiset">⚙️ 设置</button></div>';
+    if(!good&&R.typed&&!A.hasKey()) return '<div class="gai-hint"><span>设置 AI Key（DeepSeek / Grok）可开启 AI 判题</span><button type="button" class="gbtn" data-a="aiset">⚙️ 设置</button></div>';
     return "";
   }
   if(x.st==="wait") return good?"":'<div class="gai wait">🤖 AI 判题中…</div>';
