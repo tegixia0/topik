@@ -386,7 +386,8 @@ var wrongDate=(source==="wrong"&&!wsF&&QS.date&&/^(\d{4}-\d{2}-\d{2}|early)$/.te
 if(QS.cat||QS.deck||QS.list){try{localStorage.setItem("topik.view","flash")}catch(e){}}
 var wantSource=source;
 var pool=[], queue=[], pos=0, ok=0, bad=0, missed=[], written=[], state="idle", cur=null, isRedo=false;
-var autoNextT=null, AUTO_NEXT_MS=1000;   // 错词本专注：答对后自动下一张
+var autoNextT=null, AUTO_NEXT_MS=1000;
+window.addEventListener("topik-leave-flash",function(){clearAutoNext()});   // 错词本专注：答对后自动下一张
 function focusOn(){return source==="wrong"}
 function clearAutoNext(){if(autoNextT){clearTimeout(autoNextT);autoNextT=null}}
 function scheduleAutoNext(){clearAutoNext();if(!focusOn())return;autoNextT=setTimeout(function(){autoNextT=null;next()},AUTO_NEXT_MS)}
@@ -937,7 +938,7 @@ function mkBadges(id){var m=st.marks[id];if(!m)return "";var h="";["a","b"].forE
 /* 视图切换 */
 function setView(v,o){
   if(["writing","reading","listening","grammar","bank"].indexOf(v)<0)v="flash";
-  if(v!=="flash"){clearAutoNext();document.body.classList.remove("focus-quiz");var chip=$("focusChip");if(chip)chip.hidden=true;var box=$("actions");if(box)box.classList.remove("focus-sticky")}
+  if(v!=="flash"){try{window.dispatchEvent(new Event("topik-leave-flash"))}catch(e){}document.body.classList.remove("focus-quiz");var chip=$("focusChip");if(chip)chip.hidden=true;var box=$("actions");if(box)box.classList.remove("focus-sticky")}
   $("flash").hidden=v!=="flash"; $("writing").hidden=v!=="writing"; $("reading").hidden=v!=="reading"; $("listening").hidden=v!=="listening"; $("grammar").hidden=v!=="grammar"; $("bank").hidden=v!=="bank";
   Array.prototype.forEach.call(document.querySelectorAll("#topnav button"),function(b){b.classList.toggle("active",b.getAttribute("data-view")===v)});
   try{localStorage.setItem(LS_VIEW,v)}catch(e){}
